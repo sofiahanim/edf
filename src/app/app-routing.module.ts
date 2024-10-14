@@ -46,8 +46,8 @@ export const routes: Routes = [
       },
     ],
   },
- // { path: '', redirectTo: 'pages', pathMatch: 'full' },
- { path: '', component: HomepageComponent }, 
+ { path: '', redirectTo: 'pages/homepage', pathMatch: 'full' },
+ //{ path: '', component: HomepageComponent }, 
  { path: '**', redirectTo: 'pages' },
 ];
 

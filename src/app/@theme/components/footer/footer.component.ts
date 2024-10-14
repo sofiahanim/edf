@@ -4,9 +4,11 @@ import { Component } from '@angular/core';
   selector: 'ngx-footer',
   styleUrls: ['./footer.component.scss'],
   template: `
-    <span class="created-by">
-    <nb-icon icon="flash"></nb-icon> Forecasting of Electricity Energy Demand (FEED) 
-    </span>
+    <div class="socials">
+      <span class="created-by">
+        Forecasting of Electricity Energy Demand (FEED) 
+      </span>
+    </div>
     <div class="socials">
       <a href="https://github.com/sofiahanim/edf" target="_blank" class="ion ion-social-github"></a>
     </div>
