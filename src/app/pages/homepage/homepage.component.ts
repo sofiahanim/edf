@@ -12,4 +12,19 @@ export class HomepageComponent implements OnInit {
   ngOnInit(): void {
   }
 
+  //string interpolation: data binding
+  slogan: string = 'This is hompage slogan';
+
+  getSlogan(){
+    return 'This is function getSlogan';
+  }
+
+  //property binding
+  source: string = 'assets/images/alan.png';
+
+  display: boolean = false;
+
+  //event binding
+  
+
 }

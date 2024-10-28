@@ -23,7 +23,10 @@ import {
 import { HomepageComponent } from './pages/homepage/homepage.component';
 
 @NgModule({
-  declarations: [AppComponent, HomepageComponent],
+  declarations: [
+    AppComponent, 
+    HomepageComponent
+  ],
   imports: [
     BrowserModule,
     BrowserAnimationsModule,
