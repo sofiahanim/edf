@@ -5,4 +5,48 @@
 
 <img [src]="source" height="240" width="320">
 <div [hidden]="display"><p>this is display</p></div>
-<ngx-search-input>html search input</ngx-search-input>
+
+<!-- declare FormsModule, in app.module.ts to use ngModel-->
+ <div [ngClass]="{changeBackground: searchValue!=''}">
+    <span>
+        <b>Search:</b>
+    </span>
+    <input type="text" [(ngModel)]="searchValue">    
+    <span *ngIf="searchValue != ''">You searched for "{{searchValue}}"</span> 
+    <!--display above line if searchValue not null, if condition TRUE-->
+
+    <!--radiobutton-->
+
+    <div class="filter-container">
+        <span>Filter:</span>
+        <input type="radio" name="filter" value="All"/>
+        <span>{{ 'All ('+all+')'}}</span>
+
+        <input type="radio" name="filter" value="Available"/>
+        <span>{{ 'Free ('+free+')'}}</span>
+
+        <input type="radio" name="filter" value="Not Available"/>
+        <span>{{ 'Premium ('+premium+')'}}</span>
+
+    </div>
+ </div>
+
+
+<!--structural directive
+<div *ngFor="let item of [1,3,5]">
+    <p>Number is: {{item}}</p>
+</div>-->
+
+<div *ngFor="let p of product;let i=index">
+    <div [ngStyle]="{backgroundColor: p.name === 'Kate' ? 'Grey' : 'Yellow' }">
+        <p>{{i}}</p>
+
+        <img *ngIf="p.name === 'Eva'; else nameEva" [src]="p.image">
+        <!--display above line if name if eva, if condition TRUE-->
+        <ng-template #nameEva>
+            <p>This is Eva hereeee</p>
+        </ng-template>
+
+        <p [ngStyle]="{color: p.id === 2 ? 'Green' : 'Purple'}">{{ p.name }}</p>
+    </div>
+</div>
