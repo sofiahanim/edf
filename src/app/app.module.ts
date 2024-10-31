@@ -21,12 +21,16 @@ import {
   NbWindowModule,
 } from '@nebular/theme';
 import { HomepageComponent } from './pages/homepage/homepage.component';
+import { FilterComponent } from './pages/filter/filter.component';
+import { SearchComponent } from './pages/search/search.component';
 import { FormsModule } from '@angular/forms';
 
 @NgModule({
   declarations: [
     AppComponent, 
-    HomepageComponent
+    HomepageComponent,
+    FilterComponent,
+    SearchComponent
   ],
   imports: [
     FormsModule,

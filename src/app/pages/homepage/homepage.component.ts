@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, EventEmitter, OnInit, Output } from '@angular/core';
 
 @Component({
   selector: 'ngx-homepage',
@@ -12,10 +12,7 @@ export class HomepageComponent implements OnInit {
   ngOnInit(): void {
   }
 
-  //radio button
-  all: number = 3;
-  free: number = 2;
-  premium: number = 1;
+  //radio butto
 
   //string interpolation: data binding
   slogan: string = 'This is hompage slogan';
@@ -24,13 +21,7 @@ export class HomepageComponent implements OnInit {
     return 'This is function getSlogan';
   }
 
-  searchValue: string = '';
 
-  changeSearchValue(eventData: Event){
-    console.log((<HTMLInputElement>eventData.target).value);
-    this.searchValue = (<HTMLInputElement>eventData.target).value;
-  }
-  
   //property binding
   source: string = 'assets/images/alan.png';
 
@@ -47,5 +38,28 @@ export class HomepageComponent implements OnInit {
   
   ];
   
+  getTotalCourses(){
+    return this.product.length;
+  }
 
+  getTotalFreeCourses(){
+    return this.product.filter(product => product.type === 'Free').length;
+  }
+
+  getTotalPremiumCourses(){
+    return this.product.filter(product => product.type === 'Premium').length;
+  }
+
+  productCount: string = 'All';
+
+  onFilterChange(data: string){
+    this.productCount = data;
+    console.log(this.productCount)
+  }
+
+  searchValue: string = '';
+  onSearchValueEntered(searchValue: string){
+    this.searchValue = searchValue;
+    console.log(this.searchValue);
+  }
 }

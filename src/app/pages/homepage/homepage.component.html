@@ -7,28 +7,20 @@
 <div [hidden]="display"><p>this is display</p></div>
 
 <!-- declare FormsModule, in app.module.ts to use ngModel-->
- <div [ngClass]="{changeBackground: searchValue!=''}">
-    <span>
-        <b>Search:</b>
-    </span>
-    <input type="text" [(ngModel)]="searchValue">    
-    <span *ngIf="searchValue != ''">You searched for "{{searchValue}}"</span> 
-    <!--display above line if searchValue not null, if condition TRUE-->
+ <div>
+
+    <ngx-search 
+        (searchValueChange)="onSearchValueEntered($event)">
+        <!--searchValueChange is in search.component while onSearchValueEntered is in homepage.component-->
+    </ngx-search>
 
     <!--radiobutton-->
-
-    <div class="filter-container">
-        <span>Filter:</span>
-        <input type="radio" name="filter" value="All"/>
-        <span>{{ 'All ('+all+')'}}</span>
-
-        <input type="radio" name="filter" value="Available"/>
-        <span>{{ 'Free ('+free+')'}}</span>
-
-        <input type="radio" name="filter" value="Not Available"/>
-        <span>{{ 'Premium ('+premium+')'}}</span>
-
-    </div>
+    <ngx-filter 
+    [total]="getTotalCourses()"
+    [free]="getTotalFreeCourses()"
+    [premium]="getTotalPremiumCourses()"
+    (filterSelectionChanged)="onFilterChange($event)"
+    ></ngx-filter>
  </div>
 
 
@@ -37,7 +29,9 @@
     <p>Number is: {{item}}</p>
 </div>-->
 
-<div *ngFor="let p of product;let i=index">
+<ng-container *ngFor="let p of product;let i=index">
+<!--<div *ngIf="productCount === 'All' || productCount === p.type">-->
+<div *ngIf = "searchValue === '' || p.name.toLowerCase().includes(searchValue)">
     <div [ngStyle]="{backgroundColor: p.name === 'Kate' ? 'Grey' : 'Yellow' }">
         <p>{{i}}</p>
 
@@ -50,3 +44,4 @@
         <p [ngStyle]="{color: p.id === 2 ? 'Green' : 'Purple'}">{{ p.name }}</p>
     </div>
 </div>
+</ng-container>

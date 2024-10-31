@@ -1,0 +1,9 @@
+<!-- declare FormsModule, in app.module.ts to use ngModel-->
+<div [ngClass]="{changeBackground: enteredsearchValue!=''}">
+    <span>
+        <b>Search:</b>
+    </span>
+    <input type="text" [(ngModel)]="enteredsearchValue" (input)="onSearchValueChange()">    <!--whatever user search will assign to enteredsearchvalue-->
+    <span *ngIf="enteredsearchValue != ''">You searched for "{{enteredsearchValue}}"</span> 
+</div>
+<!--display above line if searchValue not null, if condition TRUE-->
