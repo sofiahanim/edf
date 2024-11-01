@@ -12,6 +12,11 @@ export class HomepageComponent implements OnInit {
   ngOnInit(): void {
   }
 
+sayHello(inputElement:HTMLInputElement){
+  alert('Hello '+ inputElement.value)
+  console.log(inputElement)
+}
+
   //radio butto
 
   //string interpolation: data binding

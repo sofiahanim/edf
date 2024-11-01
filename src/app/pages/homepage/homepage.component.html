@@ -1,3 +1,13 @@
+
+<ngx-customer-list #customer></ngx-customer-list>
+<p>
+  You have selected {{ customer.selectedCustomer?.name }}
+  <!--use ? because inially page load the selectedcustomer is null-->
+</p>
+<input type="text" #myVariable (keyup)="0">
+<button (click)="sayHello(myVariable)">Say Hello</button>
+<p> {{ myVariable.value }}</p>
+
 <p>{{ slogan }}</p>
 
 <p> {{ getSlogan() }}</p>
@@ -9,13 +19,13 @@
 <!-- declare FormsModule, in app.module.ts to use ngModel-->
  <div>
 
-    <ngx-search 
+    <ngx-search
         (searchValueChange)="onSearchValueEntered($event)">
         <!--searchValueChange is in search.component while onSearchValueEntered is in homepage.component-->
     </ngx-search>
 
     <!--radiobutton-->
-    <ngx-filter 
+    <ngx-filter
     [total]="getTotalCourses()"
     [free]="getTotalFreeCourses()"
     [premium]="getTotalPremiumCourses()"

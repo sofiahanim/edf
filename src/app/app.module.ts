@@ -23,14 +23,17 @@ import {
 import { HomepageComponent } from './pages/homepage/homepage.component';
 import { FilterComponent } from './pages/filter/filter.component';
 import { SearchComponent } from './pages/search/search.component';
+import { CustomerListComponent } from './pages/customer-list/customer-list.component';
 import { FormsModule } from '@angular/forms';
 
 @NgModule({
   declarations: [
-    AppComponent, 
+    AppComponent,
     HomepageComponent,
     FilterComponent,
-    SearchComponent
+    SearchComponent,
+    CustomerListComponent,
+
   ],
   imports: [
     FormsModule,
