@@ -1,4 +1,5 @@
-import { Component, EventEmitter, OnInit, Output } from '@angular/core';
+import { Component, EventEmitter, OnInit, Output, ElementRef, ViewChild } from '@angular/core';
+import { DemoComponent } from '../demo/demo.component';
 
 @Component({
   selector: 'ngx-homepage',
@@ -10,6 +11,21 @@ export class HomepageComponent implements OnInit {
   constructor() { }
 
   ngOnInit(): void {
+  }
+
+  title= 'ViewChild';
+
+  @ViewChild('dobInput') dateOfBirth: ElementRef;
+  @ViewChild('ageInput') age: ElementRef;
+  @ViewChild(DemoComponent,{static:true}) demoComp: DemoComponent;
+  
+  calculateAge(){
+    let birthYear = new Date(this.dateOfBirth.nativeElement.value).getFullYear(); 
+    let currentYear = new Date().getFullYear();
+    let age = currentYear- birthYear; 
+    this.age.nativeElement.value = age;
+    // console.log(this.dateOfBirth); 
+    // console.log(this.age);
   }
 
 sayHello(inputElement:HTMLInputElement){
