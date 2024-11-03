@@ -15,6 +15,17 @@ import { DemoComponent } from '../demo/demo.component';
 })
 export class HomepageComponent implements OnInit {
 
+  inputText:string = '';
+  destroy: boolean = true;
+
+  DestroyComponent(){  
+    this.destroy = false;
+  }
+
+  OnSubmit(inputEl: HTMLInputElement){
+    this.inputText = inputEl.value;
+  }
+
   constructor() { }
 
   ngOnInit(): void {

@@ -2,6 +2,14 @@
     background-color: darkolivegreen;
 }
 
-.summary{
-    font-size: 14px;
+.more-products{
+    display: flex;
+}
+
+.btn-more{
+    min-width: 160px;
+    margin-top: 10px;
+    padding:10px 0px;
+    background-color: #4CAF50;
+    border: none;
 }

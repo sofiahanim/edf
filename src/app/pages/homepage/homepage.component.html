@@ -1,4 +1,15 @@
 <div class="container">
+   <input type="text" #input>
+   <button (click)="OnSubmit(input)">Submit</button>
+   <ngx-demo [value]="inputText" *ngIf="destroy">
+        <h4>This is projected content {{inputText}}</h4>
+   </ngx-demo>
+   <br>
+   <button (click)="DestroyComponent()">Destroy</button>
+</div>
+
+
+<div class="container">
     <h4>New in Smart Phone</h4>
     <div class="more-products">
         <ngx-product>
