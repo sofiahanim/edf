@@ -19,7 +19,6 @@ import { MiscellaneousModule } from './miscellaneous/miscellaneous.module';
   ],
   declarations: [
     PagesComponent,
-
   ],
 })
 export class PagesModule {

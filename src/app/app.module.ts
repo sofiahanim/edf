@@ -25,6 +25,7 @@ import { FilterComponent } from './pages/filter/filter.component';
 import { SearchComponent } from './pages/search/search.component';
 import { CustomerListComponent } from './pages/customer-list/customer-list.component';
 import { DemoComponent } from './pages/demo/demo.component';
+import { ProductComponent } from './pages/product/product.component';
 import { FormsModule } from '@angular/forms';
 
 @NgModule({
@@ -35,6 +36,7 @@ import { FormsModule } from '@angular/forms';
     SearchComponent,
     CustomerListComponent,
     DemoComponent,
+    ProductComponent,
   ],
   imports: [
     FormsModule,

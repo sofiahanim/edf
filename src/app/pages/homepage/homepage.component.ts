@@ -5,6 +5,13 @@ import { DemoComponent } from '../demo/demo.component';
   selector: 'ngx-homepage',
   templateUrl: './homepage.component.html',
   styleUrls: ['./homepage.component.scss']
+
+  //add the following line to make the child style similar to the parent
+  //encapsulation: ViewEncapsulation.None
+
+  //add the following line in the CHILD component to make the child style NOT similar to the parent
+  //encapsulation: ViewEncapsulation.ShadowDom
+
 })
 export class HomepageComponent implements OnInit {
 
