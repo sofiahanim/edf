@@ -1,4 +1,4 @@
-import { Component, OnInit,Input, OnChanges, SimpleChanges, DoCheck, AfterContentInit, AfterContentChecked, AfterViewInit, AfterViewChecked, OnDestroy } from '@angular/core';
+import { Component, ContentChild, ElementRef, OnInit,Input, OnChanges, SimpleChanges, DoCheck, AfterContentInit, AfterContentChecked, AfterViewInit, AfterViewChecked, OnDestroy } from '@angular/core';
 
 @Component({
   selector: 'ngx-demo',
@@ -6,6 +6,8 @@ import { Component, OnInit,Input, OnChanges, SimpleChanges, DoCheck, AfterConten
   styleUrls: ['./demo.component.scss']
 })
 export class DemoComponent implements OnInit,OnChanges,DoCheck,AfterContentInit,AfterContentChecked,AfterViewInit,AfterViewChecked,OnDestroy {
+
+  @ContentChild('paragraph') paragraph1: ElementRef;
 
   @Input() value: string = 'wqd7023';
 
@@ -24,6 +26,7 @@ export class DemoComponent implements OnInit,OnChanges,DoCheck,AfterContentInit,
   //call only once
   ngOnInit(){
     console.log('DemoComponent ngOnInit');
+    console.log(this.paragraph1.nativeElement.textContent);
     //console.log(this.value);
     //this.value =  <ngx-demo [value]="inputText" *ngIf="destroy">
   }
@@ -36,6 +39,8 @@ export class DemoComponent implements OnInit,OnChanges,DoCheck,AfterContentInit,
   //called only once after the 1st change detection cycle
   ngAfterContentInit(){
     console.log('DemoComponent ngAfterContentInit');
+    this.paragraph1.nativeElement.textContent = 'Changed content';
+    console.log(this.paragraph1.nativeElement.textContent);
   }
 
   //called for each change detection cycle (eg inputText in <h4>This is projected content {{inputText}}</h4>) has changed!

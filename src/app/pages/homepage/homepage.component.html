@@ -1,3 +1,21 @@
+<h1 setBackground>This is app component</h1>
+<div class="container" setBackground ngxHover>
+    <p>this is example of custom attribute directive</p>
+</div>
+
+<div ngxHighlight ngxHover>
+    <p>this is example of custom attribute directive</p>
+</div>
+
+<div class="container" [ngxBetterhighlight]="'red'" [defaultColor]="'yellow'" [title]="example title">
+    <p>this is example of custom attribute directive</p>
+</div>
+
+<h2>This is homepage component</h2>
+<ngx-demo>
+    <p #paragraph>This is a paragraph</p>
+</ngx-demo>
+
 <div class="container">
    <input type="text" #input>
    <button (click)="OnSubmit(input)">Submit</button>

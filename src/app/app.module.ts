@@ -26,7 +26,12 @@ import { SearchComponent } from './pages/search/search.component';
 import { CustomerListComponent } from './pages/customer-list/customer-list.component';
 import { DemoComponent } from './pages/demo/demo.component';
 import { ProductComponent } from './pages/product/product.component';
+import { SetBackgroundDirective } from './pages/customdirective/set-background.directive';  
+import { HighlightDirective } from './pages/customdirective/highlight.directive';  
 import { FormsModule } from '@angular/forms';
+import { BetterhighlightDirective } from './pages/customdirective/betterhighlight.directive';
+
+import { HoverDirective } from './pages/customdirective/hover.directive';
 
 @NgModule({
   declarations: [
@@ -37,6 +42,10 @@ import { FormsModule } from '@angular/forms';
     CustomerListComponent,
     DemoComponent,
     ProductComponent,
+    SetBackgroundDirective,
+    HighlightDirective,
+    BetterhighlightDirective,
+    HoverDirective
   ],
   imports: [
     FormsModule,
