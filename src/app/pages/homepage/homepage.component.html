@@ -1,3 +1,5 @@
+
+
 <h1 setBackground>This is app component</h1>
 <div class="container" setBackground ngxHover>
     <p>this is example of custom attribute directive</p>
@@ -7,9 +9,38 @@
     <p>this is example of custom attribute directive</p>
 </div>
 
-<div class="container" [ngxBetterhighlight]="'red'" [defaultColor]="'yellow'" [title]="example title">
+<div class="container" [ngxBetterhighlight]="'red'" [defaultColor]="'yellow'">
     <p>this is example of custom attribute directive</p>
 </div>
+
+<div ngxClass="{container:10>5, 'change-font':true}">
+    <p>this is example to create ngClass directive </p>
+</div>
+
+<div class="container" [ngxStyle]="{backgroundColor:active?'Green':'Red',color:'white',fontWeight:'bold'}">
+    <p>this is example to create ngStyle directive </p>
+</div>
+
+<button class="btn btn-notice" (click)="DisplayNotice()">Show notice</button> 
+<!--<div class="info-container notice" *ngIf="display;else myVar">
+    <h3>This is important notice!</h3>
+    <p>This is a notice issued for all website users.</p> 
+</div>
+<ng-template #myVar>
+    <p>this an example paragraph</p>
+</ng-template>-->
+
+<ng-template [ngIf]="display" [ngIfElse]="myVar">
+    <div class="info-container notice">
+        <h3>This is important notice!</h3>
+        <p>This is a notice issued for all website users.</p> 
+    </div>    
+</ng-template>
+<ng-template #myVar>
+    <p>this an example paragraph</p>
+</ng-template>
+
+
 
 <h2>This is homepage component</h2>
 <ngx-demo>

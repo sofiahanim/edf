@@ -15,6 +15,26 @@ import { DemoComponent } from '../demo/demo.component';
 })
 export class HomepageComponent implements OnInit {
 
+  DisplayNotice(){
+    this.display=true;
+  }
+
+  title = 'DirectiveExample';
+  active: boolean = false;
+  videos = [
+    {title: 'My video 1', share: 415, likes: 257, dislikes: 12, thumbnail: './../../assets/images/alan.jpg'}, 
+    {title: 'My video 2', share: 215, likes: 325, dislikes: 12, thumbnail: './../../assets/images/eva.jpg'}, 
+    {title: 'My video 3', share: 513, likes: 105, dislikes: 12, thumbnail: './../../assets/images/jack.jpg'}
+  ]
+
+  mostLikedVideo = this.getmostlikedVideo();
+
+  getmostlikedVideo(){
+    let videoCopy = [...this.videos];
+    return videoCopy.sort((curr, next) => next.likes=curr.likes)[0];
+  }
+
+
   inputText:string = '';
   destroy: boolean = true;
 
@@ -31,7 +51,7 @@ export class HomepageComponent implements OnInit {
   ngOnInit(): void {
   }
 
-  title= 'ViewChild';
+  //title= 'ViewChild';
 
   @ViewChild('dobInput') dateOfBirth: ElementRef;
   @ViewChild('ageInput') age: ElementRef;

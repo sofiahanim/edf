@@ -1,4 +1,4 @@
-import { Directive,ElementRef,OnInit,Renderer2 } from '@angular/core';
+import { Directive,ElementRef,OnInit,Renderer2,Input } from '@angular/core';
 
 @Directive({
   selector: '[ngxHighlight]'
@@ -12,5 +12,7 @@ export class HighlightDirective implements OnInit {
     this.renderer.addClass(this.element.nativeElement,'container');
     this.renderer.setAttribute(this.element.nativeElement,'title','this is example div');
   }
+
+  
 
 }

@@ -30,8 +30,10 @@ import { SetBackgroundDirective } from './pages/customdirective/set-background.d
 import { HighlightDirective } from './pages/customdirective/highlight.directive';  
 import { FormsModule } from '@angular/forms';
 import { BetterhighlightDirective } from './pages/customdirective/betterhighlight.directive';
-
+import { ClassDirective } from './pages/customdirective/class.directive';
 import { HoverDirective } from './pages/customdirective/hover.directive';
+import { StyleDirective } from './pages/customdirective/style.directive';
+
 
 @NgModule({
   declarations: [
@@ -45,7 +47,9 @@ import { HoverDirective } from './pages/customdirective/hover.directive';
     SetBackgroundDirective,
     HighlightDirective,
     BetterhighlightDirective,
-    HoverDirective
+    HoverDirective,
+    ClassDirective,
+    StyleDirective,
   ],
   imports: [
     FormsModule,
