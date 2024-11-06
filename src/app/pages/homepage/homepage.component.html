@@ -22,20 +22,42 @@
 </div>
 
 <button class="btn btn-notice" (click)="DisplayNotice()">Show notice</button> 
+<!--<div class="info-container notice" *displayView="display">
+    <h3>This is important notice!</h3>
+    <p>This is a notice issued for all website users.</p> 
+</div>-->
+
+<div class="info-container notice" *ngxIf="display">
+    <h3>This is important notice!</h3>
+    <p>This is a notice issued for all website users.</p> 
+</div>
+
+
+<p *ngxIf="10 > 5">this is demoooo</p>
+
+<div class="container" [ngSwitch]="occupation">
+    <p *ngSwitchCase="'teacher'">This paragraph will be displayed when occupation is teacher.</p>
+    <p *ngSwitchCase="'designer'">This paragraph will be displayed when occupation is designer.</p>
+    <p *ngSwitchCase="'lawyer'">This paragraph will be displayed when occupation is lawyer.</p>
+    <p *ngSwitchDefault>This paragraph is default and will be displayed if no case matches switch expression</p> 
+</div>
+
 <!--<div class="info-container notice" *ngIf="display;else myVar">
     <h3>This is important notice!</h3>
     <p>This is a notice issued for all website users.</p> 
 </div>
+
+
 <ng-template #myVar>
     <p>this an example paragraph</p>
 </ng-template>-->
-
+<!---
 <ng-template [ngIf]="display" [ngIfElse]="myVar">
     <div class="info-container notice">
         <h3>This is important notice!</h3>
         <p>This is a notice issued for all website users.</p> 
     </div>    
-</ng-template>
+</ng-template>-->
 <ng-template #myVar>
     <p>this an example paragraph</p>
 </ng-template>

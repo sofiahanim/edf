@@ -15,6 +15,8 @@ import { DemoComponent } from '../demo/demo.component';
 })
 export class HomepageComponent implements OnInit {
 
+  occupation: string = 'designer';
+
   DisplayNotice(){
     this.display=true;
   }

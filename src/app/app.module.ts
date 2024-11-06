@@ -33,6 +33,8 @@ import { BetterhighlightDirective } from './pages/customdirective/betterhighligh
 import { ClassDirective } from './pages/customdirective/class.directive';
 import { HoverDirective } from './pages/customdirective/hover.directive';
 import { StyleDirective } from './pages/customdirective/style.directive';
+import { IfDirective } from './pages/customdirective/if.directive';
+
 
 
 @NgModule({
@@ -50,6 +52,7 @@ import { StyleDirective } from './pages/customdirective/style.directive';
     HoverDirective,
     ClassDirective,
     StyleDirective,
+    IfDirective,
   ],
   imports: [
     FormsModule,
