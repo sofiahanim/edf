@@ -39,3 +39,19 @@
     margin: 10px 30px;
     background-color: #F5B041;
 }
+
+.user-div{
+    display: flex;
+    margin: 5px 0px;
+}
+.user-name{
+    width: 80%;
+    padding: 10px 30px;
+    background-color: #eee;
+}    
+
+.user-status{
+    width: 20%;
+    padding: 10px 40px; 
+    background-color: #FADBD8;
+}

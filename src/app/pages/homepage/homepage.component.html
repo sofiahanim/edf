@@ -1,4 +1,17 @@
 
+<div class="user-div" *ngFor="let user of users">
+    <ngx-adduser></ngx-adduser>
+    <div class="user-name">{{user.name}}</div>
+    <div class="user-status">{{user.status}}</div>
+</div>
+
+<div class="container">
+    <ngx-javascript></ngx-javascript>
+    <ngx-angular></ngx-angular>
+</div>
+
+
+
 
 <h1 setBackground>This is app component</h1>
 <div class="container" setBackground ngxHover>

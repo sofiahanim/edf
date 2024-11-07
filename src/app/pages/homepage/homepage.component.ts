@@ -1,10 +1,13 @@
 import { Component, EventEmitter, OnInit, Output, ElementRef, ViewChild } from '@angular/core';
 import { DemoComponent } from '../demo/demo.component';
+import { EnrollService } from '../services/enroll.service';
+import { UserService } from '../services/user.service';
 
 @Component({
   selector: 'ngx-homepage',
   templateUrl: './homepage.component.html',
-  styleUrls: ['./homepage.component.scss']
+  styleUrls: ['./homepage.component.scss'],
+  providers: [UserService]
 
   //add the following line to make the child style similar to the parent
   //encapsulation: ViewEncapsulation.None
@@ -14,6 +17,9 @@ import { DemoComponent } from '../demo/demo.component';
 
 })
 export class HomepageComponent implements OnInit {
+
+  constructor(private enrollService: EnrollService,private userService: UserService) { }
+
 
   occupation: string = 'designer';
 
@@ -48,9 +54,12 @@ export class HomepageComponent implements OnInit {
     this.inputText = inputEl.value;
   }
 
-  constructor() { }
+
+  users:{name:string, status:string}[] = [];
+
 
   ngOnInit(): void {
+    this.users = this.userService.users;
   }
 
   //title= 'ViewChild';

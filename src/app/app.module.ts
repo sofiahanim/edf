@@ -34,7 +34,10 @@ import { ClassDirective } from './pages/customdirective/class.directive';
 import { HoverDirective } from './pages/customdirective/hover.directive';
 import { StyleDirective } from './pages/customdirective/style.directive';
 import { IfDirective } from './pages/customdirective/if.directive';
-
+import { JavascriptComponent } from './pages/javascript/javascript.component';
+import { AngularComponent } from './pages/angular/angular.component';
+import { EnrollService } from './pages/services/enroll.service';
+import { AdduserComponent } from './pages/adduser/adduser.component';
 
 
 @NgModule({
@@ -53,6 +56,9 @@ import { IfDirective } from './pages/customdirective/if.directive';
     ClassDirective,
     StyleDirective,
     IfDirective,
+    JavascriptComponent,
+    AngularComponent,
+    AdduserComponent
   ],
   imports: [
     FormsModule,
@@ -72,6 +78,7 @@ import { IfDirective } from './pages/customdirective/if.directive';
     CoreModule.forRoot(),
     ThemeModule.forRoot(),
   ],
+  providers:[EnrollService],
   bootstrap: [AppComponent],
 })
 export class AppModule {
