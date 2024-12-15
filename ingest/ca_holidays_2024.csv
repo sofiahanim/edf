@@ -1,15 +1,15 @@
-Date,Holiday,Holiday_Dimension,Holiday_Measure
-1/1/2024,New Year's Day,New Year's Day,New Year's Day
-27/5/2024,Memorial Day,Memorial Day,Memorial Day
-19/6/2024,Juneteenth National Independence Day,Juneteenth National Independence Day,Juneteenth National Independence Day
-4/7/2024,Independence Day,Independence Day,Independence Day
-2/9/2024,Labor Day,Labor Day,Labor Day
-11/11/2024,Veterans Day,Veterans Day,Veterans Day
-28/11/2024,Thanksgiving,Thanksgiving,Thanksgiving
-25/12/2024,Christmas Day,Christmas Day,Christmas Day
-15/1/2024,Martin Luther King Jr. Day,Martin Luther King Jr. Day,Martin Luther King Jr. Day
-19/2/2024,Washington's Birthday,Washington's Birthday,Washington's Birthday
-15/2/2024,Susan B. Anthony Day,Susan B. Anthony Day,Susan B. Anthony Day
-31/3/2024,Cesar Chavez Day,Cesar Chavez Day,Cesar Chavez Day
-1/4/2024,Cesar Chavez Day (observed),Cesar Chavez Day (observed),Cesar Chavez Day (observed)
-29/11/2024,Day After Thanksgiving,Day After Thanksgiving,Day After Thanksgiving
+date,name
+2024-01-01,New Year's Day
+2024-01-15,Martin Luther King Jr. Day
+2024-02-15,Susan B. Anthony Day
+2024-02-19,Washington's Birthday
+2024-03-31,Cesar Chavez Day
+2024-04-01,Cesar Chavez Day (observed)
+2024-05-27,Memorial Day
+2024-06-19,Juneteenth National Independence Day
+2024-07-04,Independence Day
+2024-09-02,Labor Day
+2024-11-11,Veterans Day
+2024-11-28,Thanksgiving
+2024-11-29,Day After Thanksgiving
+2024-12-25,Christmas Day

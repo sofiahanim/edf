@@ -1,14 +1,14 @@
-Date,Holiday,Holiday_Dimension,Holiday_Measure
-1/1/2025,New Year's Day,New Year's Day,New Year's Day
-26/5/2025,Memorial Day,Memorial Day,Memorial Day
-19/6/2025,Juneteenth National Independence Day,Juneteenth National Independence Day,Juneteenth National Independence Day
-4/7/2025,Independence Day,Independence Day,Independence Day
-1/9/2025,Labor Day,Labor Day,Labor Day
-11/11/2025,Veterans Day,Veterans Day,Veterans Day
-27/11/2025,Thanksgiving,Thanksgiving,Thanksgiving
-25/12/2025,Christmas Day,Christmas Day,Christmas Day
-20/1/2025,Martin Luther King Jr. Day,Martin Luther King Jr. Day,Martin Luther King Jr. Day
-17/2/2025,Washington's Birthday,Washington's Birthday,Washington's Birthday
-15/2/2025,Susan B. Anthony Day,Susan B. Anthony Day,Susan B. Anthony Day
-31/3/2025,Cesar Chavez Day,Cesar Chavez Day,Cesar Chavez Day
-28/11/2025,Day After Thanksgiving,Day After Thanksgiving,Day After Thanksgiving
+date,name
+2025-01-01,New Year's Day
+2025-01-20,Martin Luther King Jr. Day
+2025-02-15,Susan B. Anthony Day
+2025-02-17,Washington's Birthday
+2025-03-31,Cesar Chavez Day
+2025-05-26,Memorial Day
+2025-06-19,Juneteenth National Independence Day
+2025-07-04,Independence Day
+2025-09-01,Labor Day
+2025-11-11,Veterans Day
+2025-11-27,Thanksgiving
+2025-11-28,Day After Thanksgiving
+2025-12-25,Christmas Day

@@ -1,45 +1,23 @@
-import boto3
+import csv
 import holidays
-from datetime import datetime, date, time
 
-# Constants for the Timestream database and table
-DATABASE_NAME = 'holidaysdb'
-TABLE_NAME = 'holidaycali'
-
-# Function to fetch holidays for California
 def fetch_california_holidays(year):
     ca_holidays = holidays.US(state='CA', years=year)
-    return [{'date': date, 'name': name} for date, name in sorted(ca_holidays.items())]
+    return [{'date': str(date), 'name': name} for date, name in sorted(ca_holidays.items())]
 
-# Function to prepare and display holiday data
-def prepare_holiday_data(holiday_data):
-    records = []
-    for holiday in holiday_data:
-        # Ensure the date is a datetime object with time
-        holiday_datetime = datetime.combine(holiday['date'], time())  # Adds midnight time
-        timestamp = str(int(holiday_datetime.timestamp()))  # Convert to milliseconds
-        
-        record = {
-            'Dimensions': [
-                {'Name': 'holiday_name', 'Value': holiday['name'], 'DimensionValueType': 'VARCHAR'},
-            ],
-            'MeasureName': 'holiday',
-            'MeasureValue': '1',  # A simple value to indicate the presence of a holiday
-            'MeasureValueType': 'DOUBLE',
-            'Time': timestamp,
-            'TimeUnit': 'SECONDS'
-        }
-        records.append(record)
-    return records
-
-# Main function to manage the flow
-def main():
-    year = datetime.now().year  # Fetch current year's holidays or specify any year
+def export_holidays_to_csv(year, filename):
     holidays_data = fetch_california_holidays(year)
-    records_to_insert = prepare_holiday_data(holidays_data)
-    for record in records_to_insert:
-        print(record)
+    # Ensure the filename includes the path to the ingest folder
+    filepath = f'ingest/{filename}'
+    with open(filepath, 'w', newline='') as csvfile:
+        fieldnames = ['date', 'name']
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        
+        writer.writeheader()
+        for holiday in holidays_data:
+            writer.writerow(holiday)
 
-# Run the main function
-if __name__ == "__main__":
-    main()
+# Example usage:
+year = 2019  # specify the year you want
+filename = f'ca_holidays_{year}.csv'  # specify the output file name
+export_holidays_to_csv(year, filename)
