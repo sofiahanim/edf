@@ -8,7 +8,7 @@ def fetch_california_holidays(year):
 def export_holidays_to_csv(year, filename):
     holidays_data = fetch_california_holidays(year)
     # Ensure the filename includes the path to the ingest folder
-    filepath = f'ingest/{filename}'
+    filepath = f'ingest/holidays/{filename}'
     with open(filepath, 'w', newline='') as csvfile:
         fieldnames = ['date', 'name']
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
