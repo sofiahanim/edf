@@ -9,16 +9,27 @@ jobs:
   preprocess:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v3
+      # Step 1: Checkout Repository
+      - name: Checkout Repository
+        uses: actions/checkout@v3
 
-    - name: Set Up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.9'
+      # Step 2: Set Up Python
+      - name: Set Up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
 
-    - name: Install Dependencies
-      run: pip install -r requirements.txt
+      # Step 3: Install Dependencies
+      - name: Install Dependencies
+        run: pip install -r requirements.txt
 
-    - name: Run Preprocessing Script
-      run: python scripts/preprocess_data.py
+      # Step 4: Run Preprocessing Script
+      - name: Run Preprocessing Script
+        run: python scripts/preprocess_data.py
+
+      # Step 5: Archive Preprocessed Data
+      - name: Archive Preprocessed Data
+        uses: actions/upload-artifact@v3
+        with:
+          name: preprocessed-data
+          path: data/  # Path to the preprocessed data folder

@@ -3,7 +3,7 @@ name: Redshift Data Ingestion Test
 on:
   workflow_dispatch:
   schedule:
-    - cron:  '0 1 * * *'  # Runs at 1 AM UTC every day
+    - cron: '0 1 * * *'  # Runs at 1 AM UTC every day
 
 jobs:
   data_ingestion:
@@ -26,11 +26,10 @@ jobs:
         env:
           REDSHIFT_REGION: ${{ secrets.REDSHIFT_REGION }}
           REDSHIFT_WORKGROUP: ${{ secrets.REDSHIFT_WORKGROUP }}
-        run: python ingestdata.py
+        run: python scripts/ingestdata.py
 
-      - name: Archive results
-        uses: actions/upload-artifact@v2
+      - name: Archive logs
+        uses: actions/upload-artifact@v3
         with:
-          name: data-logs
-          path: logs
-      
+          name: logs
+          path: logs/
