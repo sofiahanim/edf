@@ -51,4 +51,34 @@
 
     <!-- Divider -->
     <hr class="sidebar-divider">
+
+    <!-- Heading -->
+    <div class="sidebar-heading">EDA</div>
+
+    <!-- Nav Item - Electricity Datasets -->
+        <!-- Nav Item - Electricity (Demand) Datasets -->
+    <li class="nav-item {% if request.path == url_for('eda_demand_page') %}active{% endif %}">
+        <a class="nav-link" href="{{ url_for('eda_demand_page') }}">
+            <i class="fas fa-fw fa-bolt"></i>
+            <span>Electricity Demand</span>
+        </a>
+    </li>
+
+
+    <!-- Nav Item - Weather Datasets -->
+    <li class="nav-item {% if request.path == url_for('eda_weather_page') %}active{% endif %}">
+        <a class="nav-link" href="{{ url_for('eda_weather_page') }}">
+            <i class="fas fa-fw fa-cloud"></i>
+            <span>Hourly Weather</span>
+        </a>
+    </li>
+
+    <!-- Nav Item - Holiday Datasets -->
+    <li class="nav-item {% if request.path == url_for('eda_holidays_page') %}active{% endif %}">
+        <a class="nav-link" href="{{ url_for('eda_holidays_page') }}">
+            <i class="fas fa-fw fa-calendar-alt"></i>
+            <span>Holidays</span>
+        </a>
+    </li>
+
 </ul>

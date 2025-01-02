@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block title %}EDA - Electricity Demand{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="mb-4">EDA - Electricity Demand</h1>
+    <div class="table-responsive">
+        {{ data|safe }}
+    </div>
+</div>
+{% endblock %}

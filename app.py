@@ -4,11 +4,28 @@ import holidays
 from flask_caching import Cache
 import logging
 import pytz
+import os
 
 app = Flask(__name__)
 app.config['CACHE_TYPE'] = 'simple'  # Caching for demonstration purposes
 cache = Cache(app)
 cache.init_app(app)
+
+
+def save_to_cache(data, filename, folder='cache'):
+    """Save data to a CSV file in the cache folder."""
+    os.makedirs(folder, exist_ok=True)  # Create cache folder if it doesn't exist
+    filepath = os.path.join(folder, filename)
+    data.to_csv(filepath, index=False)  # Save as CSV
+    return filepath
+
+def load_from_cache(filename, folder='cache'):
+    """Load data from a CSV file in the cache folder."""
+    filepath = os.path.join(folder, filename)
+    if os.path.exists(filepath):
+        return pd.read_csv(filepath)  # Load CSV
+    return None
+
 
 # Setup logging for better error tracking
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -207,6 +224,52 @@ def hourly_weather_page():
 @app.route('/holidays')
 def holidays_page():
     return render_template('holidays.html')
+
+@app.route('/eda/demand')
+def eda_demand_page():
+    cache_file = 'demand_summary.csv'  # Cached file name
+    folder = 'cache'  # Cache folder
+
+    # Try loading from cache
+    summary = load_from_cache(cache_file, folder)
+    if summary is None:
+        # Perform calculations if no cache exists
+        years = range(2019, 2025)
+        demand_data = pd.concat(
+            [load_and_normalize_csv(f'dataset/electricity/{year}.csv') for year in years],
+            ignore_index=True
+        )
+        summary = demand_data.groupby(demand_data['time'].dt.date).agg({'value': ['mean', 'max', 'min']}).reset_index()
+        summary.columns = ['date', 'mean_demand', 'max_demand', 'min_demand']
+
+        # Save to cache
+        save_to_cache(summary, cache_file, folder)
+
+    # Render template
+    return render_template('eda_demand.html', summary=summary.to_dict(orient='records'))
+
+
+@app.route('/eda/weather')
+def eda_weather_page():
+    # Load and combine weather data for all years
+    years = range(2019, 2025)
+    weather_data = pd.concat([load_and_normalize_csv(f'dataset/weather/{year}.csv') for year in years], ignore_index=True)
+    return render_template(
+        'eda_weather.html',
+        data=weather_data.to_html(classes='table table-striped', index=False)
+    )
+
+@app.route('/eda/holidays')
+def eda_holidays_page():
+    # Generate a list of holidays for all years
+    years = range(2019, 2025)
+    cal_holidays = holidays.US(state='CA', years=years)
+    holiday_data = pd.DataFrame([{'date': str(date), 'name': name} for date, name in cal_holidays.items()])
+    return render_template(
+        'eda_holidays.html',
+        data=holiday_data.to_html(classes='table table-striped', index=False)
+    )
+
 
 if __name__ == '__main__':
     app.run(debug=True)

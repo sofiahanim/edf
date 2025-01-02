@@ -1,0 +1,24 @@
+name: Model Training
+
+on:
+  schedule:
+    - cron: '0 1 * * 0' # Weekly on Sunday
+  workflow_dispatch:
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v3
+
+    - name: Set Up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install Dependencies
+      run: pip install -r requirements.txt
+
+    - name: Run Training Script
+      run: python scripts/train_model.py
