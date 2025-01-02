@@ -1,142 +1,127 @@
-from flask import Flask, render_template, jsonify, request
-import boto3
-import os
-import logging
-from dotenv import load_dotenv
+from flask import Flask, render_template, request, jsonify
+import pandas as pd
 from flask_caching import Cache
+import holidays
 
-# Load environment variables
-load_dotenv()
-
-# Initialize Flask app
 app = Flask(__name__)
+app.config['CACHE_TYPE'] = 'simple'  # Simple caching for demonstration; use Redis for production
+cache = Cache(app)
+cache.init_app(app)
 
-# Caching configuration
-cache = Cache(app, config={'CACHE_TYPE': 'simple'})
-
-# Redshift configuration
-REDSHIFT_WORKGROUP = os.getenv('REDSHIFT_WORKGROUP')
-REDSHIFT_DB = os.getenv('REDSHIFT_DB')
-REDSHIFT_REGION = os.getenv('REDSHIFT_REGION', 'us-east-1')
-
-# Initialize Redshift Data API client
-client = boto3.client('redshift-data', region_name=REDSHIFT_REGION)
-
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger()
-
-def execute_redshift_query(sql):
-    """Executes a SQL query using Redshift Data API."""
+def load_and_normalize_csv(path):
     try:
-        response = client.execute_statement(
-            Database=REDSHIFT_DB,
-            Sql=sql,
-            WorkgroupName=REDSHIFT_WORKGROUP
-        )
-        query_id = response['Id']
-
-        # Wait for the query to complete
-        while True:
-            status = client.describe_statement(Id=query_id)['Status']
-            if status in ['FINISHED', 'FAILED', 'ABORTED']:
-                break
-
-        if status == 'FINISHED':
-            result = client.get_statement_result(Id=query_id)
-            return result
-        else:
-            logger.error(f"Query failed: {status}")
-            return None
+        df = pd.read_csv(path)
+        df.columns = [col.strip().lower().replace(" ", "_") for col in df.columns]
+        # Check for missing values and print the summary
+        print(f"Missing values in {path}:")
+        print(df.isnull().sum())
+        return df
     except Exception as e:
-        logger.error(f"Failed to execute query: {e}")
-        return None
+        print(f"Failed to load or normalize {path}: {str(e)}")
+        return pd.DataFrame()  # Return an empty DataFrame on error
+
+def load_data():
+    years = range(2019, 2025)
+    try:
+        hourly_demand_data = pd.concat([load_and_normalize_csv(f'dataset/electricity/{year}.csv') for year in years])
+        hourly_weather_data = pd.concat([load_and_normalize_csv(f'dataset/weather/{year}.csv') for year in years])
+    except Exception as e:
+        print(f"Error loading data: {str(e)}")
+        return pd.DataFrame(), pd.DataFrame()  # Return empty DataFrames on failure
+
+    return hourly_demand_data, hourly_weather_data
+
+
+hourly_demand_data, hourly_weather_data = load_data()
 
 @app.route('/')
 def index():
-    """Render the homepage."""
     return render_template('index.html')
+
 @app.route('/hourlydemand', methods=['GET'])
-@cache.cached(timeout=300, query_string=True)  # Cache responses for 5 minutes based on query parameters
-def hourly_demand():
-    """
-    Fetch Hourly Demand data with caching and dynamic total count.
-    Supports server-side pagination for DataTables.
-    """
-    # Pagination parameters from DataTables
-    start = int(request.args.get('start', 0))  # Start row
-    length = int(request.args.get('length', 10))  # Number of rows per page
-
-    # Query for total row count (cached separately)
-    total_count_query = 'SELECT COUNT(*) FROM "public"."2019"'
-    total_count = cache.get('total_count')
-    if total_count is None:
-        total_count_result = execute_redshift_query(total_count_query)
-        total_count = (
-            int(total_count_result['Records'][0][0]['longValue']) if total_count_result else 0
-        )
-        cache.set('total_count', total_count, timeout=300)  # Cache total count for 5 minutes
-
-    # Query for paginated data
-    sql = f'''
-        SELECT "time", "value"
-        FROM "public"."2019"
-        ORDER BY "time" DESC
-        LIMIT {length} OFFSET {start}
-    '''
-    result = execute_redshift_query(sql)
-
-    if result:
-        try:
-            # Parse result into JSON-compatible format
-            data = [
-                {
-                    col['label']: (
-                        row.get('stringValue') or
-                        row.get('longValue') or
-                        row.get('doubleValue') or None
-                    )
-                    for col, row in zip(result['ColumnMetadata'], record)
-                }
-                for record in result['Records']
-            ]
-            return jsonify({
-                "recordsTotal": total_count,
-                "recordsFiltered": total_count,
-                "data": data
-            })
-        except Exception as e:
-            logger.error(f"Error processing query result: {e}")
-            return jsonify({"error": "Failed to process query result."}), 500
-    else:
-        return jsonify({"error": "Failed to fetch data from Redshift."}), 500
-
-
-from holidays import UnitedStates
-
-@app.route('/holiday', methods=['GET'])
-@cache.cached(timeout=300, query_string=True)  # Cache data for 5 minutes
-def holiday():
-    """
-    Fetch holiday data for California, USA (years 2019–2024) using the holidays library.
-    """
+@cache.cached(timeout=60*5)  # Cache this endpoint for 5 minutes
+def fetch_hourly_demand():
     try:
-        # Fetch holidays for the United States
-        us_holidays = UnitedStates(years=range(2019, 2025), state='CA')
+        start = max(int(request.args.get('start', 0)), 0)
+        length = max(int(request.args.get('length', 10)), 1)
+        search_value = request.args.get('search[value]', '')
 
-        # Process the holiday data
-        data = [
-            {"date": str(holiday_date), "name": holiday_name}
-            for holiday_date, holiday_name in us_holidays.items()
+        if search_value:
+            filtered_data = hourly_demand_data[hourly_demand_data['time'].str.contains(search_value, na=False, regex=False)]
+        else:
+            filtered_data = hourly_demand_data
+
+        data_slice = filtered_data.iloc[start:start + length].to_dict(orient='records')
+        response = {
+            "draw": int(request.args.get('draw', 1)),
+            "recordsTotal": len(hourly_demand_data),
+            "recordsFiltered": len(filtered_data),
+            "data": data_slice
+        }
+        return jsonify(response)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+    
+@app.route('/hourlyweather', methods=['GET'])
+def fetch_hourly_weather():
+    try:
+        start = max(int(request.args.get('start', 0)), 0)
+        length = max(int(request.args.get('length', 10)), 1)
+        search_value = request.args.get('search[value]', '')
+
+        # Filter data based on the search value
+        filtered_data = hourly_weather_data[hourly_weather_data['datetime'].str.contains(search_value, case=False, na=False)]
+
+        # Slice the data for pagination
+        data_slice = filtered_data.iloc[start:start + length].to_dict(orient='records')
+
+        # Dynamically extract column names
+        column_names = [{'data': col, 'title': col.replace('_', ' ').title()} for col in filtered_data.columns]
+
+        response = {
+            "draw": int(request.args.get('draw', 1)),
+            "recordsTotal": len(hourly_weather_data),
+            "recordsFiltered": len(filtered_data),
+            "columns": column_names,  # Pass column information dynamically
+            "data": data_slice
+        }
+
+        return jsonify(response)
+    except Exception as e:
+        print("Error in /hourlyweather:", e)
+        return jsonify({"error": "Internal Server Error: " + str(e)}), 500
+
+
+cal_holidays = holidays.US(state='CA', years=range(2019, 2025))
+
+@app.route('/holidays', methods=['GET'])
+def fetch_holidays():
+    try:
+        start = max(int(request.args.get('start', 0)), 0)
+        length = max(int(request.args.get('length', 10)), 1)
+        search_value = request.args.get('search[value]', '')
+
+        # Filter holidays based on search value
+        filtered_holidays = [
+            {'date': str(date), 'name': name} 
+            for date, name in cal_holidays.items() 
+            if search_value.lower() in name.lower()
         ]
 
-        # Sort data by date for consistency
-        data.sort(key=lambda x: x['date'])
+        # Paginate the data
+        data_slice = filtered_holidays[start:start + length]
 
-        return jsonify({'data': data})
+        response = {
+            "draw": int(request.args.get('draw', 1)),
+            "recordsTotal": len(cal_holidays),
+            "recordsFiltered": len(filtered_holidays),
+            "data": data_slice
+        }
+
+        return jsonify(response)
     except Exception as e:
-        logger.error(f"Error fetching holiday data: {e}")
-        return jsonify({'error': 'Failed to fetch holiday data'}), 500
+        return jsonify({"error": str(e)}), 400
 
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True)
