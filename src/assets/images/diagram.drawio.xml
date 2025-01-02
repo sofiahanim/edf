@@ -1781,7 +1781,7 @@
     </mxGraphModel>
   </diagram>
   <diagram id="Uw2lb67E5URtSTT2bS-B" name="Page-9">
-    <mxGraphModel dx="956" dy="515" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" background="#000000" math="0" shadow="0">
+    <mxGraphModel dx="667" dy="359" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" background="#000000" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -1831,7 +1831,7 @@
           <mxGeometry x="576" y="1369" width="180" height="65" as="geometry" />
         </mxCell>
         <mxCell id="VoCVB49q-HpdxD1vDU6V-16" value="&lt;font style=&quot;font-size: 10px;&quot; color=&quot;#66b2ff&quot;&gt;&lt;i style=&quot;&quot;&gt;&lt;u&gt;DailyElectricityDataUpdater&amp;nbsp;&lt;/u&gt;&lt;/i&gt;&lt;/font&gt;&lt;br&gt;&lt;div&gt;&lt;b&gt;&lt;font color=&quot;#ffffff&quot;&gt;Lambda Function&lt;/font&gt;&lt;/b&gt;&lt;/div&gt;" style="outlineConnect=0;dashed=0;verticalLabelPosition=top;verticalAlign=bottom;align=left;html=1;shape=mxgraph.aws3.lambda_function;fillColor=#5294CF;gradientColor=none;labelPosition=center;" vertex="1" parent="1">
-          <mxGeometry x="473.5" y="911" width="46" height="47" as="geometry" />
+          <mxGeometry x="479" y="983" width="46" height="47" as="geometry" />
         </mxCell>
         <mxCell id="VoCVB49q-HpdxD1vDU6V-17" value="EventBridge&lt;div&gt;Schedule&lt;/div&gt;" style="sketch=0;points=[[0,0,0],[0.25,0,0],[0.5,0,0],[0.75,0,0],[1,0,0],[0,1,0],[0.25,1,0],[0.5,1,0],[0.75,1,0],[1,1,0],[0,0.25,0],[0,0.5,0],[0,0.75,0],[1,0.25,0],[1,0.5,0],[1,0.75,0]];outlineConnect=0;fontColor=#FFFFFF;fillColor=#E7157B;strokeColor=#ffffff;dashed=0;verticalLabelPosition=bottom;verticalAlign=top;align=center;html=1;fontSize=12;fontStyle=0;aspect=fixed;shape=mxgraph.aws4.resourceIcon;resIcon=mxgraph.aws4.eventbridge;" vertex="1" parent="1">
           <mxGeometry x="628" y="917" width="46" height="46" as="geometry" />
@@ -1931,8 +1931,15 @@
         <mxCell id="VoCVB49q-HpdxD1vDU6V-48" value="us-east-1a" style="text;align=center;verticalAlign=middle;rounded=0;fontColor=#CCCCFF;fontStyle=2;fontSize=10;labelBorderColor=none;whiteSpace=wrap;html=1;" vertex="1" parent="1">
           <mxGeometry x="357" y="565" width="52" height="10" as="geometry" />
         </mxCell>
-        <mxCell id="VoCVB49q-HpdxD1vDU6V-49" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="VoCVB49q-HpdxD1vDU6V-107" target="VoCVB49q-HpdxD1vDU6V-58">
-          <mxGeometry relative="1" as="geometry" />
+        <mxCell id="VoCVB49q-HpdxD1vDU6V-49" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=light-dark(#000000,#1A3300);" edge="1" parent="1" source="VoCVB49q-HpdxD1vDU6V-107" target="VoCVB49q-HpdxD1vDU6V-58">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="563" y="871" />
+              <mxPoint x="480" y="871" />
+              <mxPoint x="480" y="876" />
+              <mxPoint x="334" y="876" />
+            </Array>
+          </mxGeometry>
         </mxCell>
         <mxCell id="VoCVB49q-HpdxD1vDU6V-50" value="&lt;font style=&quot;font-size: 10px;&quot;&gt;NAT Gateway&lt;/font&gt;&lt;div&gt;&lt;font style=&quot;font-size: 7px;&quot;&gt;&lt;b style=&quot;color: rgb(204, 204, 255); text-wrap-mode: wrap;&quot;&gt;&lt;i style=&quot;&quot;&gt;public_nat_gateway&lt;/i&gt;&lt;/b&gt;&lt;/font&gt;&lt;/div&gt;&lt;div&gt;&lt;font style=&quot;font-size: 5px;&quot;&gt;&lt;font style=&quot;&quot;&gt;&lt;b style=&quot;color: rgb(204, 204, 255); text-wrap-mode: wrap;&quot;&gt;&lt;i style=&quot;&quot;&gt;(&lt;/i&gt;&lt;/b&gt;&lt;/font&gt;&lt;span style=&quot;color: rgb(102, 178, 255); font-style: italic; text-decoration-line: underline; text-wrap-mode: wrap; background-color: initial;&quot;&gt;&lt;font style=&quot;&quot;&gt;nat-0e967bf323897b0a9&lt;/font&gt;)&lt;/span&gt;&lt;/font&gt;&lt;/div&gt;" style="sketch=0;outlineConnect=0;fontColor=#FFFFFF;gradientColor=none;fillColor=#CCCCFF;strokeColor=none;dashed=0;verticalLabelPosition=middle;verticalAlign=middle;align=right;html=1;fontSize=12;fontStyle=0;aspect=fixed;pointerEvents=1;shape=mxgraph.aws4.nat_gateway;labelPosition=left;labelBorderColor=none;strokeWidth=2;textDirection=ltr;spacingRight=6;" vertex="1" parent="1">
           <mxGeometry x="870" y="1021" width="37.5" height="37.5" as="geometry" />
