@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h3 mb-4 text-gray-800">Dashboard</h1>
+
+    <!-- Summary Cards -->
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total Demand</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800">1,234,567 kWh</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Average Temperature</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800">25.3°C</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Table for Overview -->
+    <div class="table-responsive mt-4">
+        <table class="table table-bordered">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Total Demand (kWh)</th>
+                    <th>Average Temperature (°C)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>2024-12-31</td>
+                    <td>123,456</td>
+                    <td>23.4</td>
+                </tr>
+                <tr>
+                    <td>2024-12-30</td>
+                    <td>110,789</td>
+                    <td>22.1</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

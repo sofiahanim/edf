@@ -19,29 +19,19 @@
     <!-- Page Wrapper -->
     <div id="wrapper">
         <!-- Sidebar -->
+        <!-- Sidebar -->
         <ul class="navbar-nav bg-gradient-primary sidebar sidebar-dark accordion" id="accordionSidebar">
-            <!-- Sidebar - Brand -->
-            <a class="sidebar-brand d-flex align-items-center justify-content-center" href="/">
-                <div class="sidebar-brand-icon rotate-n-15">
-                    <i class="fas fa-laugh-wink"></i>
-                </div>
-                <div class="sidebar-brand-text mx-3">EDF</div>
-            </a>
-            <!-- Divider -->
-            <hr class="sidebar-divider my-0">
-            <!-- Nav Item - Dashboard -->
-            <li class="nav-item active">
-                <a class="nav-link" href="/">
+            <!-- Dashboard Link -->
+            <li class="nav-item">
+                <a class="nav-link" href="#dashboard-section">
                     <i class="fas fa-fw fa-tachometer-alt"></i>
-                    <span>Dashboard</span></a>
+                    <span>Dashboard</span>
+                </a>
             </li>
             <!-- Divider -->
             <hr class="sidebar-divider">
-            <!-- Heading -->
-            <div class="sidebar-heading">
-                Interface
-            </div>
-            <!-- Nav Item - Pages Collapse Menu -->
+            <!-- Clean Data Submenu -->
+            <div class="sidebar-heading">Interface</div>
             <li class="nav-item">
                 <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseTwo" aria-expanded="true" aria-controls="collapseTwo">
                     <i class="fas fa-fw fa-cog"></i>
@@ -57,114 +47,35 @@
                 </div>
             </li>
         </ul>
+
         <!-- End of Sidebar -->
         <!-- Content Wrapper -->
         <div id="content-wrapper" class="d-flex flex-column">
             <!-- Main Content -->
-            <div id="content">
-                <!-- Topbar -->
-                <nav class="navbar navbar-expand navbar-light bg-white topbar mb-4 static-top shadow">
-                    <!-- Sidebar Toggle (Topbar) -->
-                    <button id="sidebarToggleTop" class="btn btn-link d-md-none rounded-circle mr-3">
-                        <i class="fa fa-bars"></i>
-                    </button>
-                    <!-- Topbar Search -->
-                    <form class="d-none d-sm-inline-block form-inline mr-auto ml-md-3 my-2 my-md-0 mw-100 navbar-search">
-                        <div class="input-group">
-                            <input type="text" class="form-control bg-light border-0 small" placeholder="Search for..." aria-label="Search" aria-describedby="basic-addon2">
-                            <div class="input-group-append">
-                                <button class="btn btn-primary" type="button">
-                                    <i class="fas fa-search fa-sm"></i>
-                                </button>
-                            </div>
-                        </div>
-                    </form>
-                </nav>
-                <!-- Begin Page Content -->
-                <div class="container-fluid">
-                    <!-- Page Heading -->
-                    <h1 class="h3 mb-2 text-gray-800">Data Tables</h1>
-                    <p class="mb-4">DataTables is a third-party plugin that is used to generate the demo table below. For more information about DataTables, please visit the <a target="_blank" href="https://datatables.net">official DataTables documentation</a>.</p>
-                    <!-- Hourly Demand Data Table -->
-                    <div class="card shadow mb-4">
-                        <div class="card-header py-3">
-                            <h6 class="m-0 font-weight-bold text-primary">Hourly Demand Data</h6>
-                        </div>
-                        <div class="card-body">
-                            <div class="table-responsive">
-                                <table class="table table-bordered" id="hourly-demand-table" width="100%" cellspacing="0">
-                                    <thead>
-                                        <tr>
-                                            <th>Time</th>
-                                            <th>Value</th>
-                                        </tr>
-                                    </thead>
-                                    <tfoot>
-                                        <tr>
-                                            <th>Time</th>
-                                            <th>Value</th>
-                                        </tr>
-                                    </tfoot>
-                                    <tbody>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-
-                                    <!-- Hourly Weather Data Table -->
-                    <div class="card shadow mb-4">
-                        <div class="card-header py-3">
-                            <h6 class="m-0 font-weight-bold text-success">Hourly Weather Data</h6>
-                        </div>
-                        <div class="card-body">
-                            <div class="table-responsive">
-                                <table class="table table-bordered" id="hourly-weather-table" width="100%" cellspacing="0">
-                                    <thead>
-                                        <!-- Column headers will be populated dynamically by DataTables -->
-                                    </thead>
-                                    <tfoot>
-                                        <!-- Column footers will be populated dynamically by DataTables -->
-                                    </tfoot>
-                                    <tbody>
-                                        <!-- Data will be populated dynamically by DataTables -->
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- Holidays Data Table -->
-                    <div class="card shadow mb-4">
-                        <div class="card-header py-3">
-                            <h6 class="m-0 font-weight-bold text-info">Holidays Data</h6>
-                        </div>
-                        <div class="card-body">
-                            <div class="table-responsive">
-                                <table class="table table-bordered" id="holidays-table" width="100%" cellspacing="0">
-                                    <thead>
-                                        <tr>
-                                            <th>Date</th>
-                                            <th>Holiday Name</th>
-                                        </tr>
-                                    </thead>
-                                    <tfoot>
-                                        <tr>
-                                            <th>Date</th>
-                                            <th>Holiday Name</th>
-                                        </tr>
-                                    </tfoot>
-                                    <tbody>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-
-
-
- 
+            
+            <div id="content" class="container-fluid">
+                <!-- Dashboard Section -->
+                <div id="dashboard-section" class="mb-4">
+                    <h1 class="h3 mb-2 text-gray-800">Dashboard</h1>
+                    <canvas id="demand-chart" class="mb-4"></canvas>
+                    <canvas id="weather-chart"></canvas>
                 </div>
-                <!-- /.container-fluid -->
+        
+                <!-- Clean Data Sections -->
+                <div id="hourly-demand-section" class="mb-4">
+                    <h1 class="h3 mb-2 text-gray-800">Hourly Demand</h1>
+                    <table id="hourly-demand-table" class="table table-bordered"></table>
+                </div>
+                
+                <div id="hourly-weather-section" class="mb-4">
+                    <h1 class="h3 mb-2 text-gray-800">Hourly Weather</h1>
+                    <table id="hourly-weather-table" class="table table-bordered"></table>
+                </div>
+                
+                <div id="holidays-section" class="mb-4">
+                    <h1 class="h3 mb-2 text-gray-800">Holidays</h1>
+                    <table id="holidays-table" class="table table-bordered"></table>
+                </div>
             </div>
              <!-- Footer -->
              <footer class="sticky-footer bg-white">
@@ -190,6 +101,49 @@
     
     <script>
         $(document).ready(function() {
+
+
+            // Dashboard Charts
+            $.ajax({
+                url: '/dashboard',
+                type: 'GET',
+                success: function (response) {
+                    // Demand Chart
+                    const demandLabels = response.demand_summary.map(item => item.time);
+                    const demandData = response.demand_summary.map(item => item.demand);
+                    new Chart($('#demand-chart'), {
+                        type: 'line',
+                        data: {
+                            labels: demandLabels,
+                            datasets: [{
+                                label: 'Total Demand (kWh)',
+                                data: demandData,
+                                borderColor: 'rgba(75, 192, 192, 1)',
+                                fill: false,
+                            }]
+                        }
+                    });
+
+                    // Weather Chart
+                    const weatherLabels = response.weather_summary.map(item => item.datetime);
+                    const temperatureData = response.weather_summary.map(item => item.temperature);
+                    const humidityData = response.weather_summary.map(item => item.humidity);
+                    new Chart($('#weather-chart'), {
+                        type: 'bar',
+                        data: {
+                            labels: weatherLabels,
+                            datasets: [
+                                { label: 'Temperature (°C)', data: temperatureData, backgroundColor: 'rgba(255, 99, 132, 0.5)' },
+                                { label: 'Humidity (%)', data: humidityData, backgroundColor: 'rgba(54, 162, 235, 0.5)' }
+                            ]
+                        }
+                    });
+                },
+                error: function (xhr, error) {
+                    console.error('Error loading dashboard data:', error);
+                }
+            });
+
             $('#hourly-demand-table').DataTable({
                 serverSide: true,
                 processing: true,

@@ -1,0 +1,122 @@
+
+/* Sidebar Styling */
+.sidebar {
+    background: linear-gradient(180deg, #4e73df, #224abe); /* Gradient effect */
+    color: white;
+    font-size: 14px;
+    transition: all 0.3s ease-in-out;
+}
+
+.sidebar .nav-item a.nav-link {
+    color: #ffffff; /* White text */
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px; /* Add spacing between icon and text */
+}
+
+.sidebar .nav-item a.nav-link:hover,
+.sidebar .nav-item.active a.nav-link {
+    background-color: #2c57c9; /* Highlight effect */
+    border-radius: 5px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Sidebar Header */
+.sidebar .sidebar-brand {
+    font-weight: bold;
+    font-size: 18px;
+    text-align: center;
+    padding: 15px 0;
+}
+
+/* Top Navbar Styling */
+.navbar {
+    background-color: white;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    padding: 10px 20px;
+}
+
+.navbar .navbar-brand {
+    font-weight: bold;
+    color: #4e73df;
+}
+
+.navbar .nav-item .nav-link {
+    color: #858796;
+    margin-right: 15px;
+    transition: all 0.3s ease;
+}
+
+.navbar .nav-item .nav-link:hover {
+    color: #4e73df;
+}
+
+.navbar .form-control {
+    border-radius: 20px;
+    padding: 5px 20px;
+}
+
+
+
+.card {
+    border: none;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+    margin-bottom: 20px;
+}
+
+.card .card-header {
+    background-color: #f8f9fc;
+    border-bottom: 1px solid #e3e6f0;
+    font-weight: bold;
+    color: #4e73df;
+}
+
+.card .card-body {
+    padding: 20px;
+    font-size: 16px;
+    color: #858796;
+}
+
+/* Sidebar Brand Icon Styling */
+.sidebar-brand-icon {
+    color: #ffffff; /* Electric yellow for the lightning bolt */
+    font-size: 24px; /* Make it slightly larger */
+    margin-right: 10px; /* Add spacing from the text */
+    animation: pulse 1.5s infinite; /* Optional: subtle glowing effect */
+}
+
+/* Pulse Animation for Icon */
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+#timeRange {
+    font-size: 0.9rem;
+    padding: 0.5rem;
+}
+
+#filterButton {
+    width: 100%;
+}
+table {
+    font-size: 0.85rem; /* Reduce font size */
+    padding: 5px;
+}
+table th, table td {
+    padding: 5px 10px; /* Compact cell padding */
+}
+table th, table td {
+    max-width: 200px; /* Adjust as per requirement */
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+}

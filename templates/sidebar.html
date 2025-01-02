@@ -1,0 +1,54 @@
+<ul class="navbar-nav bg-gradient-primary sidebar sidebar-dark accordion" id="accordionSidebar">
+    <!-- Sidebar - Brand -->
+    <a class="sidebar-brand d-flex align-items-center justify-content-center" href="{{ url_for('dashboard_page') }}">
+        <div class="sidebar-brand-icon">
+            <i class="fas fa-bolt"></i>
+        </div>
+        <div class="sidebar-brand-text mx-3">EDF</div>
+    </a>
+    
+
+    <!-- Divider -->
+    <hr class="sidebar-divider my-0">
+
+    <!-- Nav Item - Dashboard -->
+    <li class="nav-item {% if request.path == url_for('dashboard_page') %}active{% endif %}">
+        <a class="nav-link" href="{{ url_for('dashboard_page') }}">
+            <i class="fas fa-fw fa-tachometer-alt"></i>
+            <span>Dashboard</span>
+        </a>
+    </li>
+
+    <!-- Divider -->
+    <hr class="sidebar-divider">
+
+    <!-- Heading -->
+    <div class="sidebar-heading">Interface</div>
+
+    <!-- Nav Item - Hourly Demand -->
+    <li class="nav-item {% if request.path == url_for('hourly_demand_page') %}active{% endif %}">
+        <a class="nav-link" href="{{ url_for('hourly_demand_page') }}">
+            <i class="fas fa-fw fa-table"></i>
+            <span>Hourly Demand</span>
+        </a>
+    </li>
+
+    <!-- Nav Item - Hourly Weather -->
+    <li class="nav-item {% if request.path == url_for('hourly_weather_page') %}active{% endif %}">
+        <a class="nav-link" href="{{ url_for('hourly_weather_page') }}">
+            <i class="fas fa-fw fa-cloud"></i>
+            <span>Hourly Weather</span>
+        </a>
+    </li>
+
+    <!-- Nav Item - Holidays -->
+    <li class="nav-item {% if request.path == url_for('holidays_page') %}active{% endif %}">
+        <a class="nav-link" href="{{ url_for('holidays_page') }}">
+            <i class="fas fa-fw fa-calendar"></i>
+            <span>Holidays</span>
+        </a>
+    </li>
+
+    <!-- Divider -->
+    <hr class="sidebar-divider">
+</ul>

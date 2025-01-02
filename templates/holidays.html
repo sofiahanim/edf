@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block title %}Holidays{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h3 mb-2 text-gray-800">
+        <i class="fas fa-calendar-alt"></i> Holidays
+    </h1>
+    <p>Search holidays by name or date.</p>
+    <div class="table-responsive">
+        <table id="holidays-table" class="table table-bordered"></table>
+    </div>
+    <p class="text-muted mt-2" style="font-size: 0.85rem;">
+        <em>Data last updated as of 31 Dec 2024, 23:00</em>
+    </p>
+</div>
+{% endblock %}
