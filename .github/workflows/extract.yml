@@ -7,7 +7,7 @@ on:
 
 jobs:
   data_extraction:
-    runs-on: ubuntu-20.04  # Updated to use the latest stable version of Ubuntu
+    runs-on: ubuntu-20.04  # Using Ubuntu ensures we're targeting a Linux environment
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -15,24 +15,23 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: 3.10.16  # Update to a valid Python version like 3.10
-        
+          python-version: 3.10.16  # Ensure Python version matches your compatibility requirements
+
       - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y libpq-dev libjemalloc-dev  # Example dependencies
 
-      - name: Clear pip cache and install dependencies
+      - name: Install Python dependencies
         run: |
-          rm -rf ~/.cache/pip
-          pip install --upgrade pip
-          pip install -r requirements.txt
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements_linux.txt  # Specify Linux requirements file
 
       - name: Run extraction script
         env:
           REDSHIFT_REGION: ${{ secrets.REDSHIFT_REGION }}
           REDSHIFT_WORKGROUP: ${{ secrets.REDSHIFT_WORKGROUP }}
-        run: python scripts/extract_data.py 
+        run: python scripts/extract_data.py
 
       - name: Archive logs
         uses: actions/upload-artifact@v3
