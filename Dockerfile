@@ -11,12 +11,15 @@ RUN apt-get update && apt-get install -y \
     libtool \
     autoconf \
     automake \
-    bison  # Install bison
+    bison \
+    gawk \
+    sudo  # Install required dependencies including gawk and sudo
 
 # Install glibc 2.34
 RUN wget http://ftp.gnu.org/gnu/libc/glibc-2.34.tar.gz && \
     tar -xvzf glibc-2.34.tar.gz && \
     cd glibc-2.34 && \
-    mkdir build && cd build && ../configure --prefix=/usr && \
-    make -j$(nproc) && make install && \
+    mkdir build && cd build && \
+    ../configure --prefix=/usr && \
+    make VERBOSE=1 -j$(nproc) && make install && \
     cd ../.. && rm -rf glibc-2.34 glibc-2.34.tar.gz
