@@ -2,7 +2,7 @@ import os
 import sys
 
 def generate_requirements():
-    platform = sys.platform
+    platform = "linux"
     
     if platform.startswith('win'):
         requirements_file = 'requirements_windows.txt'

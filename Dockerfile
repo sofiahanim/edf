@@ -15,18 +15,18 @@ RUN apt-get update && apt-get install -y \
     gawk \
     sudo \
     libpq-dev \
-    libjemalloc-dev && \
-    rm -rf /var/lib/apt/lists/*  # Clearing the apt cache to reduce image size
+    libjemalloc-dev 
+
+# Clear the apt cache to reduce image size
+RUN rm -rf /var/lib/apt/lists/*
 
 # Install glibc 2.34
 RUN wget http://ftp.gnu.org/gnu/libc/glibc-2.34.tar.gz && \
     tar -xvzf glibc-2.34.tar.gz && \
     cd glibc-2.34 && \
-    if [ ! -d "build" ]; then mkdir build; fi && \
-    cd build && \
+    mkdir -p build && cd build && \
     ../configure --prefix=/usr && \
     make VERBOSE=1 -j$(nproc) && \
     make install && \
     cd ../.. && \
     rm -rf glibc-2.34 glibc-2.34.tar.gz
-
