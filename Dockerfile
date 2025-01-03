@@ -19,7 +19,11 @@ RUN apt-get update && apt-get install -y \
 RUN wget http://ftp.gnu.org/gnu/libc/glibc-2.34.tar.gz && \
     tar -xvzf glibc-2.34.tar.gz && \
     cd glibc-2.34 && \
-    mkdir build && cd build && \
+    [ ! -d "build" ] && mkdir build || echo "Build directory exists" && \
+    cd build && \
     ../configure --prefix=/usr && \
     make VERBOSE=1 -j$(nproc) && make install && \
     cd ../.. && rm -rf glibc-2.34 glibc-2.34.tar.gz
+
+RUN apt-get update && apt-get install -y libpq-dev libjemalloc-dev
+RUN apt-get install -y libpq-dev libjemalloc-dev
