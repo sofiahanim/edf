@@ -1,4 +1,5 @@
-# General dependencies
+boto3
+pandas
 blinker==1.4
 cryptography==3.4.8
 httplib2==0.20.2
@@ -16,7 +17,3 @@ SecretStorage==3.3.1
 six==1.16.0
 wadllib==1.3.6
 zipp==1.0.0
-boto3  # Add this line, specify a version if needed
-
-# Dependencies with special handling
-# Handle distro, dbus-python, and PyYAML separately in the GitHub Actions workflow due to specific requirements.
