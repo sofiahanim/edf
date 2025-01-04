@@ -1,6 +1,5 @@
 blinker==1.4
 cryptography==3.4.8
-distro==1.7.0
 httplib2==0.20.2
 importlib-metadata==4.6.4
 jeepney==0.7.1
@@ -18,3 +17,7 @@ SecretStorage==3.3.1
 six==1.16.0
 wadllib==1.3.6
 zipp==1.0.0
+
+# Install the latest compatible versions of the following:
+distro==1.7.0  # Ensure that python3-distro-info is installed via pip if not available in apt
+dbus-python==1.2.18  # Ensure that dbus-python is installed via pip if not available in apt
