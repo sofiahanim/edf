@@ -37,9 +37,9 @@ jobs:
             python3-secretstorage python3-keyring python3-apt python3-pip ubuntu-advantage-tools ufw \
             unattended-upgrades libpython3-dev build-essential
           python3 -m pip install --upgrade pip
-          python3 -m pip install -r requirement_linux.txt
-          pip freeze > requirement_linux_updated.txt
-          
+          python3 -m pip install -r requirements_linux.txt
+          pip freeze > requirements_linux_updated.txt
+
       # Step 7: Run extraction script
       - name: Run extraction script
         env:
