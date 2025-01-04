@@ -33,28 +33,13 @@ jobs:
       # Step 4: Install specific dependencies via pip
       - name: Install specific dependencies via pip
         run: |
-          sudo apt-get update
-          sudo apt-get install -y libdbus-1-dev  # Install dbus development files
+          sudo apt-get install -y libdbus-1-dev libpq-dev libjemalloc-dev python3-gi gir1.2-gtk-3.0 \
+            python3-secretstorage python3-keyring python3-apt python3-pip ubuntu-advantage-tools ufw \
+            unattended-upgrades libpython3-dev build-essential
           python3 -m pip install --upgrade pip
-          python3 -m pip install Cython distro==1.7.0 dbus-python==1.2.18 pandas boto3 PyYAML==5.4.1
-          # Add other dependencies as needed
-
-      # Step 5: Install system dependencies
-      - name: Install system dependencies
-        run: |
-          sudo apt-get install -y \
-            libpq-dev libjemalloc-dev python3-gi gir1.2-gtk-3.0 \
-            python3-secretstorage python3-keyring \
-            python3-apt python3-pip ubuntu-advantage-tools ufw \
-            unattended-upgrades
-
-
-      # Step 6: Update pip and install Python dependencies
-      - name: Install Python dependencies
-        run: |
-          python3 -m pip install pandas boto3 PyYAML==5.4.1
-          # Add all other dependencies to the requirements file or install them here
-
+          python3 -m pip install -r requirement_linux.txt
+          pip freeze > requirement_linux_updated.txt
+          
       # Step 7: Run extraction script
       - name: Run extraction script
         env:

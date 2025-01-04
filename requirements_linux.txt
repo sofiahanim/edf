@@ -1,5 +1,11 @@
-boto3
 pandas
+Cython
+numpy
+distro==1.7.0
+dbus-python==1.2.18
+boto3
+numpy
+requests
 blinker==1.4
 cryptography==3.4.8
 httplib2==0.20.2
