@@ -15,7 +15,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: 3.10.16  # Ensure Python version matches your compatibility requirements
+          python-version: 3.11.10  # Ensure Python version matches your compatibility requirements
 
       - name: Install system dependencies
         run: |
