@@ -7,25 +7,46 @@ on:
 
 jobs:
   data_extraction:
-    runs-on: ubuntu-20.04  # Using Ubuntu ensures we're targeting a Linux environment
+    runs-on: ubuntu-20.04
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
 
+      - name: Check if ~BROMIUM exists
+        id: check_bromium
+        run: |
+          if [ -e "~BROMIUM" ]; then
+            echo "bromium_exists=true" >> $GITHUB_ENV
+          else
+            echo "bromium_exists=false" >> $GITHUB_ENV
+          fi
+
+      - name: Handle ~BROMIUM if it exists
+        if: env.bromium_exists == 'true'
+        run: |
+          echo "~BROMIUM exists, handling it appropriately"
+          # Add commands here to handle ~BROMIUM, e.g., delete it or process it
+
+      - name: Proceed if ~BROMIUM does not exist
+        if: env.bromium_exists == 'false'
+        run: |
+          echo "~BROMIUM does not exist, continuing normally"
+
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: 3.11.10  # Ensure Python version matches your compatibility requirements
+          python-version: 3.11.10
 
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libpq-dev libjemalloc-dev  # Example dependencies
+          sudo apt-get install -y libpq-dev libjemalloc-dev
 
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r requirements_linux.txt  # Specify Linux requirements file
+          python -m pip install -r requirements_linux.txt
 
       - name: Run extraction script
         env:
