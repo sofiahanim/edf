@@ -30,24 +30,25 @@ jobs:
         with:
           python-version: 3.11.10  # Ensure Python version matches requirements
 
-      # Step 4: Install specific dependencies via pip
+     
+          # Step 4: Install specific dependencies via pip
       - name: Install specific dependencies via pip
         run: |
+          sudo apt-get update
+          sudo apt-get install -y libdbus-1-dev  # Install dbus development files
           python3 -m pip install distro==1.7.0
-          python3 -m pip install dbus-python==1.2.18
+          python3 -m pip install dbus-python==1.2.18  # Install specific version of dbus-python
 
       # Step 5: Install system dependencies
       - name: Install system dependencies
         run: |
-          sudo apt-get update
           sudo apt-get install -y \
             libpq-dev libjemalloc-dev python3-gi gir1.2-gtk-3.0 \
             python3-secretstorage python3-keyring \
             python3-apt python3-pip ubuntu-advantage-tools ufw \
             unattended-upgrades
-          # Install dbus-python and distro again in case they were missed
+          # It's now unnecessary to install dbus-python here again since it's handled above
           python3 -m pip install distro==1.7.0
-          python3 -m pip install dbus-python==1.2.18
 
       # Step 6: Update pip and install Python dependencies
       - name: Update pip and install Python dependencies
