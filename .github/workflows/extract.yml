@@ -30,12 +30,12 @@ jobs:
         with:
           python-version: 3.11.10  # Ensure Python version matches requirements
 
-     
-          # Step 4: Install specific dependencies via pip
+      # Step 4: Install specific dependencies via pip
       - name: Install specific dependencies via pip
         run: |
           sudo apt-get update
           sudo apt-get install -y libdbus-1-dev  # Install dbus development files
+          python3 -m pip install Cython  # Ensure Cython is installed for potential compilation requirements
           python3 -m pip install distro==1.7.0
           python3 -m pip install dbus-python==1.2.18  # Install specific version of dbus-python
 
@@ -47,8 +47,6 @@ jobs:
             python3-secretstorage python3-keyring \
             python3-apt python3-pip ubuntu-advantage-tools ufw \
             unattended-upgrades
-          # It's now unnecessary to install dbus-python here again since it's handled above
-          python3 -m pip install distro==1.7.0
 
       # Step 6: Update pip and install Python dependencies
       - name: Update pip and install Python dependencies
@@ -57,7 +55,9 @@ jobs:
           # Remove problematic packages from requirements_linux.txt before installation
           sed -i '/distro-info==1.1/d' requirements_linux.txt  # Remove problematic version
           sed -i '/dbus-python==1.2.18/d' requirements_linux.txt  # Remove problematic version
+          sed -i '/PyYAML==5.4.1/d' requirements_linux.txt  # Temporarily remove PyYAML if issues persist
           python -m pip install -r requirements_linux.txt  # Install remaining packages
+          python -m pip install PyYAML==5.4.1  # Attempt to install PyYAML separately if necessary
 
       # Step 7: Run extraction script
       - name: Run extraction script
