@@ -1,7 +1,7 @@
 name: Data Extraction
 
 on:
-  workflow_dispatch: 
+  workflow_dispatch:
   schedule:
     - cron: '0 1 * * *'  # Runs at 1 AM UTC every day
   push:
@@ -48,11 +48,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          if [ -f requirements_linux.txt ]; then
-              python3 -m pip install -r requirements_linux.txt
-          else
-              echo "No requirements file found. Installing core dependencies."
-              python3 -m pip install boto3 pandas
+          python3 -m pip install boto3 pandas
 
       - name: Run extraction script
         env:
