@@ -1,0 +1,51 @@
+name: Data Pipeline
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 1 * * *'  # Runs at 1 AM UTC every day
+
+jobs:
+  data_pipeline:
+    runs-on: ubuntu-20.04
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        
+      - name: Set up Git configuration
+        run: |
+          git config --global user.email "155748091+sofiahanim@users.noreply.github.com"
+          git config --global user.name "GitHub Actions"
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.11.10  
+
+      - name: Install dependencies from requirements
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -r requirements_linux.txt
+
+      - name: Run pipeline script
+        env:
+          REDSHIFT_REGION: ${{ secrets.REDSHIFT_REGION }}
+          REDSHIFT_WORKGROUP: ${{ secrets.REDSHIFT_WORKGROUP }}
+        run: python scripts/pipe_data.py  # Execute the pipeline script
+
+      - name: Commit and push updated CSV
+        run: |
+          git config --local user.name "GitHub Actions"
+          git config --local user.email "actions@github.com"
+          git add data/demand/2025.csv
+          git commit -m "Update CSV with new data"
+          git push
+
+      - name: Notify success
+        if: success()
+        run: echo "🎉 Data pipeline completed successfully!"
+
+      - name: Notify failure
+        if: failure()
+        run: echo "❌ Data pipeline failed. Check logs for details."

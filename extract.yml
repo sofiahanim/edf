@@ -1,0 +1,87 @@
+name: Data Extraction
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 1 * * *'  # Runs at 1 AM UTC every day
+  push:
+    branches:
+      - main
+
+jobs:
+  data_extraction:
+    runs-on: ubuntu-20.04
+    permissions:
+      contents: write
+      issues: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Git configuration
+        run: |
+          git config --global user.email "155748091+sofiahanim@users.noreply.github.com"
+          git config --global user.name "GitHub Actions"
+
+      - name: Pull latest changes
+        run: |
+          git fetch --all
+          git pull origin main || (echo "Merge conflict detected. Aborting." && git merge --abort)
+
+      - name: Prepare directories
+        run: mkdir -p data/demand logs
+
+      - name: Handle ~BROMIUM if it exists
+        run: |
+          if [ -e "/home/runner/~BROMIUM" ]; then
+            echo "Skipping further steps because ~BROMIUM exists."
+            exit 0
+          else
+            echo "~BROMIUM does not exist, continuing normally."
+          fi
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.11.10  
+
+      - name: Install dependencies
+        run: |
+          python3 -m pip install boto3 pandas
+
+      - name: Run extraction script
+        env:
+          REDSHIFT_REGION: ${{ secrets.REDSHIFT_REGION }}
+          REDSHIFT_WORKGROUP: ${{ secrets.REDSHIFT_WORKGROUP }}
+        run: timeout 300 python scripts/extract_data.py  # Timeout after 5 minutes
+
+      - name: Archive logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs-${{ github.run_number }}
+          path: logs/
+
+      - name: Archive datasets
+        uses: actions/upload-artifact@v4
+        with:
+          name: datasets-${{ github.run_number }}
+          path: data/demand/
+
+      - name: Commit and push if changes
+        run: |
+          git status --short
+          if [ -n "$(git status --short)" ]; then
+            git add data/demand/2025.csv logs/
+            git commit -m "Update datasets and logs"
+            git push
+          else
+            echo "No changes detected. Skipping commit."
+          fi       
+      - name: Notify success
+        if: success()
+        run: echo "🎉 Data extraction completed successfully!"
+
+      - name: Notify failure
+        if: failure()
+        run: echo "❌ Data extraction failed. Check logs for details."

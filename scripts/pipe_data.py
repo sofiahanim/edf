@@ -13,7 +13,7 @@ os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(LOG_DIR, exist_ok=True)
 
 csv_file_path = os.path.join(DATA_DIR, '2025.csv')
-log_file_name = f"data_extraction_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+log_file_name = f"data_pipeline_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
 logging.basicConfig(
     filename=os.path.join(LOG_DIR, log_file_name),
     level=logging.INFO,
@@ -22,8 +22,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # AWS Redshift setup
-REDSHIFT_REGION = os.getenv('REDSHIFT_REGION', 'us-east-1')  # Default to 'us-east-1'
-WORKGROUP_NAME = os.getenv('REDSHIFT_WORKGROUP', 'edf-workgroup')  # Default to 'edf-workgroup'
+REDSHIFT_REGION = "us-east-1"
 DATABASE_NAME = "hourlydemanddb"
 TABLE_NAME = "2025"
 client = boto3.client("redshift-data", region_name=REDSHIFT_REGION, config=Config(retries={'max_attempts': 10, 'mode': 'adaptive'}))
@@ -32,7 +31,7 @@ client = boto3.client("redshift-data", region_name=REDSHIFT_REGION, config=Confi
 def get_available_date_range():
     sql = f"SELECT MIN(time), MAX(time) FROM \"{DATABASE_NAME}\".\"public\".\"{TABLE_NAME}\""
     try:
-        response = client.execute_statement(Database=DATABASE_NAME, Sql=sql, WorkgroupName=WORKGROUP_NAME, WithEvent=True)
+        response = client.execute_statement(Database=DATABASE_NAME, Sql=sql, WorkgroupName='edf-workgroup', WithEvent=True)
         query_id = response['Id']
         while True:
             status_response = client.describe_statement(Id=query_id)
@@ -49,8 +48,7 @@ def get_available_date_range():
         logger.error(f"Error fetching date range: {e}")
         return None, None
 
-# Safely extract value from Redshift result
-def extract_value(field):
+def pipe_value(field):
     if 'stringValue' in field:
         return field['stringValue']
     elif 'longValue' in field:
@@ -100,7 +98,7 @@ if min_available_date and max_available_date:
         logger.info(f"SQL Query: {sql_query}")
         try:
             response = client.execute_statement(
-                Database=DATABASE_NAME, Sql=sql_query, WorkgroupName=WORKGROUP_NAME, WithEvent=True
+                Database=DATABASE_NAME, Sql=sql_query, WorkgroupName='edf-workgroup', WithEvent=True
             )
             query_id = response['Id']
             logger.info(f"Query submitted, ID: {query_id}")
@@ -119,8 +117,8 @@ if min_available_date and max_available_date:
                     logger.info(f"Total rows fetched: {len(records)}")
                     if records:
                         new_data = pd.DataFrame([{
-                            'time': extract_value(record[0]),
-                            'value': extract_value(record[1])
+                            'time': pipe_value(record[0]),
+                            'value': pipe_value(record[1])
                         } for record in records])
                         new_data['time'] = pd.to_datetime(new_data['time'])  # Ensure time is datetime
                         updated_data = pd.concat([data_df, new_data]).drop_duplicates(subset='time').sort_values(by='time')
@@ -131,4 +129,4 @@ if min_available_date and max_available_date:
 else:
     logger.warning("Database has no valid date range. Skipping further processing.")
 
-logger.info("Data extraction completed.")
+logger.info("Data completed.")
