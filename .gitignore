@@ -43,10 +43,6 @@ actions-runner/
 bin/
 build/
 cache/
-data/
-dataset/
-logs/
-*.log
 __pycache__/
 *.pyc
 
@@ -64,18 +60,11 @@ __pycache__.zip
 __pycache__/
 *.pyc
 
-# Exclude all log files and directories
-logs/
-*.log
-
 # Exclude build artifacts
 bin/
 build/
 cache/
 
-# Exclude data that should not be version controlled
-data/
-dataset/
 
 # Exclude external tools or libraries that should not be tracked
 externals/
