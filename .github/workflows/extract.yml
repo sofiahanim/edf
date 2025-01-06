@@ -1,20 +1,31 @@
 name: Data Extraction
 
 on:
-  workflow_dispatch:  # Allows manual trigger
+  workflow_dispatch: 
   schedule:
     - cron: '0 1 * * *'  # Runs at 1 AM UTC every day
+  push:
+    branches:
+      - main
 
 jobs:
   data_extraction:
-    runs-on: ubuntu-20.04  # Use Ubuntu 20.04 for compatibility
+    #runs-on: ubuntu-20.04  #
+    runs-on: [self-hosted, linux, x64] 
+    permissions:
+      contents: write  # Allows this workflow to push commits
+      issues: read
 
     steps:
-      # Step 1: Checkout code
       - name: Checkout code
         uses: actions/checkout@v2
 
-      # Step 2: Handle ~BROMIUM if it exists
+
+      - name: Set up Git configuration
+        run: |
+          git config --global user.email "155748091+sofiahanim@users.noreply.github.com"
+          git config --global user.name "GitHub Actions"
+
       - name: Handle ~BROMIUM if it exists
         run: |
           if [ -e "/home/runner/~BROMIUM" ]; then  # Use full path
@@ -24,13 +35,11 @@ jobs:
             echo "~BROMIUM does not exist, continuing normally"
           fi
 
-      # Step 3: Set up Python environment
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: 3.11.10  # Ensure Python version matches requirements
+          python-version: 3.11.10  
 
-      # Step 4: Install specific dependencies via pip
       - name: Install specific dependencies via pip
         run: |
           sudo apt-get install -y libdbus-1-dev libpq-dev libjemalloc-dev python3-gi gir1.2-gtk-3.0 \
@@ -38,18 +47,33 @@ jobs:
             unattended-upgrades libpython3-dev build-essential
           python3 -m pip install --upgrade pip
           python3 -m pip install -r requirements_linux.txt
-          pip freeze > requirements_linux_updated.txt
 
-      # Step 7: Run extraction script
       - name: Run extraction script
         env:
           REDSHIFT_REGION: ${{ secrets.REDSHIFT_REGION }}
           REDSHIFT_WORKGROUP: ${{ secrets.REDSHIFT_WORKGROUP }}
         run: python scripts/extract_data.py
 
-      # Step 8: Archive logs
+      - name: Update and commit requirements
+        run: |
+          cd ${{ github.workspace }}
+          pip freeze > requirements_linux_updated.txt
+          git add requirements_linux_updated.txt
+          git commit -m "Update requirements" || echo "No changes to commit"
+          git push
+
       - name: Archive logs
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: logs
           path: logs/
+
+      - name: Commit and push if changes
+        run: |
+          git add dataset/electricity/2025.csv dataset/weather/2025.csv logs/
+          git commit -m "Update datasets and logs" || echo "No changes to commit"
+          git push
+      - name: Execute Deployment Script
+        run: |
+          echo "Deploying application."
+          ./deploy.sh

@@ -17,8 +17,12 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Initialize Redshift Data API client with retry strategy
+# Constants for AWS Redshift access
 REDSHIFT_REGION = "us-east-1"
+REDSHIFT_ROLE_ARN = "arn:aws:iam::022499009488:role/service-role/AmazonRedshift-CommandsAccessRole-20241212T083818"
+DB_USER = 'IAM:RootIdentity'
+
+# Initialize Redshift Data API client with retry strategy
 retry_config = Config(
     retries={
         'max_attempts': 10,
@@ -39,7 +43,9 @@ def execute_redshift_query(client, database, sql, workgroup_name, is_synchronous
             Database=database,
             WorkgroupName=workgroup_name,
             Sql=sql,
-            WithEvent=is_synchronous
+            WithEvent=is_synchronous,
+            DbUser=DB_USER,
+            RoleArn=REDSHIFT_ROLE_ARN
         )
         query_id = response['Id']
         logger.info("SQL execution initiated, awaiting results...")

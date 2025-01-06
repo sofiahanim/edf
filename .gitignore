@@ -17,3 +17,17 @@ __pycache__
 *.sql
 ~BROMIUM
 Python-3.11.10
+actions-runner/
+*.log
+bin/
+.credentials*
+.credentials_rsaparams
+env.sh
+config.sh
+run-helper.*
+run.sh
+safe_sleep.sh
+svc.sh
+*.tar.gz
+.bin/
+externals/
