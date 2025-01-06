@@ -53,7 +53,6 @@ jobs:
           else
               echo "No requirements file found. Installing core dependencies."
               python3 -m pip install boto3 pandas
-          fi
 
       - name: Run extraction script
         env:
