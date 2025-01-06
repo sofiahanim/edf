@@ -77,7 +77,7 @@ jobs:
             git push
           else
             echo "No changes detected. Skipping commit."
-
+          fi       
       - name: Notify success
         if: success()
         run: echo "🎉 Data extraction completed successfully!"
