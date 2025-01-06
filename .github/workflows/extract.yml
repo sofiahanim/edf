@@ -10,8 +10,7 @@ on:
 
 jobs:
   data_extraction:
-    runs-on: ubuntu-20.04  #
-    #runs-on: [self-hosted, linux, x64] 
+    runs-on: ubuntu-20.04
     permissions:
       contents: write
       issues: read
@@ -20,19 +19,26 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
-
       - name: Set up Git configuration
         run: |
           git config --global user.email "155748091+sofiahanim@users.noreply.github.com"
           git config --global user.name "GitHub Actions"
 
+      - name: Pull latest changes
+        run: |
+          git fetch --all
+          git pull origin main || (echo "Merge conflict detected. Aborting." && git merge --abort)
+
+      - name: Prepare directories
+        run: mkdir -p data/demand logs
+
       - name: Handle ~BROMIUM if it exists
         run: |
-          if [ -e "/home/runner/~BROMIUM" ]; then  # Use full path
+          if [ -e "/home/runner/~BROMIUM" ]; then
             echo "Skipping further steps because ~BROMIUM exists."
-            exit 0  # Exit early, skipping remaining steps
+            exit 0
           else
-            echo "~BROMIUM does not exist, continuing normally"
+            echo "~BROMIUM does not exist, continuing normally."
           fi
 
       - name: Set up Python
@@ -40,37 +46,46 @@ jobs:
         with:
           python-version: 3.11.10  
 
-      - name: Install specific dependencies via pip
+      - name: Install dependencies
         run: |
-          sudo apt-get install -y libdbus-1-dev libpq-dev libjemalloc-dev python3-gi gir1.2-gtk-3.0 \
-            python3-secretstorage python3-keyring python3-apt python3-pip ubuntu-advantage-tools ufw \
-            unattended-upgrades libpython3-dev build-essential
-          python3 -m pip install --upgrade pip
-          python3 -m pip install -r requirements_linux.txt
+          if [ -f requirements_linux.txt ]; then
+            python3 -m pip install -r requirements_linux.txt
+          else
+            echo "No requirements file found. Installing core dependencies."
+            python3 -m pip install boto3 pandas
 
       - name: Run extraction script
         env:
           REDSHIFT_REGION: ${{ secrets.REDSHIFT_REGION }}
           REDSHIFT_WORKGROUP: ${{ secrets.REDSHIFT_WORKGROUP }}
-        run: python scripts/extract_data.py
-
-      - name: Update and commit requirements
-        run: |
-          cd ${{ github.workspace }}
-          pip freeze > requirements_linux_updated.txt
-          git add requirements_linux_updated.txt
-          git commit -m "Update requirements" || echo "No changes to commit"
-          git push
+        run: timeout 300 python scripts/extract_data.py  # Timeout after 5 minutes
 
       - name: Archive logs
         uses: actions/upload-artifact@v4
         with:
-          name: logs
+          name: logs-${{ github.run_number }}
           path: logs/
+
+      - name: Archive datasets
+        uses: actions/upload-artifact@v4
+        with:
+          name: datasets-${{ github.run_number }}
+          path: data/demand/
 
       - name: Commit and push if changes
         run: |
-          git add dataset/electricity/2025.csv dataset/weather/2025.csv logs/
-          git commit -m "Update datasets and logs" || echo "No changes to commit"
-          git push
+          git status --short
+          if [ -n "$(git status --short)" ]; then
+            git add data/demand/2025.csv logs/
+            git commit -m "Update datasets and logs"
+            git push
+          else
+            echo "No changes detected. Skipping commit."
 
+      - name: Notify success
+        if: success()
+        run: echo "🎉 Data extraction completed successfully!"
+
+      - name: Notify failure
+        if: failure()
+        run: echo "❌ Data extraction failed. Check logs for details."

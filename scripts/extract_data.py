@@ -1,14 +1,18 @@
 import os
+import pandas as pd
+from datetime import datetime, timedelta
 import logging
 import boto3
-import pandas as pd
-from datetime import datetime
 from botocore.config import Config
-from concurrent.futures import ThreadPoolExecutor
 
 # Setup logging
-LOG_DIR = "logs"
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # Root directory
+DATA_DIR = os.path.join(BASE_DIR, 'data', 'demand')
+LOG_DIR = os.path.join(BASE_DIR, 'logs')
+os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(LOG_DIR, exist_ok=True)
+
+csv_file_path = os.path.join(DATA_DIR, '2025.csv')
 log_file_name = f"data_extraction_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
 logging.basicConfig(
     filename=os.path.join(LOG_DIR, log_file_name),
@@ -17,96 +21,114 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Constants for AWS Redshift access
-REDSHIFT_REGION = "us-east-1"
-REDSHIFT_ROLE_ARN = "arn:aws:iam::022499009488:role/service-role/AmazonRedshift-CommandsAccessRole-20241212T083818"
-DB_USER = 'IAM:RootIdentity'
+# AWS Redshift setup
+REDSHIFT_REGION = os.getenv('REDSHIFT_REGION', 'us-east-1')  # Default to 'us-east-1'
+WORKGROUP_NAME = os.getenv('REDSHIFT_WORKGROUP', 'edf-workgroup')  # Default to 'edf-workgroup'
+DATABASE_NAME = "hourlydemanddb"
+TABLE_NAME = "2025"
+client = boto3.client("redshift-data", region_name=REDSHIFT_REGION, config=Config(retries={'max_attempts': 10, 'mode': 'adaptive'}))
 
-# Initialize Redshift Data API client with retry strategy
-retry_config = Config(
-    retries={
-        'max_attempts': 10,
-        'mode': 'adaptive'
-    }
-)
-try:
-    client = boto3.client("redshift-data", region_name=REDSHIFT_REGION, config=retry_config)
-    logger.info("Successfully initialized Redshift Data API client.")
-except Exception as e:
-    logger.error(f"Error initializing Redshift Data API client: {e}")
-    raise
-
-def execute_redshift_query(client, database, sql, workgroup_name, is_synchronous=True):
-    logger.info(f"Executing SQL on database '{database}': {sql}")
+# Function to fetch the available date range in the database
+def get_available_date_range():
+    sql = f"SELECT MIN(time), MAX(time) FROM \"{DATABASE_NAME}\".\"public\".\"{TABLE_NAME}\""
     try:
-        response = client.execute_statement(
-            Database=database,
-            WorkgroupName=workgroup_name,
-            Sql=sql,
-            WithEvent=is_synchronous,
-            DbUser=DB_USER
-        )
+        response = client.execute_statement(Database=DATABASE_NAME, Sql=sql, WorkgroupName=WORKGROUP_NAME, WithEvent=True)
         query_id = response['Id']
-        logger.info("SQL execution initiated, awaiting results...")
-        return query_id
+        while True:
+            status_response = client.describe_statement(Id=query_id)
+            if status_response['Status'] in ['FINISHED', 'FAILED', 'ABORTED']:
+                if status_response['Status'] == 'FINISHED':
+                    result = client.get_statement_result(Id=query_id)
+                    min_date = result['Records'][0][0]['stringValue'] if result['Records'][0][0] else None
+                    max_date = result['Records'][0][1]['stringValue'] if result['Records'][0][1] else None
+                    return min_date, max_date
+                else:
+                    logger.error("Failed to fetch date range from the database.")
+                    return None, None
     except Exception as e:
-        logger.error(f"Error executing query: {e}")
-        return None
+        logger.error(f"Error fetching date range: {e}")
+        return None, None
 
-def monitor_query(client, query_id):
-    while True:
-        response = client.describe_statement(Id=query_id)
-        status = response['Status']
-        if status in ['FINISHED', 'FAILED', 'ABORTED']:
-            logger.info(f"Query {query_id} status: {status}")
-            break
-    if status == 'FINISHED':
-        result = client.get_statement_result(Id=query_id)
-        return result['Records']
+# Safely extract value from Redshift result
+def extract_value(field):
+    if 'stringValue' in field:
+        return field['stringValue']
+    elif 'longValue' in field:
+        return field['longValue']
+    elif 'doubleValue' in field:
+        return field['doubleValue']
     else:
-        logger.error(f"Query {query_id} failed or aborted.")
-        return None
+        return None  # Handle NULL values
 
-def append_to_csv(file_path, data, columns):
-    try:
-        rows = [dict(zip(columns, [col.get("stringValue", col.get("longValue", col.get("doubleValue"))) for col in record])) for record in data]
-        new_data = pd.DataFrame(rows)
-        if os.path.exists(file_path):
-            existing_data = pd.read_csv(file_path)
-            updated_data = pd.concat([existing_data, new_data], ignore_index=True)
-        else:
-            updated_data = new_data
-        updated_data.to_csv(file_path, index=False)
-        logger.info(f"Data successfully appended to {file_path}.")
-    except Exception as e:
-        logger.error(f"Error appending data to {file_path}: {e}")
+# Load and clean CSV
+if os.path.exists(csv_file_path) and os.path.getsize(csv_file_path) > 0:
+    data_df = pd.read_csv(csv_file_path, parse_dates=['time'])
+    data_df.drop_duplicates(subset='time', inplace=True)  # Remove duplicates
+    data_df.dropna(subset=['time', 'value'], inplace=True)  # Remove rows with missing data
+    data_df.sort_values(by='time', ascending=False, inplace=True)  # Sort by time (latest on top)
 
-# Define SQL queries, file paths, and database names
-sql_demand = 'SELECT * FROM "hourlydemanddb"."public"."2025";'
-sql_weather = 'SELECT * FROM "hourlyweatherdb"."public"."2025";'
-DEMAND_DB_NAME = "hourlydemanddb"
-WEATHER_DB_NAME = "hourlyweatherdb"
-demand_file = "dataset/electricity/2025.csv"
-weather_file = "dataset/weather/2025.csv"
+    if not data_df.empty:
+        latest_timestamp = data_df.iloc[0]['time']
+        start_date = latest_timestamp + timedelta(hours=1)
+        logger.info(f"Start date set to {start_date} based on the latest timestamp from the CSV.")
+    else:
+        logger.info("CSV contains no valid data. Skipping further processing.")
+        start_date = datetime(datetime.now().year, 1, 1)  # Default to January 1 if CSV has no valid data
+else:
+    logger.info("CSV file does not exist or is empty. Skipping further processing.")
+    start_date = datetime(datetime.now().year, 1, 1)  # Default to January 1 if CSV is missing
 
-# Ensure dataset folders exist
-os.makedirs(os.path.dirname(demand_file), exist_ok=True)
-os.makedirs(os.path.dirname(weather_file), exist_ok=True)
+# Set initial end_date
+initial_end_date = (datetime.now() - timedelta(days=1)).replace(hour=23, minute=0, second=0, microsecond=0)
 
-# Workgroup name
-WORKGROUP_NAME = "edf-workgroup"
+# Fetch available dates from the database
+min_available_date, max_available_date = get_available_date_range()
 
-# Use ThreadPoolExecutor to run queries concurrently
-with ThreadPoolExecutor(max_workers=2) as executor:
-    futures = {
-        executor.submit(execute_redshift_query, client, DEMAND_DB_NAME, sql_demand, WORKGROUP_NAME): (demand_file, ["time", "value"]),
-        executor.submit(execute_redshift_query, client, WEATHER_DB_NAME, sql_weather, WORKGROUP_NAME): (weather_file, ["datetime", "temp", "feelslike", "humidity", "windspeed"])
-    }
-    for future in futures:
-        query_id = future.result()
-        if query_id:
-            records = monitor_query(client, query_id)
-            if records:
-                append_to_csv(futures[future][0], records, futures[future][1])
+# Adjust start_date and end_date based on availability
+if min_available_date and max_available_date:
+    end_date = min(initial_end_date, datetime.strptime(max_available_date, '%Y-%m-%d %H:%M:%S'))
+    if start_date > end_date:
+        logger.warning("Start date is later than end date. Skipping query execution.")
+    else:
+        logger.info(f"Adjusted start_date: {start_date}, end_date: {end_date}")
+        # Construct and execute the SQL query
+        sql_query = f"""
+        SELECT "time", "value"
+        FROM "{DATABASE_NAME}"."public"."{TABLE_NAME}"
+        WHERE "time" BETWEEN '{start_date.strftime("%Y-%m-%d %H:%M:%S")}' AND '{end_date.strftime("%Y-%m-%d %H:%M:%S")}'
+        """
+        logger.info(f"SQL Query: {sql_query}")
+        try:
+            response = client.execute_statement(
+                Database=DATABASE_NAME, Sql=sql_query, WorkgroupName=WORKGROUP_NAME, WithEvent=True
+            )
+            query_id = response['Id']
+            logger.info(f"Query submitted, ID: {query_id}")
+
+            # Poll for query completion
+            status = 'SUBMITTED'
+            while status in ['SUBMITTED', 'STARTED', 'RUNNING']:
+                description = client.describe_statement(Id=query_id)
+                status = description['Status']
+                if status in ['FAILED', 'ABORTED']:
+                    logger.error(f"Query failed: {description.get('ErrorMessage', 'No error message provided')}")
+                    break
+                elif status == 'FINISHED':
+                    results = client.get_statement_result(Id=query_id)
+                    records = results['Records']
+                    logger.info(f"Total rows fetched: {len(records)}")
+                    if records:
+                        new_data = pd.DataFrame([{
+                            'time': extract_value(record[0]),
+                            'value': extract_value(record[1])
+                        } for record in records])
+                        new_data['time'] = pd.to_datetime(new_data['time'])  # Ensure time is datetime
+                        updated_data = pd.concat([data_df, new_data]).drop_duplicates(subset='time').sort_values(by='time')
+                        updated_data.to_csv(csv_file_path, index=False)
+                        logger.info("Data successfully appended to CSV.")
+        except Exception as e:
+            logger.error(f"Error executing query: {e}")
+else:
+    logger.warning("Database has no valid date range. Skipping further processing.")
 
 logger.info("Data extraction completed.")
