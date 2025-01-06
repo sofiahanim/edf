@@ -28,7 +28,7 @@
     <!-- Nav Item - Hourly Demand -->
     <li class="nav-item {% if request.path == url_for('hourly_demand_page') %}active{% endif %}">
         <a class="nav-link" href="{{ url_for('hourly_demand_page') }}">
-            <i class="fas fa-fw fa-table"></i>
+            <i class="fas fa-fw fa-clock"></i>
             <span>Hourly Demand</span>
         </a>
     </li>
@@ -44,7 +44,7 @@
     <!-- Nav Item - Holidays -->
     <li class="nav-item {% if request.path == url_for('holidays_page') %}active{% endif %}">
         <a class="nav-link" href="{{ url_for('holidays_page') }}">
-            <i class="fas fa-fw fa-calendar"></i>
+            <i class="fas fa-fw fa-calendar-alt"></i>
             <span>Holidays</span>
         </a>
     </li>
@@ -59,7 +59,7 @@
         <!-- Nav Item - Electricity (Demand) Datasets -->
     <li class="nav-item {% if request.path == url_for('eda_demand_page') %}active{% endif %}">
         <a class="nav-link" href="{{ url_for('eda_demand_page') }}">
-            <i class="fas fa-fw fa-bolt"></i>
+            <i class="fas fa-fw fa-clock"></i>
             <span>Electricity Demand</span>
         </a>
     </li>

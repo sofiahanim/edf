@@ -3,9 +3,9 @@
 {% block content %}
 <div class="container-fluid">
     <h1 class="h3 mb-2 text-gray-800">
-        <i class="fas fa-table"></i> Hourly Demand
+        <i class="fas fa-clock"></i> Hourly Demand
     </h1>
-    <p class="mb-4">Overview of hourly electricity demand data.</p>
+    <p class="mb-4">Search hourly electricity demand data.</p>
     <div class="table-responsive">
         <table id="hourly-demand-table" class="table table-bordered">
             <thead>
@@ -17,8 +17,8 @@
         </table>
     </div>
      <!-- Last Updated Message -->
-     <p class="text-muted mt-2" style="font-size: 0.85rem;">
-        <em>Data last updated as of 31 Dec 2024, 23:00</em>
+     <p class="text-muted mt-2" style="font-size: 0.85rem;" id="last-updated-demand">
+        <em>Data last updated as of</em>
     </p>
 </div>
 {% endblock %}

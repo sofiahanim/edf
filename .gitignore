@@ -76,3 +76,5 @@ externals/
 
 # System-specific binaries and runner data
 actions-runner/
+
+methodology.txt
