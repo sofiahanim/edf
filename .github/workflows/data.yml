@@ -12,11 +12,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-        
-      - name: Set up Git configuration
-        run: |
-          git config --global user.email "155748091+sofiahanim@users.noreply.github.com"
-          git config --global user.name "GitHub Actions"
 
       - name: Set up Python
         uses: actions/setup-python@v2
@@ -34,13 +29,25 @@ jobs:
           REDSHIFT_WORKGROUP: ${{ secrets.REDSHIFT_WORKGROUP }}
         run: python scripts/pipe_data.py  # Execute the pipeline script
 
+      # Debugging steps
+      - name: Verify file path
+        run: ls -R
+
+      - name: Check file modification
+        run: |
+          ls -l data/demand/2025.csv
+          cat data/demand/2025.csv
+
+      - name: Check git status before add
+        run: git status
+
       - name: Commit and push updated CSV
         run: |
           git config --local user.name "GitHub Actions"
           git config --local user.email "actions@github.com"
-          git add data/demand/2025.csv
-          git commit -m "Update CSV with new data"
-          git push
+          git add --force data/demand/2025.csv
+          git commit -m "Update CSV with new data" || echo "Nothing to commit."
+          git push || echo "No changes pushed."
 
       - name: Notify success
         if: success()
