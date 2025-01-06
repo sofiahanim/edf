@@ -44,8 +44,7 @@ def execute_redshift_query(client, database, sql, workgroup_name, is_synchronous
             WorkgroupName=workgroup_name,
             Sql=sql,
             WithEvent=is_synchronous,
-            DbUser=DB_USER,
-            RoleArn=REDSHIFT_ROLE_ARN
+            DbUser=DB_USER
         )
         query_id = response['Id']
         logger.info("SQL execution initiated, awaiting results...")
