@@ -1,9 +1,12 @@
 name: Data Pipeline
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - main  # Trigger the workflow on pushes to the main branch
+  workflow_dispatch:  # Allow manual triggering
   schedule:
-    - cron: '0 1 * * *'  # Runs at 1 AM UTC every day
+    - cron: '0 1 * * *'  # Optional: Run daily at 1 AM UTC
 
 jobs:
   data_pipeline:
@@ -16,30 +19,17 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: 3.11.10  
+          python-version: 3.11.10
 
-      - name: Install dependencies from requirements
+      - name: Install dependencies
         run: |
           python3 -m pip install --upgrade pip
           python3 -m pip install -r requirements_linux.txt
 
-      - name: Run pipeline script
-        env:
-          REDSHIFT_REGION: ${{ secrets.REDSHIFT_REGION }}
-          REDSHIFT_WORKGROUP: ${{ secrets.REDSHIFT_WORKGROUP }}
-        run: python scripts/pipe_data.py  # Execute the pipeline script
-
-      # Debugging steps
-      - name: Verify file path
-        run: ls -R
-
-      - name: Check file modification
+      - name: Verify file existence and content
         run: |
           ls -l data/demand/2025.csv
-          cat data/demand/2025.csv
-
-      - name: Check git status before add
-        run: git status
+          cat data/demand/2025.csv || echo "CSV file is empty or missing."
 
       - name: Commit and push updated CSV
         run: |
