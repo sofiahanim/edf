@@ -28,8 +28,20 @@ jobs:
 
       - name: Verify file existence and content
         run: |
-          ls -l data/demand/2025.csv
-          cat data/demand/2025.csv || echo "CSV file is empty or missing."
+          if [ -f "data/demand/2025.csv" ]; then
+            echo "File exists:"
+            ls -l data/demand/2025.csv
+            if [ -s "data/demand/2025.csv" ]; then
+              echo "CSV file has content:"
+              cat data/demand/2025.csv
+            else
+              echo "CSV file is empty. Exiting pipeline."
+              exit 1
+            fi
+          else
+            echo "CSV file does not exist. Exiting pipeline."
+            exit 1
+          fi
 
       - name: Commit and push updated CSV
         run: |
