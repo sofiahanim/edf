@@ -39,7 +39,7 @@ client = boto3.client("redshift-data", region_name=REDSHIFT_REGION, config=Confi
 def get_available_date_range():
     sql = f"SELECT MIN(time), MAX(time) FROM \"{DATABASE_NAME}\".\"public\".\"{TABLE_NAME}\""
     try:
-        response = client.execute_statement(Database=DATABASE_NAME, Sql=sql, WorkgroupName=WORKGROUP_NAME)
+        response = client.execute_statement(Database='hourlydemanddb', Sql=sql, WorkgroupName=WORKGROUP_NAME)
         query_id = response['Id']
         while True:
             status_response = client.describe_statement(Id=query_id)

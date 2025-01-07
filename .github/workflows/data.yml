@@ -32,7 +32,14 @@ jobs:
           python3 -m pip install --upgrade pip
           python3 -m pip install -r requirements_linux.txt
 
-      # Step 4: Verify file existence and content
+      # Step 4: Set AWS credentials (this will use the environment variables for AWS credentials)
+      - name: Set AWS credentials
+        run: |
+          echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> $GITHUB_ENV
+          echo "AWS_DEFAULT_REGION=us-east-1" >> $GITHUB_ENV
+
+      # Step 5: Verify file existence and content
       - name: Verify file existence and content
         run: |
           if [ -f "data/demand/2025.csv" ]; then
@@ -50,11 +57,11 @@ jobs:
             exit 1
           fi
 
-      # Step 5: Run Python script to update CSV (if needed)
+      # Step 6: Run Python script to update CSV (if needed)
       - name: Run data pipeline script
         run: python3 scripts/pipe_data.py
 
-      # Step 6: Commit and push updated CSV
+      # Step 7: Commit and push updated CSV
       - name: Commit and push updated CSV
         run: |
           git config --local user.name "GitHub Actions"
@@ -63,12 +70,12 @@ jobs:
           git commit -m "Update CSV with new data" || echo "Nothing to commit."
           git push || echo "No changes pushed."
 
-      # Step 7: Notify success
+      # Step 8: Notify success
       - name: Notify success
         if: success()
         run: echo "🎉 Data pipeline completed successfully!"
 
-      # Step 8: Notify failure
+      # Step 9: Notify failure
       - name: Notify failure
         if: failure()
         run: echo "❌ Data pipeline failed. Check logs for details."
