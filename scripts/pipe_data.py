@@ -28,8 +28,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # AWS Redshift setup
-REDSHIFT_REGION = os.getenv("REDSHIFT_REGION", "us-east-1")  # Pass from GitHub Secrets
-WORKGROUP_NAME = os.getenv("REDSHIFT_WORKGROUP", "edf-workgroup")  # Pass from GitHub Secrets
+REDSHIFT_REGION = "us-east-1"
+WORKGROUP_NAME = "edf-workgroup"
 DATABASE_NAME = "hourlydemanddb"
 TABLE_NAME = "2025"
 
