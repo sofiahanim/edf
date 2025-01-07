@@ -6,15 +6,14 @@ import boto3
 from botocore.config import Config
 
 # Setup logging
-# Setup logging
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # Root directory
+BASE_DIR = os.getcwd()  # Current working directory
 DATA_DIR = os.path.join(BASE_DIR, 'data', 'demand')
 LOG_DIR = os.path.join(BASE_DIR, 'logs')
 os.makedirs(DATA_DIR, exist_ok=True)
 os.makedirs(LOG_DIR, exist_ok=True)
 
 csv_file_path = os.path.join(DATA_DIR, '2025.csv')
-log_file_name = f"data_pipeline_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+log_file_name = f"data_extraction_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
 log_file_path = os.path.join(LOG_DIR, log_file_name)
 
 # Configure logging to file and console
@@ -29,8 +28,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # AWS Redshift setup
-REDSHIFT_REGION = os.getenv("REDSHIFT_REGION", "us-east-1")
-WORKGROUP_NAME = os.getenv("REDSHIFT_WORKGROUP", "edf-workgroup")
+REDSHIFT_REGION = os.getenv("REDSHIFT_REGION", "us-east-1")  # Pass from GitHub Secrets
+WORKGROUP_NAME = os.getenv("REDSHIFT_WORKGROUP", "edf-workgroup")  # Pass from GitHub Secrets
 DATABASE_NAME = "hourlydemanddb"
 TABLE_NAME = "2025"
 
