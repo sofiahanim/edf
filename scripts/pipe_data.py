@@ -6,6 +6,7 @@ import boto3
 from botocore.config import Config
 
 # Setup logging
+# Setup logging
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # Root directory
 DATA_DIR = os.path.join(BASE_DIR, 'data', 'demand')
 LOG_DIR = os.path.join(BASE_DIR, 'logs')
@@ -14,10 +15,16 @@ os.makedirs(LOG_DIR, exist_ok=True)
 
 csv_file_path = os.path.join(DATA_DIR, '2025.csv')
 log_file_name = f"data_pipeline_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+log_file_path = os.path.join(LOG_DIR, log_file_name)
+
+# Configure logging to file and console
 logging.basicConfig(
-    filename=os.path.join(LOG_DIR, log_file_name),
     level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s"
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.FileHandler(log_file_path),   # Log to a file
+        logging.StreamHandler()              # Log to console (stdout)
+    ]
 )
 logger = logging.getLogger(__name__)
 

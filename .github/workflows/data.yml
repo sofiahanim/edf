@@ -8,24 +8,31 @@ on:
   schedule:
     - cron: '0 1 * * *'  # Optional: Run daily at 1 AM UTC
 
+permissions:
+  contents: write  # Read and write permissions for repository contents
+
 jobs:
   data_pipeline:
     runs-on: ubuntu-20.04
 
     steps:
+      # Step 1: Check out the repository
       - name: Checkout code
         uses: actions/checkout@v2
 
+      # Step 2: Set up Python environment
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
           python-version: 3.11.10
 
+      # Step 3: Install dependencies
       - name: Install dependencies
         run: |
           python3 -m pip install --upgrade pip
           python3 -m pip install -r requirements_linux.txt
 
+      # Step 4: Verify file existence and content
       - name: Verify file existence and content
         run: |
           if [ -f "data/demand/2025.csv" ]; then
@@ -43,6 +50,14 @@ jobs:
             exit 1
           fi
 
+      # Step 5: Run Python script to update CSV (if needed)
+      - name: Run data pipeline script
+        env:
+          REDSHIFT_REGION: ${{ secrets.REDSHIFT_REGION }}
+          REDSHIFT_WORKGROUP: ${{ secrets.REDSHIFT_WORKGROUP }}
+        run: python3 scripts/pipe_data.py
+
+      # Step 6: Commit and push updated CSV
       - name: Commit and push updated CSV
         run: |
           git config --local user.name "GitHub Actions"
@@ -51,10 +66,12 @@ jobs:
           git commit -m "Update CSV with new data" || echo "Nothing to commit."
           git push || echo "No changes pushed."
 
+      # Step 7: Notify success
       - name: Notify success
         if: success()
         run: echo "🎉 Data pipeline completed successfully!"
 
+      # Step 8: Notify failure
       - name: Notify failure
         if: failure()
         run: echo "❌ Data pipeline failed. Check logs for details."
