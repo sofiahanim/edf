@@ -52,9 +52,6 @@ jobs:
 
       # Step 5: Run Python script to update CSV (if needed)
       - name: Run data pipeline script
-        env:
-          REDSHIFT_REGION: ${{ secrets.REDSHIFT_REGION }}
-          REDSHIFT_WORKGROUP: ${{ secrets.REDSHIFT_WORKGROUP }}
         run: python3 scripts/pipe_data.py
 
       # Step 6: Commit and push updated CSV
