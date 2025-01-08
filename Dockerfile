@@ -1,12 +1,13 @@
-FROM catthehacker/ubuntu:act-20.04
+# Use a compatible base image for AWS Lambda with Python 3.11 runtime
+FROM public.ecr.aws/lambda/python:3.11
 
-# Install required system dependencies
-RUN apt-get update && apt-get install -y \
-    software-properties-common \
-    build-essential \
-    wget \
+# Set non-interactive mode for apt operations
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install additional dependencies for the application
+RUN yum update -y && yum install -y \
     gcc \
-    g++ \
+    gcc-c++ \
     make \
     libtool \
     autoconf \
@@ -14,19 +15,22 @@ RUN apt-get update && apt-get install -y \
     bison \
     gawk \
     sudo \
-    libpq-dev \
-    libjemalloc-dev 
+    postgresql-devel \
+    jemalloc-devel && \
+    yum clean all && \
+    rm -rf /var/cache/yum
 
-# Clear the apt cache to reduce image size
-RUN rm -rf /var/lib/apt/lists/*
+# Set the Lambda working directory
+WORKDIR /var/task
 
-# Install glibc 2.34
-RUN wget http://ftp.gnu.org/gnu/libc/glibc-2.34.tar.gz && \
-    tar -xvzf glibc-2.34.tar.gz && \
-    cd glibc-2.34 && \
-    mkdir -p build && cd build && \
-    ../configure --prefix=/usr && \
-    make VERBOSE=1 -j$(nproc) && \
-    make install && \
-    cd ../.. && \
-    rm -rf glibc-2.34 glibc-2.34.tar.gz
+COPY app.py /var/task/
+COPY templates /var/task/templates/
+COPY requirements_linux.txt /var/task/
+COPY data /var/task/data/
+COPY static /var/task/static/
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r /var/task/requirements_linux.txt
+
+# Set Lambda entrypoint
+CMD ["app.lambda_handler"]

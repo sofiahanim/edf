@@ -1,5 +1,9 @@
 $(document).ready(function () {
-    const baseUrl = window.location.origin;
+    const baseUrl = (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
+    ? window.location.origin
+    : "https://www.electforecast.de";
+
+    console.log("Base URL:", baseUrl);
 
     // Update the "last updated" timestamps
     function updateLastUpdated() {
@@ -19,6 +23,8 @@ $(document).ready(function () {
             },
             error: function (xhr, status, error) {
                 console.error('Failed to fetch last updated timestamp:', error);
+                console.error("XHR Error:", xhr.responseText);
+
             }
         });
     }
@@ -44,6 +50,7 @@ $(document).ready(function () {
                 },
                 error: function (xhr, error, code) {
                     console.error("Error fetching hourly demand data:", error);
+                    console.error("XHR Error:", xhr.responseText);
                     alert("Failed to load demand data. Please try again later.");
                 }
             },
@@ -68,6 +75,9 @@ $(document).ready(function () {
             ajax: {
                 url: `${baseUrl}/api/hourlyweather`,
                 type: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
                 dataSrc: function (json) {
                     if (!json.data) {
                         console.error("Invalid Hourly Weather JSON response:", json);
@@ -110,6 +120,9 @@ $(document).ready(function () {
             ajax: {
                 url: `${baseUrl}/api/holidays`,
                 type: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
                 dataSrc: function (json) {
                     if (!json.data) {
                         console.error("Invalid Holidays JSON response:", json);
@@ -120,6 +133,7 @@ $(document).ready(function () {
                 },
                 error: function (xhr, error, code) {
                     console.error("Error fetching holidays data:", error);
+                    console.error("XHR Error:", xhr.responseText);
                     alert("Failed to load holidays. Please try again later.");
                 }
             },

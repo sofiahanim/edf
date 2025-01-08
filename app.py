@@ -1,24 +1,48 @@
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, jsonify, request, render_template, send_from_directory
 import pandas as pd
 import holidays
 from flask_caching import Cache
+from flask_cors import CORS
 import logging
-import pytz
 import os
 import subprocess
+from werkzeug.middleware.dispatcher import DispatcherMiddleware
+from werkzeug.wrappers import Request, Response
 
+# Initialize Flask app
 app = Flask(__name__)
-app.config['CACHE_TYPE'] = 'simple'  # Caching for demonstration purposes
+app.config['CACHE_TYPE'] = 'simple'  # Use simple caching for demonstration
 cache = Cache(app)
 cache.init_app(app)
 
+# Configure CORS for the API
+CORS(app, resources={r"/*": {"origins": "*"}})
 
-def save_to_cache(data, filename, folder='cache'):
-    """Save data to a CSV file in the cache folder."""
-    os.makedirs(folder, exist_ok=True)  # Create cache folder if it doesn't exist
-    filepath = os.path.join(folder, filename)
-    data.to_csv(filepath, index=False)  # Save as CSV
-    return filepath
+# Logging setup
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+# Base directory for data files
+base_dir = os.getenv("DATA_BASE_DIR", "/var/task/data")
+
+@app.route('/static/<path:path>')
+def serve_static_files(path):
+    mime_types = {
+        '.js': 'application/javascript',
+        '.css': 'text/css',
+        '.ico': 'image/vnd.microsoft.icon',
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.svg': 'image/svg+xml',
+    }
+    ext = os.path.splitext(path)[1]  # Get file extension
+    mimetype = mime_types.get(ext, 'text/plain')  # Default to text/plain
+    try:
+        return send_from_directory(app.static_folder, path, mimetype=mimetype)
+    except Exception as e:
+        logger.error(f"Error serving static file {path}: {e}")
+        return "Static file not found.", 404
+
 
 def load_from_cache(filename, folder='cache'):
     """Load data from a CSV file in the cache folder."""
@@ -28,54 +52,54 @@ def load_from_cache(filename, folder='cache'):
     return None
 
 
-# Setup logging for better error tracking
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-
 def load_and_normalize_csv(path):
-    """Load and normalize CSV files."""
+    """Load and normalize a CSV file."""
     try:
         df = pd.read_csv(path)
-        # Normalize column names
         df.columns = [col.strip().lower().replace(" ", "_") for col in df.columns]
-        # Drop duplicate columns
-        df = df.loc[:, ~df.columns.duplicated()]
-        # Convert datetime columns
         if 'time' in df.columns:
             df['time'] = pd.to_datetime(df['time'], errors='coerce')
         if 'datetime' in df.columns:
             df['datetime'] = pd.to_datetime(df['datetime'], errors='coerce')
         return df
     except Exception as e:
-        logging.error(f"Failed to load or normalize {path}: {e}")
+        logger.error(f"Error loading CSV file {path}: {e}")
         return pd.DataFrame()
 
+
 def load_data():
-    """Load and combine data for all years."""
+    """Load demand and weather data."""
     years = range(2019, 2026)
     hourly_demand_data = pd.DataFrame()
     hourly_weather_data = pd.DataFrame()
 
     for year in years:
-        try:
-            # Load demand and weather data
-            path_demand = f'data/demand/{year}.csv'
-            path_weather = f'data/weather/{year}.csv'
-            data_demand = load_and_normalize_csv(path_demand)
-            data_weather = load_and_normalize_csv(path_weather)
-            hourly_demand_data = pd.concat([hourly_demand_data, data_demand], ignore_index=True)
-            hourly_weather_data = pd.concat([hourly_weather_data, data_weather], ignore_index=True)
-        except Exception as e:
-            logging.error(f"Error loading data for year {year}: {e}")
+        path_demand = os.path.join(base_dir, 'demand', f'{year}.csv')
+        path_weather = os.path.join(base_dir, 'weather', f'{year}.csv')
 
+        if os.path.exists(path_demand):
+            demand_data = load_and_normalize_csv(path_demand)
+            hourly_demand_data = pd.concat([hourly_demand_data, demand_data], ignore_index=True)
+        else:
+            logger.warning(f"Demand file not found for year {year}: {path_demand}")
+
+        if os.path.exists(path_weather):
+            weather_data = load_and_normalize_csv(path_weather)
+            hourly_weather_data = pd.concat([hourly_weather_data, weather_data], ignore_index=True)
+        else:
+            logger.warning(f"Weather file not found for year {year}: {path_weather}")
+
+    logger.info(f"Data loaded successfully: Demand ({len(hourly_demand_data)} rows), Weather ({len(hourly_weather_data)} rows)")
     return hourly_demand_data, hourly_weather_data
 
-# Load and preprocess data
 hourly_demand_data, hourly_weather_data = load_data()
-
+    
 
 @app.route('/api/hourlydemand', methods=['GET'])
 def fetch_hourly_demand():
+    if hourly_demand_data.empty:
+        return jsonify({"message": "No demand data available"}), 204
+
     try:
         start = int(request.args.get('start', 0))
         length = int(request.args.get('length', 10))
@@ -102,11 +126,16 @@ def fetch_hourly_demand():
         }
         return jsonify(response)
     except Exception as e:
-        logging.error(f"Error fetching hourly demand data: {e}")
+        logger.error(f"Error fetching hourly demand data: {e}")
         return jsonify({'error': f"Failed to load demand data: {str(e)}"}), 500
+
+
 
 @app.route('/api/hourlyweather', methods=['GET'])
 def fetch_hourly_weather():
+    if hourly_weather_data.empty:
+        return jsonify({"message": "No weather data available"}), 204
+    
     try:
         start = int(request.args.get('start', 0))
         length = int(request.args.get('length', 10))
@@ -142,7 +171,7 @@ def fetch_hourly_weather():
         }
         return jsonify(response)
     except Exception as e:
-        logging.error(f"Error fetching hourly weather data: {e}")
+        logger.error(f"Error fetching hourly weather data: {e}")
         return jsonify({'error': f"Failed to load weather data: {str(e)}"}), 500
 
 
@@ -297,5 +326,41 @@ def get_last_updated():
         logging.error(f"Error fetching last updated timestamps: {e}")
         return jsonify({'error': f"Failed to fetch last updated timestamps: {str(e)}"}), 500
 
+@app.route('/health', methods=['GET'])
+def health_check():
+    try:
+        demand_status = "Available" if not hourly_demand_data.empty else "Not Available"
+        weather_status = "Available" if not hourly_weather_data.empty else "Not Available"
+        return jsonify({
+            "status": "OK",
+            "demand_data_status": demand_status,
+            "weather_data_status": weather_status
+        }), 200
+    except Exception as e:
+        logger.error(f"Health check failed: {e}")
+        return jsonify({"status": "FAILED", "error": str(e)}), 500
+
+
+def lambda_handler(event, context):
+
+    logger.info("Received event: %s", event)
+    logger.info("Context: %s", context)
+
+    app.wsgi_app = DispatcherMiddleware(None, {"/": app.wsgi_app})
+
+    with app.test_request_context(
+        path=event.get("path", "/"),
+        method=event.get("httpMethod", "GET"),
+        query_string=event.get("queryStringParameters"),
+        headers=event.get("headers"),
+        data=event.get("body"),
+    ):
+        response = app.full_dispatch_request()
+        return {
+            "statusCode": response.status_code,
+            "headers": dict(response.headers),
+            "body": response.data.decode("utf-8"),
+        }
+
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=8080)

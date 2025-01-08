@@ -1,3 +1,9 @@
+flask
+flask_caching
+holidays
+flask_cors
+werkzeug
+pytz
 boto3
 botocore
 pandas
