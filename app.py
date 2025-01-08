@@ -10,7 +10,7 @@ from werkzeug.middleware.dispatcher import DispatcherMiddleware
 from werkzeug.wrappers import Request, Response
 
 # Initialize Flask app
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static', template_folder='templates')
 app.config['CACHE_TYPE'] = 'simple'  # Use simple caching for demonstration
 cache = Cache(app)
 cache.init_app(app)
@@ -35,13 +35,9 @@ def serve_static_files(path):
         '.jpg': 'image/jpeg',
         '.svg': 'image/svg+xml',
     }
-    ext = os.path.splitext(path)[1]  # Get file extension
-    mimetype = mime_types.get(ext, 'text/plain')  # Default to text/plain
-    try:
-        return send_from_directory(app.static_folder, path, mimetype=mimetype)
-    except Exception as e:
-        logger.error(f"Error serving static file {path}: {e}")
-        return "Static file not found.", 404
+    ext = os.path.splitext(path)[1]
+    mimetype = mime_types.get(ext, 'text/plain')
+    return send_from_directory('static', path, mimetype=mimetype)
 
 
 def load_from_cache(filename, folder='cache'):
@@ -363,4 +359,4 @@ def lambda_handler(event, context):
         }
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8080)
+    app.run(debug=True,host='0.0.0.0', port=8080)
