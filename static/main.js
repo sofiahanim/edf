@@ -102,6 +102,7 @@ function fetchAndRenderDashboard() {
     }
 }
 
+/*
 // Render Dashboard Data
 function renderDashboardData(data) {
     // Assuming widgets for demand and weather summary exist in the DOM
@@ -121,7 +122,7 @@ function renderDashboardData(data) {
 // Initialize Dashboard
 function initializeDashboard() {
     fetchAndRenderDashboard();
-}
+}*/
 
 // 2. END SECTION 2 DASHBOARD
 
@@ -171,7 +172,7 @@ function initializeHourlyDemandTable() {
         });
     }
 }
-
+/*
 // Render Hourly Demand Page
 function renderHourlyDemandPage() {
     fetch(`${baseUrl}/hourlydemand`)
@@ -203,7 +204,7 @@ document.addEventListener("DOMContentLoaded", function () {
             renderHourlyDemandPage();
         });
     }
-});
+});*/
 
 // 3. END SECTION 3 HOURLY DEMAND
 
@@ -263,7 +264,7 @@ function initializeHourlyWeatherTable() {
         });
     }
 }
-
+/*
 // Render Hourly Weather Page
 function renderHourlyWeatherPage() {
     fetch(`${baseUrl}/hourlyweather`)
@@ -296,7 +297,7 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 });
-
+*/
 // 4. END SECTION 4 HOURLY WEATHER
 
 // 5. START SECTION 5 HOLIDAYS
@@ -348,7 +349,7 @@ function initializeHolidaysTable() {
         });
     }
 }
-
+/*
 // Render Holidays Page
 function renderHolidaysPage() {
     fetch(`${baseUrl}/holidays`)
@@ -381,7 +382,7 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 });
-
+*/
 // 5. END SECTION 5 HOLIDAYS
 
 // 6. START SECTION 6 LAST UPDATED
@@ -458,7 +459,7 @@ function initializeTables() {
 
 // EDA DEMAND
 // Add this to handle demand EDA dynamically
-document.addEventListener("DOMContentLoaded", function () {
+/*document.addEventListener("DOMContentLoaded", function () {
 
     // Event Listener for EDA Demand Navigation
     const edaDemandNav = document.querySelector("a[href='/eda/demand']");
@@ -509,7 +510,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 });
         });
     }
-});
+});*/
 
 
 // 8. END SECTION 8 EDA DEMAND

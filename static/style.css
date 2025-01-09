@@ -39,7 +39,7 @@
 
 .navbar .navbar-brand {
     font-weight: bold;
-    color: #4e73df;
+    color: #5d74b3;
 }
 
 .navbar .nav-item .nav-link {
@@ -49,7 +49,7 @@
 }
 
 .navbar .nav-item .nav-link:hover {
-    color: #4e73df;
+    color: #ffffff;
 }
 
 .navbar .form-control {

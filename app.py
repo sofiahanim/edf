@@ -276,79 +276,6 @@ def hourly_demand_page():
         logger.error(f"Error rendering hourly demand page: {e}", exc_info=True)
         return jsonify({"error": "Failed to load hourly demand page"}), 500
 
-@app.route("/eda/demand", methods=["GET"])
-def eda_demand_page():
-    """Render the EDA page for demand data."""
-    try:
-        # Paths to demand data files
-        demand_file_paths = [f"data/demand/{year}.csv" for year in range(2019, 2026)]
-
-        # Load and process demand data
-        demand_data_frames = [load_csv(file_path) for file_path in demand_file_paths if not load_csv(file_path).empty]
-        demand_data = pd.concat(demand_data_frames, ignore_index=True)
-
-        if demand_data.empty:
-            logger.warning("No demand data available for EDA.")
-            return jsonify({"error": "No demand data available"}), 404
-
-        # Process demand data
-        demand_data["time"] = pd.to_datetime(demand_data["time"], errors="coerce")
-        demand_data = demand_data.dropna(subset=["time", "value"])
-        demand_data["year"] = demand_data["time"].dt.year
-        demand_data["month"] = demand_data["time"].dt.month
-        demand_data["hour"] = demand_data["time"].dt.hour
-
-        # Compute statistics
-        summary_stats = demand_data.groupby("year")["value"].agg(["mean", "median", "min", "max", "sum"]).reset_index()
-        daily_trends = demand_data.groupby(demand_data["time"].dt.date)["value"].sum().reset_index()
-        daily_trends.columns = ["date", "total_demand"]
-        top_5_days = demand_data.groupby(demand_data["time"].dt.date)["value"].sum().nlargest(5).reset_index()
-        top_5_days.columns = ["date", "total_demand"]
-
-        # Generate dynamic visualizations with Plotly
-        # Monthly Average Line Plot
-        monthly_avg = demand_data.groupby(["year", "month"])["value"].mean().reset_index()
-        fig_monthly_avg = px.line(
-            monthly_avg, x="month", y="value", color="year",
-            title="Monthly Average Demand by Year",
-            labels={"value": "Average Demand (kWh)", "month": "Month"}
-        )
-        fig_monthly_avg.update_layout(legend_title_text="Year")
-
-        # Hourly Average Bar Plot
-        hourly_avg = demand_data.groupby("hour")["value"].mean().reset_index()
-        fig_hourly_avg = px.bar(
-            hourly_avg, x="hour", y="value",
-            title="Hourly Average Demand",
-            labels={"value": "Average Demand (kWh)", "hour": "Hour of Day"}
-        )
-
-        # Heatmap
-        heatmap_data = demand_data.pivot_table(index=demand_data["time"].dt.date, columns="hour", values="value", aggfunc="mean").reset_index()
-        fig_heatmap = px.imshow(
-            heatmap_data.set_index("time").T,
-            labels=dict(color="Demand (kWh)", x="Date", y="Hour of Day"),
-            title="Daily Demand Heatmap"
-        )
-
-        # Prepare data for rendering
-        summary_stats_json = summary_stats.to_dict(orient="records")
-        daily_trends_json = daily_trends.to_dict(orient="records")
-        top_5_days_json = top_5_days.to_dict(orient="records")
-
-        return render_template(
-            "eda_demand.html",
-            summary_stats=summary_stats_json,
-            daily_trends=daily_trends_json,
-            top_5_days=top_5_days_json,
-            monthly_avg_plot=fig_monthly_avg.to_json(),
-            hourly_avg_plot=fig_hourly_avg.to_json(),
-            heatmap_plot=fig_heatmap.to_json()
-        )
-    except Exception as e:
-        logger.error(f"Error rendering EDA demand page: {e}", exc_info=True)
-        return jsonify({"error": "Failed to render EDA demand page"}), 500
-
 @app.route("/api/hourlydemand", methods=["GET"])
 def fetch_hourly_demand():
     """Fetch paginated hourly demand data."""
@@ -406,51 +333,6 @@ def hourly_weather_page():
     except Exception as e:
         logger.error(f"Error rendering hourly weather page: {e}", exc_info=True)
         return jsonify({"error": "Failed to load hourly weather page"}), 500
-
-@app.route('/eda/weather')
-def eda_weather_page():
-    """Render the EDA page for weather data."""
-    try:
-        if hourly_weather_data.empty:
-            logger.warning("No weather data available for EDA")
-            return jsonify({"error": "No weather data available"}), 404
-
-        # Generate EDA statistics and plots
-        hourly_weather_data['date'] = hourly_weather_data['datetime'].dt.date
-        weather_summary = hourly_weather_data.groupby('date').agg(
-            avg_temp=('temp', 'mean'),
-            max_temp=('temp', 'max'),
-            min_temp=('temp', 'min'),
-            avg_humidity=('humidity', 'mean')
-        ).reset_index()
-
-        # Create visualizations with Plotly
-        fig_temp_trend = px.line(
-            weather_summary,
-            x='date', y='avg_temp',
-            title="Average Temperature Trend",
-            labels={'avg_temp': 'Average Temperature (°C)', 'date': 'Date'}
-        )
-
-        fig_humidity_trend = px.bar(
-            weather_summary,
-            x='date', y='avg_humidity',
-            title="Average Humidity Trend",
-            labels={'avg_humidity': 'Average Humidity (%)', 'date': 'Date'}
-        )
-
-        # Prepare JSON data for rendering
-        weather_summary_json = weather_summary.to_dict(orient='records')
-
-        return render_template(
-            'eda_weather.html',
-            weather_summary=weather_summary_json,
-            temp_trend_plot=fig_temp_trend.to_json(),
-            humidity_trend_plot=fig_humidity_trend.to_json()
-        )
-    except Exception as e:
-        logger.error(f"Error rendering weather EDA page: {e}", exc_info=True)
-        return jsonify({"error": "Failed to render EDA page"}), 500
 
 @app.route('/api/hourlyweather', methods=['GET'])
 def fetch_hourly_weather():
@@ -512,42 +394,6 @@ def holidays_page():
     except Exception as e:
         logger.error(f"Error rendering holidays page: {e}", exc_info=True)
         return jsonify({"error": "Failed to load holidays page"}), 500
-
-@app.route('/eda/holidays', methods=['GET'])
-def eda_holidays_page():
-    """Render the EDA page for holidays data."""
-    try:
-        years = range(2019, 2026)
-        cal_holidays = holidays.US(state='CA', years=years)
-        holiday_data = pd.DataFrame([{'date': str(date), 'name': name} for date, name in cal_holidays.items()])
-
-        if holiday_data.empty:
-            logger.warning("No holidays data available for EDA")
-            return jsonify({"error": "No holidays data available"}), 404
-
-        # Generate Holiday Count by Year
-        holiday_data['year'] = pd.to_datetime(holiday_data['date']).dt.year
-        holiday_count = holiday_data.groupby('year').size().reset_index(name='holiday_count')
-
-        # Create visualizations with Plotly
-        fig_holiday_count = px.bar(
-            holiday_count,
-            x='year', y='holiday_count',
-            title="Number of Holidays by Year",
-            labels={'holiday_count': 'Holiday Count', 'year': 'Year'}
-        )
-
-        # Prepare JSON data for rendering
-        holiday_data_json = holiday_data.to_dict(orient='records')
-
-        return render_template(
-            'eda_holidays.html',
-            holiday_data=holiday_data_json,
-            holiday_count_plot=fig_holiday_count.to_json()
-        )
-    except Exception as e:
-        logger.error(f"Error rendering holidays EDA page: {e}", exc_info=True)
-        return jsonify({"error": "Failed to render holidays EDA page"}), 500
 
 @cache.cached(timeout=86400, key_prefix='holidays')
 @app.route('/api/holidays', methods=['GET'])
