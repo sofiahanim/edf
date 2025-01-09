@@ -51,31 +51,48 @@ for directory in REQUIRED_DIRS:
             logger.error(f"Failed to create directory {directory}: {e}", exc_info=True)
 
 def lambda_handler(event, context):
+    """
+    AWS Lambda handler to process API Gateway events with the Flask app.
+    """
     try:
-        if not app.wsgi_app:
-            logger.error("App WSGI app is None.")
+        # Log the incoming event and context
+        logger.info("Lambda handler invoked.")
+        logger.debug(f"Event: {json.dumps(event)}")
+        logger.debug(f"Context: {context}")
+
+        # Validate app.wsgi_app
+        if app.wsgi_app is None:
+            logger.info("Initializing DispatcherMiddleware for Flask app.")
+            app.wsgi_app = DispatcherMiddleware(None, {"/": app})
+
+        # Ensure the Flask app itself is not None
+        if app is None or app.wsgi_app is None:
+            logger.error("Flask app or app.wsgi_app is not initialized properly.")
             return {
                 "statusCode": 500,
-                "body": "App initialization failed."
+                "body": "Flask application is not initialized.",
+                "headers": {"Access-Control-Allow-Origin": "*"},
             }
 
-        logger.debug(f"Event: {event}")
-        logger.debug(f"Context: {context}")
-        
-        app.wsgi_app = DispatcherMiddleware(None, {"/": app.wsgi_app})
+        # Process the request using serverless_wsgi
         response = handle_request(app, event, context)
+
+        # Add CORS headers to the response
+        response_headers = response.get("headers", {})
+        response_headers["Access-Control-Allow-Origin"] = "*"
 
         return {
             "statusCode": response["statusCode"],
-            "headers": {**response.get("headers", {}), "Access-Control-Allow-Origin": "*"},
+            "headers": response_headers,
             "body": response["body"],
             "isBase64Encoded": response.get("isBase64Encoded", False),
         }
     except Exception as e:
-        logger.error(f"Lambda handler error: {e}", exc_info=True)
+        logger.error("Error in Lambda handler:", exc_info=True)
         return {
             "statusCode": 500,
-            "body": "Internal Server Error"
+            "body": "Internal Server Error",
+            "headers": {"Access-Control-Allow-Origin": "*"},
         }
 
 """0. START SECTION 0 <HELPER FUNCTIONS>"""
