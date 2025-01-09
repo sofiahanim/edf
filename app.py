@@ -95,6 +95,7 @@ def lambda_handler(event, context):
             "headers": {"Access-Control-Allow-Origin": "*"},
         }
 
+
 """0. START SECTION 0 <HELPER FUNCTIONS>"""
 @app.route("/data/<file_name>")
 def get_data(file_name):
