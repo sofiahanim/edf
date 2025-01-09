@@ -42,7 +42,6 @@ _work/
 actions-runner/
 bin/
 build/
-cache/
 __pycache__/
 *.pyc
 
@@ -63,7 +62,6 @@ __pycache__/
 # Exclude build artifacts
 bin/
 build/
-cache/
 
 
 # Exclude external tools or libraries that should not be tracked
@@ -91,3 +89,4 @@ act.tar.gz
 .actignore
 __pycache__.zip
 __pycache__/
+info.txt
