@@ -50,11 +50,21 @@ for directory in REQUIRED_DIRS:
         except Exception as e:
             logger.error(f"Failed to create directory {directory}: {e}", exc_info=True)
 
-# Lambda handler for AWS Lambda integration
 def lambda_handler(event, context):
     try:
+        if not app.wsgi_app:
+            logger.error("App WSGI app is None.")
+            return {
+                "statusCode": 500,
+                "body": "App initialization failed."
+            }
+
+        logger.debug(f"Event: {event}")
+        logger.debug(f"Context: {context}")
+        
         app.wsgi_app = DispatcherMiddleware(None, {"/": app.wsgi_app})
         response = handle_request(app, event, context)
+
         return {
             "statusCode": response["statusCode"],
             "headers": {**response.get("headers", {}), "Access-Control-Allow-Origin": "*"},
@@ -62,7 +72,7 @@ def lambda_handler(event, context):
             "isBase64Encoded": response.get("isBase64Encoded", False),
         }
     except Exception as e:
-        logger.error(f"Lambda handler error: {e}")
+        logger.error(f"Lambda handler error: {e}", exc_info=True)
         return {
             "statusCode": 500,
             "body": "Internal Server Error"
@@ -180,6 +190,8 @@ def load_data():
 
 # Load data into global variables
 hourly_demand_data, hourly_weather_data = load_data()
+logger.debug(f"Hourly demand data: {hourly_demand_data.shape}")
+logger.debug(f"Hourly weather data: {hourly_weather_data.shape}")
 
 """1. END SECTION 1 DATA HANDLING AND LOADING"""
 

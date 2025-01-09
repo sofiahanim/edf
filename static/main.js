@@ -1,5 +1,5 @@
 // Configuration for API base URL
-const baseUrl = location.hostname === 'localhost' ? "http://localhost:8000" : 'https://www.electforecast.de';
+const baseUrl = window.location.origin;
 
 // Check if jQuery is loaded
 if (typeof $ === 'undefined') {
