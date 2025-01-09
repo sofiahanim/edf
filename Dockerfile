@@ -30,9 +30,6 @@ RUN pip install --no-cache-dir -r /var/task/requirements_linux.txt
 # Expose the application port for local testing
 EXPOSE 8000
 
-# Healthcheck for container
-HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:8000/health || exit 1
 
 # Lambda runtime
 CMD ["app.lambda_handler"]
