@@ -65,26 +65,16 @@ def lambda_handler(event, context):
             logger.info("Initializing DispatcherMiddleware for Flask app.")
             app.wsgi_app = DispatcherMiddleware(None, {"/": app})
 
-        # Ensure the Flask app itself is not None
-        if app is None or app.wsgi_app is None:
-            logger.error("Flask app or app.wsgi_app is not initialized properly.")
-            return {
-                "statusCode": 500,
-                "body": "Flask application is not initialized.",
-                "headers": {"Access-Control-Allow-Origin": "*"},
-            }
-
         # Process the request using serverless_wsgi
         response = handle_request(app, event, context)
+        logger.debug(f"Response from handle_request: {response}")
 
-        # Add CORS headers to the response
-        response_headers = response.get("headers", {})
-        response_headers["Access-Control-Allow-Origin"] = "*"
-
+        # Handle missing keys gracefully
+        response_body = response.get("body", "No body returned")
         return {
-            "statusCode": response["statusCode"],
-            "headers": response_headers,
-            "body": response["body"],
+            "statusCode": response.get("statusCode", 500),
+            "headers": response.get("headers", {"Access-Control-Allow-Origin": "*"}),
+            "body": response_body,
             "isBase64Encoded": response.get("isBase64Encoded", False),
         }
     except Exception as e:
