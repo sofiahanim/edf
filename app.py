@@ -24,22 +24,29 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 # Logging setup
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.DEBUG)
 
 # Directories
 base_dir = os.getenv("DATA_BASE_DIR", os.path.join(os.getcwd(), "data"))
 static_dir = os.path.join(os.getcwd(), 'static')
 template_dir = os.path.join(os.getcwd(), 'templates')
-cache_dir = os.path.join(os.getcwd(), 'cache')
+
+# Use /tmp for cache to ensure it is writable in serverless environments
+cache_dir = os.getenv("CACHE_DIR", '/tmp/cache')
+
 logger.info(f"Base directory: {base_dir}")
 logger.info(f"Static directory: {static_dir}")
 logger.info(f"Template directory: {template_dir}")
 logger.info(f"Cache directory: {cache_dir}")
 
 # Ensure cache directory exists
-if not os.path.exists(cache_dir):
-    os.makedirs(cache_dir)
-    logger.info(f"Cache directory created: {cache_dir}")
+try:
+    if not os.path.exists(cache_dir):
+        os.makedirs(cache_dir, exist_ok=True)
+        logger.info(f"Cache directory created: {cache_dir}")
+except OSError as e:
+    logger.error(f"Failed to create cache directory: {e}")
+    raise
+
 
 def lambda_handler(event, context):
     try:
