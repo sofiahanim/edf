@@ -1,6 +1,6 @@
 // At the very beginning of main.js:
-//const baseUrl = 'https://www.electforecast.de'; // Replace with your actual URL
-const baseUrl = "http://localhost:8000";
+const baseUrl = 'https://www.electforecast.de'; // Replace with your actual URL
+//const baseUrl = "http://localhost:8000";
 
 if (typeof $ === 'undefined') {
     console.error('jQuery is not loaded. Skipping script execution.');

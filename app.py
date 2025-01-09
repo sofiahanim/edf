@@ -12,20 +12,22 @@ from pathlib import Path
 from mimetypes import guess_type
 import json
 import re
-from flasgger import Swagger
+from flask_restx import Api, Resource, Namespace
 
+# Initialize app and API
 app = Flask(__name__, static_folder='static', template_folder='templates')
 app.config['CACHE_TYPE'] = 'simple' 
 cache = Cache(app)
 cache.init_app(app)
-Swagger(app)
 
 CORS(app, resources={r"/*": {"origins": "*"}})
 
+# Logging setup
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
 
+# Directories
 base_dir = os.getenv("DATA_BASE_DIR", os.path.join(os.getcwd(), "data"))
 static_dir = os.path.join(os.getcwd(), 'static')
 template_dir = os.path.join(os.getcwd(), 'templates')
@@ -34,6 +36,11 @@ logger.info(f"Base directory: {base_dir}")
 logger.info(f"Static directory: {static_dir}")
 logger.info(f"Template directory: {template_dir}")
 logger.info(f"Cache directory: {cache_dir}")
+
+# Ensure cache directory exists
+if not os.path.exists(cache_dir):
+    os.makedirs(cache_dir)
+    logger.info(f"Cache directory created: {cache_dir}")
 
 def lambda_handler(event, context):
     try:
@@ -63,10 +70,12 @@ def lambda_handler(event, context):
             "body": json.dumps({"error": "Internal Server Error"}),
         }
     
+"""README"""
+
+
+"""end README"""
+
 """1. START SECTION 1 DATA"""
-if not os.path.exists(cache_dir):
-    os.makedirs(cache_dir)
-    logger.info(f"Cache directory created: {cache_dir}")
 
 def save_to_cache(data, filename, folder='cache'):
     try:
@@ -86,12 +95,14 @@ def load_from_cache(filename, folder='cache'):
 
 @app.route('/static/<path:filename>')
 def serve_static_files(filename):
+    """Serve static files."""
     mimetype, _ = guess_type(filename)
     if mimetype is None:
         mimetype = "application/octet-stream"
     
     return send_from_directory('static', filename, mimetype=mimetype)
 
+# Helper function to load and normalize CSV files
 def load_and_normalize_csv(path):
     try:
         df = pd.read_csv(path)
@@ -140,7 +151,8 @@ hourly_demand_data, hourly_weather_data = load_data()
 
 """2. START SECTION 2 DASHBOARD"""
 @app.route('/')
-def dashboard():    
+def dashboard():
+    """Render the dashboard page.""" 
     try:
         accept_header = request.headers.get('Accept', '')
         if 'application/json' in accept_header:
@@ -150,8 +162,10 @@ def dashboard():
         logger.error(f"Error rendering dashboard: {e}", exc_info=True)
         return jsonify({"error": "Failed to load dashboard"}), 500
 
+
 @app.route('/api/dashboard', methods=['GET'])
 def fetch_dashboard_data():
+    """Fetch summarized dashboard data."""
     try:
         demand_summary = (
             hourly_demand_data
@@ -191,6 +205,7 @@ def fetch_dashboard_data():
 
 @app.route('/hourlydemand')
 def hourly_demand_page():
+    """Render the hourly demand page."""
     try:
         accept_header = request.headers.get('Accept', '')
         if 'application/json' in accept_header:
@@ -220,6 +235,7 @@ def eda_demand_page():
     
 @app.route('/api/hourlydemand', methods=['GET'])
 def fetch_hourly_demand():
+    """Fetch hourly demand data."""
     try:
         start = int(request.args.get('start', 0))
         length = int(request.args.get('length', 10))
@@ -258,6 +274,7 @@ def fetch_hourly_demand():
 
 @app.route('/hourlyweather')
 def hourly_weather_page():
+    """Fetch hourly weather data."""
     try:
         accept_header = request.headers.get('Accept', '')
         if 'application/json' in accept_header:
@@ -278,6 +295,7 @@ def eda_weather_page():
 
 @app.route('/api/hourlyweather', methods=['GET'])
 def fetch_hourly_weather():
+    """Fetch hourly weather data."""
     try:
         if hourly_weather_data.empty:
             return jsonify({"message": "No weather data available"}), 204
@@ -327,6 +345,7 @@ def fetch_hourly_weather():
 
 @app.route('/holidays')
 def holidays_page():
+    """Render the holidays page."""
     try:
         accept_header = request.headers.get('Accept', '')
         if 'application/json' in accept_header:
@@ -349,6 +368,7 @@ def eda_holidays_page():
 @cache.cached(timeout=86400, key_prefix='holidays')
 @app.route('/api/holidays', methods=['GET'])
 def fetch_holidays():
+    """Fetch a list of holidays."""
     try:
         start = int(request.args.get('start', 0))  # Pagination start
         length = int(request.args.get('length', 10))  # Pagination length

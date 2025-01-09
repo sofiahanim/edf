@@ -29,11 +29,11 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:8000/health || exit 1
 
-  # Lambda runtime
-# CMD ["app.lambda_handler"]
+# Lambda runtime
+CMD ["app.lambda_handler"]
 
 # Command for local development
-CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:8000", "app:app"]
+#CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:8000", "app:app"]
 
 #NOTE
 
