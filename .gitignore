@@ -81,3 +81,13 @@ methodology.txt
 methodology2.txt
 
 venv/
+
+.gitignore
+.dockerignore
+.runner
+.path
+Python-3.11.10.tgz
+act.tar.gz
+.actignore
+__pycache__.zip
+__pycache__/

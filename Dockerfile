@@ -14,7 +14,12 @@ RUN yum update -y && \
 WORKDIR /var/task
 
 # Copy application files
-COPY . /var/task/
+COPY app.py /var/task/
+COPY templates /var/task/templates/
+COPY requirements_linux.txt /var/task/
+COPY data /var/task/data/
+COPY static /var/task/static/
+COPY cache /var/task/cache/
 
 # Set permissions
 RUN chmod -R 755 /var/task
