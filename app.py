@@ -12,6 +12,7 @@ from pathlib import Path
 from mimetypes import guess_type
 import json
 import re
+import plotly.express as px
 
 # Initialize app and API
 app = Flask(__name__, static_folder='static', template_folder='templates')
@@ -221,11 +222,12 @@ def hourly_demand_page():
         logger.error(f"Error rendering hourly demand page: {e}", exc_info=True)
         return jsonify({"error": "Failed to load hourly demand page"}), 500
 
+
 @app.route('/eda/demand', methods=['GET'])
 def eda_demand_page():
     """Render the EDA page for demand data."""
     try:
-        # Load the demand data
+        # Paths to demand data files
         demand_file_paths = [
             "data/demand/2019.csv",
             "data/demand/2020.csv",
@@ -236,38 +238,66 @@ def eda_demand_page():
             "data/demand/2025.csv"
         ]
 
-        demand_data_frames = []
-        for file_path in demand_file_paths:
-            df = pd.read_csv(file_path)
-            demand_data_frames.append(df)
-
+        # Load and process demand data
+        demand_data_frames = [pd.read_csv(file_path) for file_path in demand_file_paths]
         demand_data = pd.concat(demand_data_frames, ignore_index=True)
         demand_data['time'] = pd.to_datetime(demand_data['time'], errors='coerce')
         demand_data = demand_data.dropna(subset=['time', 'value'])
 
-        # Add time components for EDA
+        # Add time components
         demand_data['year'] = demand_data['time'].dt.year
         demand_data['month'] = demand_data['time'].dt.month
-        demand_data['day'] = demand_data['time'].dt.day
         demand_data['hour'] = demand_data['time'].dt.hour
 
-        # Aggregate statistics
+        # Compute statistics
         summary_stats = demand_data.groupby('year')['value'].agg(['mean', 'median', 'min', 'max', 'sum']).reset_index()
         daily_trends = demand_data.groupby(demand_data['time'].dt.date)['value'].sum().reset_index()
         daily_trends.columns = ['date', 'total_demand']
+        top_5_days = demand_data.groupby(demand_data['time'].dt.date)['value'].sum().nlargest(5).reset_index()
+        top_5_days.columns = ['date', 'total_demand']
+
+        # Generate dynamic visualizations with Plotly
+        # Monthly Average Line Plot
+        monthly_avg = demand_data.groupby(['year', 'month'])['value'].mean().reset_index()
+        fig_monthly_avg = px.line(
+            monthly_avg, x='month', y='value', color='year',
+            title='Monthly Average Demand by Year',
+            labels={'value': 'Average Demand (kWh)', 'month': 'Month'}
+        )
+        fig_monthly_avg.update_layout(legend_title_text='Year')
+
+        # Hourly Average Bar Plot
+        hourly_avg = demand_data.groupby('hour')['value'].mean().reset_index()
+        fig_hourly_avg = px.bar(
+            hourly_avg, x='hour', y='value',
+            title='Hourly Average Demand',
+            labels={'value': 'Average Demand (kWh)', 'hour': 'Hour of Day'}
+        )
+
+        # Heatmap
+        heatmap_data = demand_data.pivot_table(index=demand_data['time'].dt.date, columns='hour', values='value', aggfunc='mean').reset_index()
+        fig_heatmap = px.imshow(
+            heatmap_data.set_index('time').T,
+            labels=dict(color='Demand (kWh)', x='Date', y='Hour of Day'),
+            title='Daily Demand Heatmap'
+        )
 
         # Prepare data for rendering
         summary_stats_json = summary_stats.to_dict(orient='records')
         daily_trends_json = daily_trends.to_dict(orient='records')
+        top_5_days_json = top_5_days.to_dict(orient='records')
 
         return render_template(
             'eda_demand.html',
             summary_stats=summary_stats_json,
-            daily_trends=daily_trends_json
+            daily_trends=daily_trends_json,
+            top_5_days=top_5_days_json,
+            monthly_avg_plot=fig_monthly_avg.to_json(),
+            hourly_avg_plot=fig_hourly_avg.to_json(),
+            heatmap_plot=fig_heatmap.to_json()
         )
     except Exception as e:
-        logger.error(f"Error loading demand EDA data: {e}", exc_info=True)
-        return jsonify({"error": "Failed to load demand EDA data"}), 500
+        return jsonify({"error": str(e)}), 500
 
     
 @app.route('/api/hourlydemand', methods=['GET'])

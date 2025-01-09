@@ -24,18 +24,72 @@
                         <th>Total</th>
                     </tr>
                 </thead>
-                <tbody></tbody>
+                <tbody>
+                    {% for stat in summary_stats %}
+                    <tr>
+                        <td>{{ stat.year }}</td>
+                        <td>{{ stat.mean|round(2) }}</td>
+                        <td>{{ stat.median|round(2) }}</td>
+                        <td>{{ stat.min|round(2) }}</td>
+                        <td>{{ stat.max|round(2) }}</td>
+                        <td>{{ stat.sum|round(2) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
             </table>
         </div>
     </div>
 
-    <!-- Daily Trends Line Chart -->
+    <!-- Top 5 Days Table -->
     <div class="card shadow mb-4">
         <div class="card-header py-3">
-            <h6 class="m-0 font-weight-bold text-primary">Daily Demand Trends</h6>
+            <h6 class="m-0 font-weight-bold text-primary">Top 5 Days with Highest Demand</h6>
         </div>
         <div class="card-body">
-            <canvas id="daily-trends-chart"></canvas>
+            <table class="table table-bordered" id="top-5-days-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Total Demand (kWh)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for day in top_5_days %}
+                    <tr>
+                        <td>{{ day.date }}</td>
+                        <td>{{ day.total_demand|round(2) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Dynamic Plots with Plotly -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Monthly Average Demand by Year</h6>
+        </div>
+        <div class="card-body">
+            <div id="monthly-avg-chart"></div>
+        </div>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Hourly Average Demand</h6>
+        </div>
+        <div class="card-body">
+            <div id="hourly-avg-chart"></div>
+        </div>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Daily Demand Heatmap</h6>
+        </div>
+        <div class="card-body">
+            <div id="heatmap-chart"></div>
         </div>
     </div>
 </div>

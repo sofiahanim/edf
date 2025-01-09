@@ -245,6 +245,8 @@ if (typeof $ === 'undefined') {
 }
 
 // EDA DEMAND
+// Add this to your main.js to handle demand EDA dynamically
+
 document.addEventListener("DOMContentLoaded", function () {
     // Event Listener for EDA Demand Navigation
     const edaDemandNav = document.querySelector("a[href='/eda/demand']");
@@ -261,6 +263,16 @@ document.addEventListener("DOMContentLoaded", function () {
                 })
                 .then(html => {
                     document.querySelector("#content-wrapper").innerHTML = html;
+
+                    // Render Plotly charts after content is loaded
+                    const monthlyAvgData = JSON.parse(document.getElementById("monthly-avg-data").textContent);
+                    Plotly.newPlot('monthly-avg-chart', monthlyAvgData.data, monthlyAvgData.layout);
+
+                    const hourlyAvgData = JSON.parse(document.getElementById("hourly-avg-data").textContent);
+                    Plotly.newPlot('hourly-avg-chart', hourlyAvgData.data, hourlyAvgData.layout);
+
+                    const heatmapData = JSON.parse(document.getElementById("heatmap-data").textContent);
+                    Plotly.newPlot('heatmap-chart', heatmapData.data, heatmapData.layout);
                 })
                 .catch(error => {
                     console.error('Error loading Demand EDA page:', error);
