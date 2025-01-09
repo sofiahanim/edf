@@ -12,7 +12,6 @@ from pathlib import Path
 from mimetypes import guess_type
 import json
 import re
-from flask_restx import Api, Resource, Namespace
 
 # Initialize app and API
 app = Flask(__name__, static_folder='static', template_folder='templates')
