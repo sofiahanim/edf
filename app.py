@@ -14,7 +14,6 @@ import json
 import re
 import plotly.express as px
 from serverless_wsgi import handle_request
-from app import app
 
 # Initialize app and API
 app = Flask(__name__, static_folder='static', template_folder='templates')
@@ -51,38 +50,25 @@ except OSError as e:
     raise
 
 
+# Lambda handler
 def lambda_handler(event, context):
     """
     AWS Lambda handler to serve the Flask application via API Gateway.
     """
     try:
-        # Log event and context for debugging
-        logger.info("Received event: %s", json.dumps(event, indent=2))
-        
-        # Ensure the Flask app is wrapped in a DispatcherMiddleware for compatibility
+        logger.info("Received event: %s", event)
         app.wsgi_app = DispatcherMiddleware(None, {"/": app.wsgi_app})
-        
-        # Handle the request using serverless_wsgi
         response = handle_request(app, event, context)
-
-        # Ensure a valid API Gateway-compatible response
         return {
             "statusCode": response["statusCode"],
-            "headers": {
-                **response.get("headers", {}),
-                "Access-Control-Allow-Origin": "*",  # Enable CORS if required
-            },
-            "body": response["body"],  # HTML, JSON, or other content
-            "isBase64Encoded": response.get("isBase64Encoded", False),  # Handle binary responses
+            "headers": {**response.get("headers", {}), "Access-Control-Allow-Origin": "*"},
+            "body": response["body"],
+            "isBase64Encoded": response.get("isBase64Encoded", False),
         }
     except Exception as e:
-        # Log the error and return a generic error response
         logger.error(f"Error in Lambda handler: {e}", exc_info=True)
-        return {
-            "statusCode": 500,
-            "headers": {"Content-Type": "application/json"},
-            "body": json.dumps({"error": "Internal Server Error"}),
-        }
+        return {"statusCode": 500, "headers": {"Content-Type": "application/json"}, "body": "Internal Server Error"}
+
     
 """README"""
 
