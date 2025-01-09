@@ -215,6 +215,22 @@ def dashboard():
         logger.error(f"Error rendering dashboard: {e}", exc_info=True)
         return jsonify({"error": "Failed to load dashboard"}), 500
 
+@app.route("/api/dashboard", methods=["GET"])
+def fetch_dashboard_data():
+    try:
+        demand_summary = hourly_demand_data.groupby(hourly_demand_data['time'].dt.date).agg({'value': 'sum'}).rename(columns={'value': 'total_demand'}).reset_index()
+        weather_summary = hourly_weather_data.groupby(hourly_weather_data['datetime'].dt.date).agg({'temp': 'mean'}).reset_index()
+
+        data = []
+        for date in demand_summary['time']:
+            demand = demand_summary[demand_summary['time'] == date]['total_demand'].values[0]
+            temp = weather_summary[weather_summary['datetime'] == date]['temp'].values[0]
+            data.append({'date': str(date), 'demand': demand, 'temperature': temp})
+
+        return jsonify(data=data)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 """2. END SECTION 2 DASHBOARD AND API ENDPOINTS"""
 
 """3. START SECTION 3 HOURLY DEMAND"""
