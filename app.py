@@ -215,49 +215,6 @@ def dashboard():
         logger.error(f"Error rendering dashboard: {e}", exc_info=True)
         return jsonify({"error": "Failed to load dashboard"}), 500
 
-@app.route("/api/dashboard", methods=["GET"])
-def fetch_dashboard_data():
-    """Fetch summarized data for the dashboard."""
-    try:
-        # Check for empty datasets
-        if hourly_demand_data.empty and hourly_weather_data.empty:
-            logger.warning("No data available for dashboard.")
-            return jsonify({"error": "No data available"}), 404
-
-        # Group and summarize demand data
-        demand_summary = (
-            hourly_demand_data
-            .groupby(hourly_demand_data["time"].dt.date)
-            .agg(total_demand=("value", "sum"))
-            .reset_index()
-            .rename(columns={"time": "date"})
-        )
-
-        # Group and summarize weather data
-        weather_summary = (
-            hourly_weather_data
-            .groupby(hourly_weather_data["datetime"].dt.date)
-            .agg(average_temperature=("temp", "mean"))
-            .reset_index()
-            .rename(columns={"datetime": "date"})
-        )
-
-        # Combine summaries
-        combined_data = pd.merge(
-            demand_summary,
-            weather_summary,
-            on="date",
-            how="outer"
-        ).fillna({"total_demand": 0, "average_temperature": 0})
-
-        # Format the response
-        response_data = combined_data.to_dict(orient="records")
-        logger.info(f"Dashboard data fetched successfully with {len(response_data)} records.")
-        return jsonify({"data": response_data}), 200
-    except Exception as e:
-        logger.error(f"Error fetching dashboard data: {e}", exc_info=True)
-        return jsonify({"error": "Failed to fetch dashboard data"}), 500
-
 """2. END SECTION 2 DASHBOARD AND API ENDPOINTS"""
 
 """3. START SECTION 3 HOURLY DEMAND"""
