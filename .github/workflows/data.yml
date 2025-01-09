@@ -6,8 +6,8 @@ on:
       - main  # Trigger the workflow on pushes to the main branch
   workflow_dispatch:  # Allow manual triggering
   schedule:
-    - cron: '0 1 * * *'  # Optional: Run daily at 1 AM UTC
-
+  - cron: '0 17 * * *' # 1:00 AM MALAYSIA TIME  # Schedule the workflow to run daily at 1:00 AM
+   
 permissions:
   contents: write  # Read and write permissions for repository contents
 

@@ -3,11 +3,17 @@ name: Build and Push Docker to ECR
 on:
   push:
     branches:
-      - main
+      - main  
+  workflow_dispatch:  
+  schedule:
+  - cron: '0 18 * * *' # 2:00 AM MALAYSIA TIME
+
+permissions:
+  contents: write  
 
 jobs:
   build-and-deploy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
 
     steps:
     - name: Checkout code
