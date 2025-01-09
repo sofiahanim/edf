@@ -1,3 +1,4 @@
+
 from flask import Flask, Response, redirect, jsonify, request, render_template, send_from_directory
 import pandas as pd
 import holidays
@@ -5,9 +6,7 @@ from flask_caching import Cache
 from flask_cors import CORS
 import logging
 import os
-import subprocess
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
-from werkzeug.wrappers import Request, Response
 from pathlib import Path
 from mimetypes import guess_type
 import json
@@ -27,36 +26,33 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# Directories
-base_dir = os.getenv("DATA_BASE_DIR", os.path.join(os.getcwd(), "data"))
-static_dir = os.path.join(os.getcwd(), 'static')
-template_dir = os.path.join(os.getcwd(), 'templates')
+# Directory paths
+BASE_DIR = "/var/task"
+DATA_DIR = os.path.join(BASE_DIR, "data")
+TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
+STATIC_DIR = os.path.join(BASE_DIR, "static")
+CACHE_DIR = os.path.join(BASE_DIR, "cache")
 
-# Use /tmp for cache to ensure it is writable in serverless environments
-cache_dir = os.getenv("CACHE_DIR", '/tmp/cache')
+logger.info(f"Base Directory: {BASE_DIR}")
+logger.info(f"Data Directory: {DATA_DIR}")
+logger.info(f"Templates Directory: {TEMPLATES_DIR}")
+logger.info(f"Static Directory: {STATIC_DIR}")
+logger.info(f"Cache Directory: {CACHE_DIR}")
 
-logger.info(f"Base directory: {base_dir}")
-logger.info(f"Static directory: {static_dir}")
-logger.info(f"Template directory: {template_dir}")
-logger.info(f"Cache directory: {cache_dir}")
+# Ensure required directories exist
+REQUIRED_DIRS = [DATA_DIR, TEMPLATES_DIR, STATIC_DIR, CACHE_DIR]
+for directory in REQUIRED_DIRS:
+    if not os.path.exists(directory):
+        logger.warning(f"Directory missing: {directory}")
+        try:
+            os.makedirs(directory, exist_ok=True)
+            logger.info(f"Created missing directory: {directory}")
+        except Exception as e:
+            logger.error(f"Failed to create directory {directory}: {e}", exc_info=True)
 
-# Ensure cache directory exists
-try:
-    if not os.path.exists(cache_dir):
-        os.makedirs(cache_dir, exist_ok=True)
-        logger.info(f"Cache directory created: {cache_dir}")
-except OSError as e:
-    logger.error(f"Failed to create cache directory: {e}")
-    raise
-
-
-# Lambda handler
+# Lambda handler for AWS Lambda integration
 def lambda_handler(event, context):
-    """
-    AWS Lambda handler to serve the Flask application via API Gateway.
-    """
     try:
-        logger.info("Received event: %s", event)
         app.wsgi_app = DispatcherMiddleware(None, {"/": app.wsgi_app})
         response = handle_request(app, event, context)
         return {
@@ -66,222 +62,262 @@ def lambda_handler(event, context):
             "isBase64Encoded": response.get("isBase64Encoded", False),
         }
     except Exception as e:
-        logger.error(f"Error in Lambda handler: {e}", exc_info=True)
-        return {"statusCode": 500, "headers": {"Content-Type": "application/json"}, "body": "Internal Server Error"}
+        logger.error(f"Lambda handler error: {e}")
+        return {
+            "statusCode": 500,
+            "body": "Internal Server Error"
+        }
 
-    
-"""README"""
-
-
-"""end README"""
-
-"""1. START SECTION 1 DATA"""
-
-def save_to_cache(data, filename, folder='cache'):
+"""0. START SECTION 0 <HELPER FUNCTIONS>"""
+@app.route("/data/<file_name>")
+def get_data(file_name):
+    """Fetch CSV data."""
     try:
-        if not os.path.exists(folder):
-            os.makedirs(folder)
+        df = load_csv(file_name)
+        if df.empty:
+            logger.warning(f"No data found for {file_name}")
+            return jsonify({"error": f"No data found for {file_name}"}), 404
+        logger.info(f"Successfully fetched data for {file_name}")
+        return df.to_json(orient="records"), 200, {"Content-Type": "application/json"}
+    except Exception as e:
+        logger.error(f"Error fetching data for {file_name}: {e}", exc_info=True)
+        return jsonify({"error": "Failed to fetch data"}), 500
+
+@app.route("/static/<path:filename>")
+def serve_static_files(filename):
+    """Serve static files."""
+    try:
+        full_path = os.path.join(STATIC_DIR, filename)
+        if os.path.exists(full_path):
+            logger.info(f"Serving static file: {filename}")
+            return send_from_directory(STATIC_DIR, filename)
+        else:
+            logger.warning(f"Static file not found: {filename}")
+            return jsonify({"error": "Static file not found"}), 404
+    except Exception as e:
+        logger.error(f"Error serving static file {filename}: {e}", exc_info=True)
+        return jsonify({"error": "Static file error"}), 500
+"""0. END SECTION 0 <HELPER FUNCTIONS>"""
+
+"""1. START SECTION 1 DATA HANDLING AND LOADING"""
+
+def save_to_cache(data, filename, folder=CACHE_DIR):
+    """Save DataFrame to cache as CSV."""
+    try:
+        os.makedirs(folder, exist_ok=True)  # Ensure the cache folder exists
         filepath = os.path.join(folder, filename)
         data.to_csv(filepath, index=False)
         logger.info(f"Data saved to cache: {filepath}")
     except Exception as e:
         logger.error(f"Failed to save data to cache: {e}", exc_info=True)
 
-def load_from_cache(filename, folder='cache'):
+def load_from_cache(filename, folder=CACHE_DIR):
+    """Load DataFrame from cached CSV."""
     filepath = os.path.join(folder, filename)
-    if os.path.exists(filepath):
-        return pd.read_csv(filepath)
-    return None
-
-@app.route('/static/<path:filename>')
-def serve_static_files(filename):
-    """Serve static files."""
-    mimetype, _ = guess_type(filename)
-    if mimetype is None:
-        mimetype = "application/octet-stream"
-    
-    return send_from_directory('static', filename, mimetype=mimetype)
-
-# Helper function to load and normalize CSV files
-def load_and_normalize_csv(path):
     try:
-        df = pd.read_csv(path)
-        df.columns = [col.strip().lower().replace(" ", "_") for col in df.columns]
-        if 'time' in df.columns:
-            df['time'] = pd.to_datetime(df['time'], errors='coerce')
-        if 'datetime' in df.columns:
-            df['datetime'] = pd.to_datetime(df['datetime'], errors='coerce')
-        return df
+        if os.path.exists(filepath):
+            logger.info(f"Loading data from cache: {filepath}")
+            return pd.read_csv(filepath)
+        else:
+            logger.warning(f"Cache file not found: {filepath}")
+            return pd.DataFrame()
     except Exception as e:
-        logger.error(f"Error loading CSV file: {path}, Error: {e}", exc_info=True)
+        logger.error(f"Failed to load data from cache: {e}", exc_info=True)
         return pd.DataFrame()
 
+def load_csv(file_path):
+    """Load and normalize CSV file into a DataFrame."""
+    full_path = os.path.join(DATA_DIR, file_path)
+    try:
+        if os.path.exists(full_path):
+            df = pd.read_csv(full_path)
+            if df.empty:
+                logger.warning(f"CSV file is empty: {full_path}")
+            # Normalize column names
+            df.columns = [col.strip().lower().replace(" ", "_") for col in df.columns]
+            # Parse date columns if they exist
+            if 'time' in df.columns:
+                df['time'] = pd.to_datetime(df['time'], errors='coerce')
+            if 'datetime' in df.columns:
+                df['datetime'] = pd.to_datetime(df['datetime'], errors='coerce')
+            logger.info(f"Successfully loaded data from {full_path}")
+            return df
+        else:
+            logger.warning(f"File not found: {full_path}")
+    except Exception as e:
+        logger.error(f"Error loading file {file_path}: {e}", exc_info=True)
+    return pd.DataFrame()
+
 def load_data():
-    years = range(2019, 2026)
-    hourly_demand_data = pd.DataFrame()
-    hourly_weather_data = pd.DataFrame()
+    """Load and combine data for demand and weather."""
+    try:
+        years = range(2019, 2026)
 
-    for year in years:
-        path_demand = os.path.join(base_dir, 'demand', f'{year}.csv')
-        if os.path.exists(path_demand):
-            try:
-                logger.info(f"Loading demand data for year {year}: {path_demand}")
-                demand_data = load_and_normalize_csv(path_demand)
-                hourly_demand_data = pd.concat([hourly_demand_data, demand_data], ignore_index=True)
-            except Exception as e:
-                logger.error(f"Failed to load demand data for year {year}: {e}", exc_info=True)
+        # Load demand data
+        demand_dfs = []
+        for year in years:
+            file_path = f"demand/{year}.csv"
+            df = load_csv(file_path)
+            if not df.empty:
+                demand_dfs.append(df)
+        hourly_demand_data = pd.concat(demand_dfs, ignore_index=True) if demand_dfs else pd.DataFrame()
 
-        path_weather = os.path.join(base_dir, 'weather', f'{year}.csv')
-        if os.path.exists(path_weather):
-            try:
-                logger.info(f"Loading weather data for year {year}: {path_weather}")
-                weather_data = load_and_normalize_csv(path_weather)
-                hourly_weather_data = pd.concat([hourly_weather_data, weather_data], ignore_index=True)
-            except Exception as e:
-                logger.error(f"Failed to load weather data for year {year}: {e}", exc_info=True)
+        # Load weather data
+        weather_dfs = []
+        for year in years:
+            file_path = f"weather/{year}.csv"
+            df = load_csv(file_path)
+            if not df.empty:
+                weather_dfs.append(df)
+        hourly_weather_data = pd.concat(weather_dfs, ignore_index=True) if weather_dfs else pd.DataFrame()
 
-    logger.info(f"Total demand data rows loaded: {len(hourly_demand_data)}")
-    logger.info(f"Total weather data rows loaded: {len(hourly_weather_data)}")
+        logger.info(f"Loaded {len(hourly_demand_data)} rows of demand data.")
+        logger.info(f"Loaded {len(hourly_weather_data)} rows of weather data.")
+        return hourly_demand_data, hourly_weather_data
+    except Exception as e:
+        logger.error(f"Error loading data: {e}", exc_info=True)
+        return pd.DataFrame(), pd.DataFrame()
 
-    return hourly_demand_data, hourly_weather_data
-
+# Load data into global variables
 hourly_demand_data, hourly_weather_data = load_data()
 
-"""1. END SECTION 1 DATA"""
+"""1. END SECTION 1 DATA HANDLING AND LOADING"""
 
-"""2. START SECTION 2 DASHBOARD"""
-@app.route('/')
+"""2. START SECTION 2 DASHBOARD AND API ENDPOINTS"""
+
+@app.route("/")
 def dashboard():
-    """Render the dashboard page.""" 
+    """Render the dashboard page."""
     try:
-        accept_header = request.headers.get('Accept', '')
-        if 'application/json' in accept_header:
-            return redirect('/api/dashboard', code=302)
-        return render_template('dashboard.html')
+        logger.info("Rendering the main dashboard page.")
+        return render_template("dashboard.html")
     except Exception as e:
         logger.error(f"Error rendering dashboard: {e}", exc_info=True)
         return jsonify({"error": "Failed to load dashboard"}), 500
 
-
-@app.route('/api/dashboard', methods=['GET'])
+@app.route("/api/dashboard", methods=["GET"])
 def fetch_dashboard_data():
-    """Fetch summarized dashboard data."""
+    """Fetch summarized data for the dashboard."""
     try:
+        # Check for empty datasets
+        if hourly_demand_data.empty and hourly_weather_data.empty:
+            logger.warning("No data available for dashboard.")
+            return jsonify({"error": "No data available"}), 404
+
+        # Group and summarize demand data
         demand_summary = (
             hourly_demand_data
-            .groupby(hourly_demand_data['time'].dt.date)
-            .agg({'value': 'sum'})
-            .rename(columns={'value': 'total_demand'})
+            .groupby(hourly_demand_data["time"].dt.date)
+            .agg(total_demand=("value", "sum"))
             .reset_index()
+            .rename(columns={"time": "date"})
         )
 
+        # Group and summarize weather data
         weather_summary = (
             hourly_weather_data
-            .groupby(hourly_weather_data['datetime'].dt.date)
-            .agg({'temp': 'mean'})
-            .rename(columns={'temp': 'average_temperature'})
+            .groupby(hourly_weather_data["datetime"].dt.date)
+            .agg(average_temperature=("temp", "mean"))
             .reset_index()
+            .rename(columns={"datetime": "date"})
         )
 
+        # Combine summaries
         combined_data = pd.merge(
             demand_summary,
             weather_summary,
-            left_on='time',
-            right_on='datetime',
-            how='outer'
-        ).fillna({'total_demand': 0, 'average_temperature': 0})
+            on="date",
+            how="outer"
+        ).fillna({"total_demand": 0, "average_temperature": 0})
 
-        response_data = combined_data.rename(columns={'time': 'date'}).to_dict(orient='records')
-
-        logger.info("Dashboard API Response: %s", response_data)
-        return jsonify({'data': response_data})
+        # Format the response
+        response_data = combined_data.to_dict(orient="records")
+        logger.info(f"Dashboard data fetched successfully with {len(response_data)} records.")
+        return jsonify({"data": response_data}), 200
     except Exception as e:
         logger.error(f"Error fetching dashboard data: {e}", exc_info=True)
-        return jsonify({'error': 'Failed to fetch dashboard data'}), 500
+        return jsonify({"error": "Failed to fetch dashboard data"}), 500
 
-"""2. END SECTION 2 DASHBOARD"""
+"""2. END SECTION 2 DASHBOARD AND API ENDPOINTS"""
 
-"""3. START SECTION 3 HOURLYDEMAND"""
+"""3. START SECTION 3 HOURLY DEMAND"""
 
-@app.route('/hourlydemand')
+@app.route("/hourlydemand")
 def hourly_demand_page():
     """Render the hourly demand page."""
     try:
-        accept_header = request.headers.get('Accept', '')
-        if 'application/json' in accept_header:
-            return redirect('/api/hourlydemand', code=302)
-        return render_template('hourly_demand.html')
+        logger.info("Rendering the hourly demand page.")
+        accept_header = request.headers.get("Accept", "")
+        if "application/json" in accept_header:
+            logger.info("Redirecting to hourly demand API for JSON response.")
+            return redirect("/api/hourlydemand", code=302)
+        return render_template("hourly_demand.html")
     except Exception as e:
         logger.error(f"Error rendering hourly demand page: {e}", exc_info=True)
         return jsonify({"error": "Failed to load hourly demand page"}), 500
 
-
-@app.route('/eda/demand', methods=['GET'])
+@app.route("/eda/demand", methods=["GET"])
 def eda_demand_page():
     """Render the EDA page for demand data."""
     try:
         # Paths to demand data files
-        demand_file_paths = [
-            "data/demand/2019.csv",
-            "data/demand/2020.csv",
-            "data/demand/2021.csv",
-            "data/demand/2022.csv",
-            "data/demand/2023.csv",
-            "data/demand/2024.csv",
-            "data/demand/2025.csv"
-        ]
+        demand_file_paths = [f"data/demand/{year}.csv" for year in range(2019, 2026)]
 
         # Load and process demand data
-        demand_data_frames = [pd.read_csv(file_path) for file_path in demand_file_paths]
+        demand_data_frames = [load_csv(file_path) for file_path in demand_file_paths if not load_csv(file_path).empty]
         demand_data = pd.concat(demand_data_frames, ignore_index=True)
-        demand_data['time'] = pd.to_datetime(demand_data['time'], errors='coerce')
-        demand_data = demand_data.dropna(subset=['time', 'value'])
 
-        # Add time components
-        demand_data['year'] = demand_data['time'].dt.year
-        demand_data['month'] = demand_data['time'].dt.month
-        demand_data['hour'] = demand_data['time'].dt.hour
+        if demand_data.empty:
+            logger.warning("No demand data available for EDA.")
+            return jsonify({"error": "No demand data available"}), 404
+
+        # Process demand data
+        demand_data["time"] = pd.to_datetime(demand_data["time"], errors="coerce")
+        demand_data = demand_data.dropna(subset=["time", "value"])
+        demand_data["year"] = demand_data["time"].dt.year
+        demand_data["month"] = demand_data["time"].dt.month
+        demand_data["hour"] = demand_data["time"].dt.hour
 
         # Compute statistics
-        summary_stats = demand_data.groupby('year')['value'].agg(['mean', 'median', 'min', 'max', 'sum']).reset_index()
-        daily_trends = demand_data.groupby(demand_data['time'].dt.date)['value'].sum().reset_index()
-        daily_trends.columns = ['date', 'total_demand']
-        top_5_days = demand_data.groupby(demand_data['time'].dt.date)['value'].sum().nlargest(5).reset_index()
-        top_5_days.columns = ['date', 'total_demand']
+        summary_stats = demand_data.groupby("year")["value"].agg(["mean", "median", "min", "max", "sum"]).reset_index()
+        daily_trends = demand_data.groupby(demand_data["time"].dt.date)["value"].sum().reset_index()
+        daily_trends.columns = ["date", "total_demand"]
+        top_5_days = demand_data.groupby(demand_data["time"].dt.date)["value"].sum().nlargest(5).reset_index()
+        top_5_days.columns = ["date", "total_demand"]
 
         # Generate dynamic visualizations with Plotly
         # Monthly Average Line Plot
-        monthly_avg = demand_data.groupby(['year', 'month'])['value'].mean().reset_index()
+        monthly_avg = demand_data.groupby(["year", "month"])["value"].mean().reset_index()
         fig_monthly_avg = px.line(
-            monthly_avg, x='month', y='value', color='year',
-            title='Monthly Average Demand by Year',
-            labels={'value': 'Average Demand (kWh)', 'month': 'Month'}
+            monthly_avg, x="month", y="value", color="year",
+            title="Monthly Average Demand by Year",
+            labels={"value": "Average Demand (kWh)", "month": "Month"}
         )
-        fig_monthly_avg.update_layout(legend_title_text='Year')
+        fig_monthly_avg.update_layout(legend_title_text="Year")
 
         # Hourly Average Bar Plot
-        hourly_avg = demand_data.groupby('hour')['value'].mean().reset_index()
+        hourly_avg = demand_data.groupby("hour")["value"].mean().reset_index()
         fig_hourly_avg = px.bar(
-            hourly_avg, x='hour', y='value',
-            title='Hourly Average Demand',
-            labels={'value': 'Average Demand (kWh)', 'hour': 'Hour of Day'}
+            hourly_avg, x="hour", y="value",
+            title="Hourly Average Demand",
+            labels={"value": "Average Demand (kWh)", "hour": "Hour of Day"}
         )
 
         # Heatmap
-        heatmap_data = demand_data.pivot_table(index=demand_data['time'].dt.date, columns='hour', values='value', aggfunc='mean').reset_index()
+        heatmap_data = demand_data.pivot_table(index=demand_data["time"].dt.date, columns="hour", values="value", aggfunc="mean").reset_index()
         fig_heatmap = px.imshow(
-            heatmap_data.set_index('time').T,
-            labels=dict(color='Demand (kWh)', x='Date', y='Hour of Day'),
-            title='Daily Demand Heatmap'
+            heatmap_data.set_index("time").T,
+            labels=dict(color="Demand (kWh)", x="Date", y="Hour of Day"),
+            title="Daily Demand Heatmap"
         )
 
         # Prepare data for rendering
-        summary_stats_json = summary_stats.to_dict(orient='records')
-        daily_trends_json = daily_trends.to_dict(orient='records')
-        top_5_days_json = top_5_days.to_dict(orient='records')
+        summary_stats_json = summary_stats.to_dict(orient="records")
+        daily_trends_json = daily_trends.to_dict(orient="records")
+        top_5_days_json = top_5_days.to_dict(orient="records")
 
         return render_template(
-            'eda_demand.html',
+            "eda_demand.html",
             summary_stats=summary_stats_json,
             daily_trends=daily_trends_json,
             top_5_days=top_5_days_json,
@@ -290,51 +326,58 @@ def eda_demand_page():
             heatmap_plot=fig_heatmap.to_json()
         )
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Error rendering EDA demand page: {e}", exc_info=True)
+        return jsonify({"error": "Failed to render EDA demand page"}), 500
 
-    
-@app.route('/api/hourlydemand', methods=['GET'])
+@app.route("/api/hourlydemand", methods=["GET"])
 def fetch_hourly_demand():
-    """Fetch hourly demand data."""
+    """Fetch paginated hourly demand data."""
     try:
-        start = int(request.args.get('start', 0))
-        length = int(request.args.get('length', 10))
-        search_value = request.args.get('search[value]', '').lower()
+        if hourly_demand_data.empty:
+            logger.warning("No hourly demand data available.")
+            return jsonify({"error": "No hourly demand data available"}), 404
+
+        # Pagination and filtering
+        start = int(request.args.get("start", 0))
+        length = int(request.args.get("length", 10))
+        search_value = request.args.get("search[value]", "").lower()
         search_value = re.escape(search_value)
 
-        df_sorted = hourly_demand_data.sort_values(by='time', ascending=False)
+        # Filter and sort data
+        df_sorted = hourly_demand_data.sort_values(by="time", ascending=False)
         if search_value:
             mask = (
-                df_sorted['time'].astype(str).str.contains(search_value) |
-                df_sorted['value'].astype(str).str.contains(search_value)
+                df_sorted["time"].astype(str).str.contains(search_value) |
+                df_sorted["value"].astype(str).str.contains(search_value)
             )
             filtered_df = df_sorted[mask]
         else:
             filtered_df = df_sorted
 
         paginated_data = filtered_df.iloc[start:start + length].copy()
-        paginated_data['time'] = paginated_data['time'].dt.strftime('%Y-%m-%d %H:%M:%S')
+        paginated_data["time"] = paginated_data["time"].dt.strftime("%Y-%m-%d %H:%M:%S")
 
+        # Prepare response
         response_data = {
-            'draw': int(request.args.get('draw', 1)),
-            'recordsTotal': len(hourly_demand_data),
-            'recordsFiltered': len(filtered_df),
-            'data': paginated_data.to_dict(orient='records')
+            "draw": int(request.args.get("draw", 1)),
+            "recordsTotal": len(hourly_demand_data),
+            "recordsFiltered": len(filtered_df),
+            "data": paginated_data.to_dict(orient="records")
         }
 
-        logger.info("Hourly Demand API Response: %s", response_data)
-        return jsonify(response_data)
+        logger.info("Hourly Demand API Response fetched successfully.")
+        return jsonify(response_data), 200
     except Exception as e:
         logger.error(f"Error fetching hourly demand data: {e}", exc_info=True)
-        return jsonify({'error': 'Failed to fetch hourly demand data'}), 500
+        return jsonify({"error": "Failed to fetch hourly demand data"}), 500
 
-"""3. END SECTION 3 HOURLYDEMAND"""
+"""3. END SECTION 3 HOURLY DEMAND"""
 
-"""4. START SECTION 4 HOURLYWEATHER"""
+"""4. START SECTION 4 HOURLY WEATHER"""
 
 @app.route('/hourlyweather')
 def hourly_weather_page():
-    """Fetch hourly weather data."""
+    """Render the hourly weather page."""
     try:
         accept_header = request.headers.get('Accept', '')
         if 'application/json' in accept_header:
@@ -346,37 +389,73 @@ def hourly_weather_page():
 
 @app.route('/eda/weather')
 def eda_weather_page():
-    years = range(2019, 2026)
-    weather_data = pd.concat([load_and_normalize_csv(f'data/weather/{year}.csv') for year in years], ignore_index=True)
-    return render_template(
-        'eda_weather.html',
-        data=weather_data.to_html(classes='table table-striped', index=False)
-    )
+    """Render the EDA page for weather data."""
+    try:
+        if hourly_weather_data.empty:
+            logger.warning("No weather data available for EDA")
+            return jsonify({"error": "No weather data available"}), 404
+
+        # Generate EDA statistics and plots
+        hourly_weather_data['date'] = hourly_weather_data['datetime'].dt.date
+        weather_summary = hourly_weather_data.groupby('date').agg(
+            avg_temp=('temp', 'mean'),
+            max_temp=('temp', 'max'),
+            min_temp=('temp', 'min'),
+            avg_humidity=('humidity', 'mean')
+        ).reset_index()
+
+        # Create visualizations with Plotly
+        fig_temp_trend = px.line(
+            weather_summary,
+            x='date', y='avg_temp',
+            title="Average Temperature Trend",
+            labels={'avg_temp': 'Average Temperature (°C)', 'date': 'Date'}
+        )
+
+        fig_humidity_trend = px.bar(
+            weather_summary,
+            x='date', y='avg_humidity',
+            title="Average Humidity Trend",
+            labels={'avg_humidity': 'Average Humidity (%)', 'date': 'Date'}
+        )
+
+        # Prepare JSON data for rendering
+        weather_summary_json = weather_summary.to_dict(orient='records')
+
+        return render_template(
+            'eda_weather.html',
+            weather_summary=weather_summary_json,
+            temp_trend_plot=fig_temp_trend.to_json(),
+            humidity_trend_plot=fig_humidity_trend.to_json()
+        )
+    except Exception as e:
+        logger.error(f"Error rendering weather EDA page: {e}", exc_info=True)
+        return jsonify({"error": "Failed to render EDA page"}), 500
 
 @app.route('/api/hourlyweather', methods=['GET'])
 def fetch_hourly_weather():
     """Fetch hourly weather data."""
     try:
         if hourly_weather_data.empty:
-            return jsonify({"message": "No weather data available"}), 204
-        
+            logger.warning("No hourly weather data available")
+            return jsonify({"error": "No weather data available"}), 404
+
+        # Pagination and filtering
         start = int(request.args.get('start', 0))
         length = int(request.args.get('length', 10))
         search_value = request.args.get('search[value]', '').lower()
-        search_value = re.escape(search_value)  # Escape special characters to avoid regex injection
+        search_value = re.escape(search_value)  # Prevent regex injection
 
         df_sorted = hourly_weather_data.sort_values(by='datetime', ascending=False)
+
         if search_value:
             mask = (
                 df_sorted['datetime'].astype(str).str.contains(search_value) |
                 df_sorted['temp'].astype(str).str.contains(search_value) |
-                df_sorted['feelslike'].astype(str).str.contains(search_value) |
                 df_sorted['humidity'].astype(str).str.contains(search_value) |
-                df_sorted['windspeed'].astype(str).str.contains(search_value) |
                 df_sorted['cloudcover'].astype(str).str.contains(search_value) |
-                df_sorted['solaradiation'].astype(str).str.contains(search_value) |
-                df_sorted['precip'].astype(str).str.contains(search_value) |
-                df_sorted['preciptype'].astype(str).str.contains(search_value)
+                df_sorted['windspeed'].astype(str).str.contains(search_value) |
+                df_sorted['precip'].astype(str).str.contains(search_value)
             )
             filtered_df = df_sorted[mask]
         else:
@@ -384,7 +463,6 @@ def fetch_hourly_weather():
 
         paginated_data = filtered_df.iloc[start:start + length].copy()
         paginated_data['datetime'] = paginated_data['datetime'].dt.strftime('%Y-%m-%d %H:%M:%S')
-        paginated_data.fillna({'preciptype': 'N/A'}, inplace=True)
 
         response_data = {
             'draw': int(request.args.get('draw', 1)),
@@ -398,7 +476,7 @@ def fetch_hourly_weather():
     except Exception as e:
         logger.error(f"Error fetching hourly weather data: {e}", exc_info=True)
         return jsonify({'error': 'Failed to fetch hourly weather data'}), 500
-    
+
 """4. END SECTION 4 HOURLYWEATHER"""
 
 """5. START SECTION 5 HOLIDAYS"""
@@ -412,86 +490,108 @@ def holidays_page():
             return redirect('/api/holidays', code=302)
         return render_template('holidays.html')
     except Exception as e:
-        logger.error(f"Error rendering holiday page: {e}", exc_info=True)
-        return jsonify({"error": "Failed to load holiday page"}), 500
+        logger.error(f"Error rendering holidays page: {e}", exc_info=True)
+        return jsonify({"error": "Failed to load holidays page"}), 500
 
-@app.route('/eda/holidays')
+@app.route('/eda/holidays', methods=['GET'])
 def eda_holidays_page():
-    years = range(2019, 2026)
-    cal_holidays = holidays.US(state='CA', years=years)
-    holiday_data = pd.DataFrame([{'date': str(date), 'name': name} for date, name in cal_holidays.items()])
-    return render_template(
-        'eda_holidays.html',
-        data=holiday_data.to_html(classes='table table-striped', index=False)
-    )
+    """Render the EDA page for holidays data."""
+    try:
+        years = range(2019, 2026)
+        cal_holidays = holidays.US(state='CA', years=years)
+        holiday_data = pd.DataFrame([{'date': str(date), 'name': name} for date, name in cal_holidays.items()])
+
+        if holiday_data.empty:
+            logger.warning("No holidays data available for EDA")
+            return jsonify({"error": "No holidays data available"}), 404
+
+        # Generate Holiday Count by Year
+        holiday_data['year'] = pd.to_datetime(holiday_data['date']).dt.year
+        holiday_count = holiday_data.groupby('year').size().reset_index(name='holiday_count')
+
+        # Create visualizations with Plotly
+        fig_holiday_count = px.bar(
+            holiday_count,
+            x='year', y='holiday_count',
+            title="Number of Holidays by Year",
+            labels={'holiday_count': 'Holiday Count', 'year': 'Year'}
+        )
+
+        # Prepare JSON data for rendering
+        holiday_data_json = holiday_data.to_dict(orient='records')
+
+        return render_template(
+            'eda_holidays.html',
+            holiday_data=holiday_data_json,
+            holiday_count_plot=fig_holiday_count.to_json()
+        )
+    except Exception as e:
+        logger.error(f"Error rendering holidays EDA page: {e}", exc_info=True)
+        return jsonify({"error": "Failed to render holidays EDA page"}), 500
 
 @cache.cached(timeout=86400, key_prefix='holidays')
 @app.route('/api/holidays', methods=['GET'])
 def fetch_holidays():
     """Fetch a list of holidays."""
     try:
-        start = int(request.args.get('start', 0))  # Pagination start
-        length = int(request.args.get('length', 10))  # Pagination length
-        search_value = request.args.get('search[value]', '').lower()  # Search query
-        search_value = re.escape(search_value) 
-        order_column = int(request.args.get('order[0][column]', 0))  # Sorting column index
-        order_dir = request.args.get('order[0][dir]', 'asc')  # Sorting direction
-
-        cal_holidays = holidays.US(state='CA', years=range(2019, 2026))
+        years = range(2019, 2026)
+        cal_holidays = holidays.US(state='CA', years=years)
         holidays_list = [{'date': str(date), 'name': name} for date, name in cal_holidays.items()]
 
-        start_time = request.args.get('start_time')
-        end_time = request.args.get('end_time')
-        if start_time and end_time:
-            holidays_list = [h for h in holidays_list if start_time <= h['date'] <= end_time]
+        if not holidays_list:
+            logger.warning("No holidays data available")
+            return jsonify({"error": "No holidays data available"}), 404
 
+        # Pagination and filtering
+        start = int(request.args.get('start', 0))
+        length = int(request.args.get('length', 10))
+        search_value = request.args.get('search[value]', '').lower()
+        search_value = re.escape(search_value)
+
+        filtered_holidays = holidays_list
         if search_value:
-            holidays_list = [
-                h for h in holidays_list
-                if search_value in h['name'].lower() or search_value in h['date']
+            filtered_holidays = [
+                holiday for holiday in holidays_list
+                if search_value in holiday['name'].lower() or search_value in holiday['date']
             ]
 
-        order_key = 'date' if order_column == 0 else 'name'
-        holidays_list = sorted(
-            holidays_list,
-            key=lambda x: x[order_key],
-            reverse=(order_dir == 'desc')
-        )
-
-        records_total = len(holidays_list)
-        holidays_list = holidays_list[start:start + length]
+        paginated_holidays = filtered_holidays[start:start + length]
 
         response_data = {
-            "draw": int(request.args.get('draw', 1)),
-            "recordsTotal": records_total,
-            "recordsFiltered": records_total,
-            "data": holidays_list
+            'draw': int(request.args.get('draw', 1)),
+            'recordsTotal': len(holidays_list),
+            'recordsFiltered': len(filtered_holidays),
+            'data': paginated_holidays
         }
 
         logger.info("Holidays API Response: %s", response_data)
         return jsonify(response_data)
     except Exception as e:
-        logger.error(f"Error fetching holidays: {e}", exc_info=True)
-        return jsonify({"error": "Failed to fetch holidays"}), 400
-
+        logger.error(f"Error fetching holidays data: {e}", exc_info=True)
+        return jsonify({"error": "Failed to fetch holidays data"}), 500
 
 """5. END SECTION 5 HOLIDAYS"""
 
-"""6. START SECTION 6 LAST UPDATED"""
+"""6. START SECTION 6 LAST UPDATED TIMESTAMP"""
 
 @app.route('/api/lastUpdated', methods=['GET'])
 def get_last_updated():
+    """Fetch the last updated timestamps for demand, weather, and holidays."""
     try:
-        latest_demand_timestamp = hourly_demand_data['time'].max()
-        latest_weather_timestamp = hourly_weather_data['datetime'].max()
+        # Get the latest timestamps from hourly demand and weather data
+        latest_demand_timestamp = hourly_demand_data['time'].max() if not hourly_demand_data.empty else None
+        latest_weather_timestamp = hourly_weather_data['datetime'].max() if not hourly_weather_data.empty else None
 
-        cal_holidays = holidays.US(state='CA', years=range(2019, 2026))
-        latest_holiday = max(cal_holidays.keys()) if cal_holidays else None
+        # Fetch the latest holiday date from the holidays dataset
+        years = range(2019, 2026)
+        cal_holidays = holidays.US(state='CA', years=years)
+        latest_holiday_date = max(cal_holidays.keys()) if cal_holidays else None
 
+        # Prepare the response
         response_data = {
             'lastUpdatedDemand': latest_demand_timestamp.strftime('%d %b %Y, %H:%M') if latest_demand_timestamp else 'N/A',
             'lastUpdatedWeather': latest_weather_timestamp.strftime('%d %b %Y, %H:%M') if latest_weather_timestamp else 'N/A',
-            'lastUpdatedHoliday': latest_holiday.strftime('%d %b %Y') if latest_holiday else 'N/A',
+            'lastUpdatedHoliday': latest_holiday_date.strftime('%d %b %Y') if latest_holiday_date else 'N/A',
         }
 
         logger.info("Last Updated API Response: %s", response_data)
@@ -500,45 +600,36 @@ def get_last_updated():
         logger.error(f"Error fetching last updated timestamps: {e}", exc_info=True)
         return jsonify({'error': 'Failed to fetch last updated timestamps'}), 500
 
-"""6. END SECTION 6 LAST UPDATED"""
+"""6. END SECTION 6 LAST UPDATED TIMESTAMP"""
 
-"""7. START SECTION 7 HEALTHCHECK"""
+"""7. START SECTION 7 HEALTHCHECK ENDPOINT"""
 
-@app.route('/health', methods=['GET'])
+@app.route("/health", methods=["GET"])
 def health_check():
+    """Health check endpoint to validate data, static files, and service readiness."""
     try:
-        demand_status = "Available" if not hourly_demand_data.empty else "Not Available"
-        weather_status = "Available" if not hourly_weather_data.empty else "Not Available"
-        data_dir_status = "Exists" if os.path.exists(base_dir) else "Missing"
+        # Check for existing files in the required directories
+        data_files = os.listdir(DATA_DIR) if os.path.exists(DATA_DIR) else []
+        static_files = os.listdir(STATIC_DIR) if os.path.exists(STATIC_DIR) else []
 
-        # Verify additional routes
-        routes_status = {}
-        routes_to_check = ['/', '/api/dashboard', '/api/hourlydemand', '/api/hourlyweather', '/api/holidays']
-        for route in routes_to_check:
-            try:
-                with app.test_request_context(route):
-                    response = app.full_dispatch_request()
-                    routes_status[route] = "OK" if response.status_code == 200 else "FAILED"
-            except Exception as e:
-                logger.error(f"Error checking route {route}: {e}", exc_info=True)
-                routes_status[route] = "FAILED"
-
+        # Construct the response
         response_data = {
-            "status": "OK",
-            "demand_data_status": demand_status,
-            "weather_data_status": weather_status,
-            "data_dir_status": data_dir_status,
-            "routes_status": routes_status,
+            "status": "healthy",
+            "data_files_count": len(data_files),
+            "static_files_count": len(static_files),
+            "data_files": data_files[:5],  # Show up to 5 data files for quick diagnostics
+            "static_files": static_files[:5],  # Show up to 5 static files for quick diagnostics
         }
 
-        logger.info("Health Check Response: %s", response_data)
+        logger.info(f"Healthcheck successful: {response_data}")
         return jsonify(response_data), 200
+
     except Exception as e:
+        # Log error and return unhealthy status
         logger.error(f"Health check failed: {e}", exc_info=True)
-        return jsonify({"status": "FAILED", "error": str(e)}), 500
+        return jsonify({"status": "unhealthy", "error": str(e)}), 500
 
-"""7. END SECTION 7 HEALTHCHECK"""
-
+"""7. END SECTION 7 HEALTHCHECK ENDPOINT"""
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=8000)
