@@ -97,7 +97,8 @@ if (typeof $ === 'undefined') {
             order: [[0, 'desc']],
             pageLength: 10,
         });
-    }    
+    }   
+
     //3. END SECTION 3 HOURLYDEMAND
 
     //4. START SECTION 4 HOURLYWEATHER
@@ -242,3 +243,29 @@ if (typeof $ === 'undefined') {
     }
     //7. END SECTION 7 INITIALIZE TABLES
 }
+
+// EDA DEMAND
+document.addEventListener("DOMContentLoaded", function () {
+    // Event Listener for EDA Demand Navigation
+    const edaDemandNav = document.querySelector("a[href='/eda/demand']");
+
+    if (edaDemandNav) {
+        edaDemandNav.addEventListener("click", function (e) {
+            e.preventDefault();
+            fetch('/eda/demand')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.text();
+                })
+                .then(html => {
+                    document.querySelector("#content-wrapper").innerHTML = html;
+                })
+                .catch(error => {
+                    console.error('Error loading Demand EDA page:', error);
+                    alert('Failed to load the Demand EDA page. Please try again later.');
+                });
+        });
+    }
+});

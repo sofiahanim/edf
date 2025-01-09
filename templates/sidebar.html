@@ -1,7 +1,7 @@
 <ul class="navbar-nav bg-gradient-primary sidebar sidebar-dark accordion" id="accordionSidebar">
     <!-- Sidebar - Brand -->
     <li class="sidebar-brand d-flex align-items-center justify-content-center">
-        <a class="sidebar-brand-link" href="{{ url_for('dashboard_page') }}" aria-label="Dashboard">
+        <a class="sidebar-brand-link" href="{{ url_for('dashboard') }}" aria-label="Dashboard">
             <div class="sidebar-brand-icon">
                 <img src="{{ url_for('static', filename='favicon.png') }}" alt="Logo" style="width: 40px; height: 40px;">
             </div>
@@ -13,8 +13,8 @@
     <hr class="sidebar-divider my-0">
 
     <!-- Nav Item - Dashboard -->
-    <li class="nav-item {% if request.path == url_for('dashboard_page') %}active{% endif %}">
-        <a class="nav-link" href="{{ url_for('dashboard_page') }}" aria-label="Dashboard Page">
+    <li class="nav-item {% if request.path == url_for('dashboard') %}active{% endif %}">
+        <a class="nav-link" href="{{ url_for('dashboard') }}" aria-label="Dashboard Page">
             <i class="fas fa-fw fa-tachometer-alt"></i>
             <span>Dashboard</span>
         </a>
@@ -27,24 +27,24 @@
     <div class="sidebar-heading">Interface</div>
 
     <!-- Nav Item - Hourly Demand -->
-    <li class="nav-item {% if request.path == url_for('hourly_demand_page') %}active{% endif %}">
-        <a class="nav-link" href="{{ url_for('hourly_demand_page') }}" aria-label="Hourly Demand">
+    <li class="nav-item {% if request.path == url_for('hourly_demand') %}active{% endif %}">
+        <a class="nav-link" href="{{ url_for('hourly_demand') }}" aria-label="Hourly Demand">
             <i class="fas fa-fw fa-clock"></i>
             <span>Hourly Demand</span>
         </a>
     </li>
 
     <!-- Nav Item - Hourly Weather -->
-    <li class="nav-item {% if request.path == url_for('hourly_weather_page') %}active{% endif %}">
-        <a class="nav-link" href="{{ url_for('hourly_weather_page') }}" aria-label="Hourly Weather">
+    <li class="nav-item {% if request.path == url_for('hourly_weather') %}active{% endif %}">
+        <a class="nav-link" href="{{ url_for('hourly_weather') }}" aria-label="Hourly Weather">
             <i class="fas fa-fw fa-cloud"></i>
             <span>Hourly Weather</span>
         </a>
     </li>
 
     <!-- Nav Item - Holidays -->
-    <li class="nav-item {% if request.path == url_for('holidays_page') %}active{% endif %}">
-        <a class="nav-link" href="{{ url_for('holidays_page') }}" aria-label="Holidays">
+    <li class="nav-item {% if request.path == url_for('holidays') %}active{% endif %}">
+        <a class="nav-link" href="{{ url_for('holidays') }}" aria-label="Holidays">
             <i class="fas fa-fw fa-calendar-alt"></i>
             <span>Holidays</span>
         </a>
@@ -57,24 +57,24 @@
     <div class="sidebar-heading">EDA</div>
 
     <!-- Nav Item - Electricity Demand Datasets -->
-    <li class="nav-item {% if request.path == url_for('eda_demand_page') %}active{% endif %}">
-        <a class="nav-link" href="{{ url_for('eda_demand_page') }}" aria-label="Electricity Demand">
+    <li class="nav-item {% if request.path == url_for('eda_demand') %}active{% endif %}">
+        <a class="nav-link" href="{{ url_for('eda_demand') }}" aria-label="Electricity Demand">
             <i class="fas fa-fw fa-clock"></i>
             <span>Electricity Demand</span>
         </a>
     </li>
 
     <!-- Nav Item - Hourly Weather Datasets -->
-    <li class="nav-item {% if request.path == url_for('eda_weather_page') %}active{% endif %}">
-        <a class="nav-link" href="{{ url_for('eda_weather_page') }}" aria-label="Hourly Weather Datasets">
+    <li class="nav-item {% if request.path == url_for('eda_weather') %}active{% endif %}">
+        <a class="nav-link" href="{{ url_for('eda_weather') }}" aria-label="Hourly Weather Datasets">
             <i class="fas fa-fw fa-cloud"></i>
             <span>Hourly Weather</span>
         </a>
     </li>
 
     <!-- Nav Item - Holiday Datasets -->
-    <li class="nav-item {% if request.path == url_for('eda_holidays_page') %}active{% endif %}">
-        <a class="nav-link" href="{{ url_for('eda_holidays_page') }}" aria-label="Holiday Datasets">
+    <li class="nav-item {% if request.path == url_for('eda_holidays') %}active{% endif %}">
+        <a class="nav-link" href="{{ url_for('eda_holidays') }}" aria-label="Holiday Datasets">
             <i class="fas fa-fw fa-calendar-alt"></i>
             <span>Holidays</span>
         </a>

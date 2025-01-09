@@ -221,23 +221,54 @@ def hourly_demand_page():
         logger.error(f"Error rendering hourly demand page: {e}", exc_info=True)
         return jsonify({"error": "Failed to load hourly demand page"}), 500
 
-@app.route('/eda/demand')
+@app.route('/eda/demand', methods=['GET'])
 def eda_demand_page():
-    cache_file = 'demand_summary.csv' 
-    folder = 'cache' 
+    """Render the EDA page for demand data."""
+    try:
+        # Load the demand data
+        demand_file_paths = [
+            "data/demand/2019.csv",
+            "data/demand/2020.csv",
+            "data/demand/2021.csv",
+            "data/demand/2022.csv",
+            "data/demand/2023.csv",
+            "data/demand/2024.csv",
+            "data/demand/2025.csv"
+        ]
 
-    summary = load_from_cache(cache_file, folder)
-    if summary is None:
-        years = range(2019, 2026)
-        demand_data = pd.concat(
-            [load_and_normalize_csv(f'data/demand/{year}.csv') for year in years],
-            ignore_index=True
+        demand_data_frames = []
+        for file_path in demand_file_paths:
+            df = pd.read_csv(file_path)
+            demand_data_frames.append(df)
+
+        demand_data = pd.concat(demand_data_frames, ignore_index=True)
+        demand_data['time'] = pd.to_datetime(demand_data['time'], errors='coerce')
+        demand_data = demand_data.dropna(subset=['time', 'value'])
+
+        # Add time components for EDA
+        demand_data['year'] = demand_data['time'].dt.year
+        demand_data['month'] = demand_data['time'].dt.month
+        demand_data['day'] = demand_data['time'].dt.day
+        demand_data['hour'] = demand_data['time'].dt.hour
+
+        # Aggregate statistics
+        summary_stats = demand_data.groupby('year')['value'].agg(['mean', 'median', 'min', 'max', 'sum']).reset_index()
+        daily_trends = demand_data.groupby(demand_data['time'].dt.date)['value'].sum().reset_index()
+        daily_trends.columns = ['date', 'total_demand']
+
+        # Prepare data for rendering
+        summary_stats_json = summary_stats.to_dict(orient='records')
+        daily_trends_json = daily_trends.to_dict(orient='records')
+
+        return render_template(
+            'eda_demand.html',
+            summary_stats=summary_stats_json,
+            daily_trends=daily_trends_json
         )
-        summary = demand_data.groupby(demand_data['time'].dt.date).agg({'value': ['mean', 'max', 'min']}).reset_index()
-        summary.columns = ['date', 'mean_demand', 'max_demand', 'min_demand']
-        save_to_cache(summary, cache_file, folder)
+    except Exception as e:
+        logger.error(f"Error loading demand EDA data: {e}", exc_info=True)
+        return jsonify({"error": "Failed to load demand EDA data"}), 500
 
-        return render_template('eda_demand.html',summary=summary.to_dict(orient='records'))
     
 @app.route('/api/hourlydemand', methods=['GET'])
 def fetch_hourly_demand():

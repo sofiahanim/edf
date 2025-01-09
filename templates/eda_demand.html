@@ -1,12 +1,42 @@
-{% extends "base.html" %}
-
-{% block title %}EDA - Electricity Demand{% endblock %}
+{% extends 'base.html' %}
+{% block title %}Demand EDA{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-    <h1 class="mb-4">EDA - Electricity Demand</h1>
-    <div class="table-responsive">
-        {{ data|safe }}
+    <h1 class="h3 mb-4 text-gray-800">
+        <i class="fas fa-chart-line"></i> Demand EDA
+    </h1>
+
+    <!-- Summary Statistics Table -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Summary Statistics</h6>
+        </div>
+        <div class="card-body">
+            <table class="table table-bordered" id="summary-stats-table">
+                <thead>
+                    <tr>
+                        <th>Year</th>
+                        <th>Mean</th>
+                        <th>Median</th>
+                        <th>Min</th>
+                        <th>Max</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Daily Trends Line Chart -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Daily Demand Trends</h6>
+        </div>
+        <div class="card-body">
+            <canvas id="daily-trends-chart"></canvas>
+        </div>
     </div>
 </div>
 {% endblock %}
