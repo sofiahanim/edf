@@ -17,10 +17,11 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment-timezone/0.5.34/moment-timezone-with-data-1970-2030.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-    
-    <script src="static/main.js" type="application/javascript"></script>
-    <link rel="stylesheet" href="static/style.css">
-    <link rel="icon" href="static/favicon.ico" type="image/x-icon">
+
+    <script src="{{ url_for('static', filename='main.js') }}" defer></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
+
 </head>
 <body id="page-top">
      <!-- Wrapper -->

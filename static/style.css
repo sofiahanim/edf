@@ -1,7 +1,7 @@
 
 /* Sidebar Styling */
 .sidebar {
-    background: linear-gradient(180deg, #4e73df, #224abe); /* Gradient effect */
+    background: linear-gradient(180deg, #4f69b8, #374c8a); /* Gradient effect */
     color: white;
     font-size: 14px;
     transition: all 0.3s ease-in-out;
@@ -17,7 +17,7 @@
 
 .sidebar .nav-item a.nav-link:hover,
 .sidebar .nav-item.active a.nav-link {
-    background-color: #2c57c9; /* Highlight effect */
+    background-color: #5d74b3; /* Highlight effect */
     border-radius: 5px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
@@ -70,7 +70,7 @@
     background-color: #f8f9fc;
     border-bottom: 1px solid #e3e6f0;
     font-weight: bold;
-    color: #4e73df;
+    color: #7793e9;
 }
 
 .card .card-body {
