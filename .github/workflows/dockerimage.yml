@@ -1,9 +1,10 @@
 name: Build and Push Docker to ECR
 
 on:
-  push:
-    branches:
-      - main  
+  workflow_dispatch:
+  #push:
+  #  branches:
+  #    - main  
   #workflow_dispatch:  
   #schedule:
   #- cron: '0 18 * * *' # 2:00 AM MALAYSIA TIME
