@@ -1,0 +1,81 @@
+name: Data Pipeline Part 2
+
+on:
+  push:
+    branches:
+      - main  # Trigger the workflow on pushes to the main branch
+  workflow_dispatch:  # Allow manual triggering
+  schedule:
+  - cron: '0 17 * * *' # 1:00 AM MALAYSIA TIME  # Schedule the workflow to run daily at 1:00 AM
+   
+permissions:
+  contents: write  # Read and write permissions for repository contents
+
+jobs:
+  data_pipeline:
+    runs-on: ubuntu-20.04
+
+    steps:
+      # Step 1: Check out the repository
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      # Step 2: Set up Python environment
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.11.10
+
+      # Step 3: Install dependencies
+      - name: Install dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -r requirements_linux.txt
+
+      # Step 4: Set AWS credentials (this will use the environment variables for AWS credentials)
+      - name: Set AWS credentials
+        run: |
+          echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> $GITHUB_ENV
+          echo "AWS_DEFAULT_REGION=us-east-1" >> $GITHUB_ENV
+
+      # Step 5: Verify file existence and content
+      - name: Verify file existence and content
+        run: |
+          if [ -f "data/weather/2025.csv" ]; then
+            echo "File exists:"
+            ls -l data/weather/2025.csv
+            if [ -s "data/weather/2025.csv" ]; then
+              echo "CSV file has content:"
+              cat data/weather/2025.csv
+            else
+              echo "CSV file is empty. Exiting pipeline."
+              exit 1
+            fi
+          else
+            echo "CSV file does not exist. Exiting pipeline."
+            exit 1
+          fi
+
+      # Step 6: Run Python script to update CSV (if needed)
+      - name: Run data pipeline script
+        run: python3 scripts/pipe_data_2.py
+
+      # Step 7: Commit and push updated CSV
+      - name: Commit and push updated CSV
+        run: |
+          git config --local user.name "GitHub Actions"
+          git config --local user.email "actions@github.com"
+          git add --force data/weather/2025.csv
+          git commit -m "Update CSV with new data" || echo "Nothing to commit."
+          git push || echo "No changes pushed."
+
+      # Step 8: Notify success
+      - name: Notify success
+        if: success()
+        run: echo "🎉 Data pipeline completed successfully!"
+
+      # Step 9: Notify failure
+      - name: Notify failure
+        if: failure()
+        run: echo "❌ Data pipeline failed. Check logs for details."
