@@ -1,5 +1,6 @@
 import pandas as pd
 import os
+from glob import glob
 
 # Print the current working directory
 print("Current working directory:", os.getcwd())
@@ -10,16 +11,24 @@ data_dir = os.path.join(base_dir, 'data')
 merge_dir = os.path.join(data_dir, 'merge')
 os.makedirs(merge_dir, exist_ok=True)
 
-# Define file paths
-weather_file = os.path.join(data_dir, 'weather/2025.csv')
-demand_file = os.path.join(data_dir, 'demand/2025.csv')
-holiday_file = os.path.join(data_dir, 'holiday/2025.csv')
-output_file = os.path.join(merge_dir, '2025.csv')
+# Define file patterns for all years
+weather_files = sorted(glob(os.path.join(data_dir, 'weather', '*.csv')))
+demand_files = sorted(glob(os.path.join(data_dir, 'demand', '*.csv')))
+holiday_files = sorted(glob(os.path.join(data_dir, 'holiday', '*.csv')))
+output_file = os.path.join(merge_dir, 'allyears.csv')  # Unified output for all years
 
-# Load the data
-weather_data = pd.read_csv(weather_file, parse_dates=['datetime'])
-demand_data = pd.read_csv(demand_file, parse_dates=['time'])
-holiday_data = pd.read_csv(holiday_file, parse_dates=['date'])
+# Load and combine data from all files
+def load_and_combine_csv(file_list, parse_date_col):
+    combined_df = pd.DataFrame()
+    for file in file_list:
+        print(f"Processing file: {file}")
+        df = pd.read_csv(file, parse_dates=[parse_date_col])
+        combined_df = pd.concat([combined_df, df], ignore_index=True)
+    return combined_df
+
+weather_data = load_and_combine_csv(weather_files, 'datetime')
+demand_data = load_and_combine_csv(demand_files, 'time')
+holiday_data = load_and_combine_csv(holiday_files, 'date')
 
 # Adjust precision for weather data to 3 decimal places
 cols_to_adjust = ['temp', 'feelslike', 'humidity', 'windspeed', 'cloudcover', 'solaradiation', 'precip']
@@ -86,7 +95,6 @@ if os.path.exists(output_file) and os.path.getsize(output_file) > 0:
         existing_data['date'].astype(str) + ' ' + existing_data['hour']
     )
 
-
     # Sort by the combined datetime column
     existing_data.sort_values(by='datetime', inplace=True)
 
@@ -112,7 +120,8 @@ else:
 # Save the combined and appended data
 combined_data.to_csv(output_file, index=False)
 
-
+# Display a success message
+print(f"Data has been processed and saved to {output_file}")
 
 
 """
@@ -120,9 +129,9 @@ Data Preprocessing
 
 1. Data Integration
 Task: Combines data from three sources:
-a. Weather data (weather/2025.csv): Contains hourly weather observations.
-b. Electricity demand data (demand/2025.csv): Contains hourly electricity consumption values.
-c. Holiday data (holiday/2025.csv): Contains information about public holidays.
+a. Weather data (weather/{all years}.csv): Contains hourly weather observations.
+b. Electricity demand data (demand/{allyears}.csv): Contains hourly electricity consumption values.
+c. Holiday data (holiday/{allyears}.csv): Contains information about public holidays.
 
 
 2. Feature Engineering

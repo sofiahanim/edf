@@ -19,6 +19,7 @@ from sklearn.model_selection import train_test_split
 import joblib
 import numpy as np
 
+
 # Initialize app and API
 app = Flask(__name__, static_folder='static', template_folder='templates')
 app.config['CACHE_TYPE'] = 'simple' 
