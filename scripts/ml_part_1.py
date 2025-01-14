@@ -56,7 +56,8 @@ numeric_cols = combined_data.select_dtypes(include=['object']).columns
 numeric_cols = numeric_cols.drop(['date', 'hour'], errors='ignore')  # Exclude 'date' and 'hour'
 combined_data[numeric_cols] = combined_data[numeric_cols].apply(pd.to_numeric, errors='coerce', axis=1)
 
-# Interpolate remaining missing values for numeric columns
+# Ensure consistent types for interpolation
+combined_data = combined_data.infer_objects(copy=False)
 combined_data.interpolate(method='linear', inplace=True)
 
 # Ensure 'date' and 'hour' columns are treated correctly
@@ -77,25 +78,31 @@ print(combined_data.tail())
 if os.path.exists(output_file) and os.path.getsize(output_file) > 0:
     # Load existing data
     existing_data = pd.read_csv(output_file)
-    
-    # Combine date and hour into a datetime column for sorting and comparison
-    existing_data['datetime'] = pd.to_datetime(existing_data['date'] + ' ' + existing_data['hour'])
-    
+
+    # Handle datetime conversion
+    existing_data['date'] = existing_data['date'].fillna('1970-01-01')  # Handle NaN values
+    existing_data['hour'] = existing_data['hour'].fillna('00')          # Handle NaN values
+    existing_data['datetime'] = pd.to_datetime(
+        existing_data['date'].astype(str) + ' ' + existing_data['hour'].astype(str)
+    )
+
     # Sort by the combined datetime column
     existing_data.sort_values(by='datetime', inplace=True)
-    
+
     # Identify the latest timestamp in the existing data
     latest_timestamp = existing_data['datetime'].max()
-    
+
     # Ensure combined_data has a datetime column for comparison
-    combined_data['datetime'] = pd.to_datetime(combined_data['date'] + ' ' + combined_data['hour'])
-    
+    combined_data['datetime'] = pd.to_datetime(
+        combined_data['date'].astype(str) + ' ' + combined_data['hour'].astype(str)
+    )
+
     # Filter new data to append (rows with datetime later than latest_timestamp)
     new_data = combined_data[combined_data['datetime'] > latest_timestamp]
-    
+
     # Append new data to the existing data
     combined_data = pd.concat([existing_data, new_data], ignore_index=True)
-    
+
     # Drop the temporary datetime column before saving
     combined_data.drop(columns=['datetime'], inplace=True)
 else:
@@ -103,6 +110,9 @@ else:
 
 # Save the combined and appended data
 combined_data.to_csv(output_file, index=False)
+
+
+
 
 
 
