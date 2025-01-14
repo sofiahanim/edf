@@ -1,3 +1,4 @@
+
 import pandas as pd
 import os
 from glob import glob
@@ -15,7 +16,9 @@ os.makedirs(merge_dir, exist_ok=True)
 weather_files = sorted(glob(os.path.join(data_dir, 'weather', '*.csv')))
 demand_files = sorted(glob(os.path.join(data_dir, 'demand', '*.csv')))
 holiday_files = sorted(glob(os.path.join(data_dir, 'holiday', '*.csv')))
-output_file = os.path.join(merge_dir, 'allyears.csv')  # Unified output for all years
+
+# Unified output file path for all merged years
+output_file = os.path.join(merge_dir, 'allyears.csv')
 
 # Load and combine data from all files
 def load_and_combine_csv(file_list, parse_date_col):
@@ -26,21 +29,20 @@ def load_and_combine_csv(file_list, parse_date_col):
         combined_df = pd.concat([combined_df, df], ignore_index=True)
     return combined_df
 
+# Load individual datasets
 weather_data = load_and_combine_csv(weather_files, 'datetime')
 demand_data = load_and_combine_csv(demand_files, 'time')
 holiday_data = load_and_combine_csv(holiday_files, 'date')
 
-# **Step 1: Check for Matching Dates**
-# Extract unique dates from each dataset
-weather_dates = set(weather_data['datetime'].dt.date.unique())
-demand_dates = set(demand_data['time'].dt.date.unique())
-holiday_dates = set(holiday_data['date'].dt.date.unique())
-
+# Ensure consistent datetime formatting
+weather_data['datetime'] = pd.to_datetime(weather_data['datetime'])
+demand_data['time'] = pd.to_datetime(demand_data['time'])
+holiday_data['date'] = pd.to_datetime(holiday_data['date'])
 
 # Check the last date and time in the existing CSV
 if os.path.exists(output_file) and os.path.getsize(output_file) > 0:
-    existing_data = pd.read_csv(output_file, parse_dates=[['date', 'hour']])
-    existing_data['datetime'] = pd.to_datetime(existing_data['date_hour'], format='%Y-%m-%d %H')
+    existing_data = pd.read_csv(output_file)
+    existing_data['datetime'] = pd.to_datetime(existing_data['datetime'])
     latest_timestamp = existing_data['datetime'].max()
     print(f"Last merged timestamp: {latest_timestamp}")
 
@@ -53,118 +55,57 @@ if weather_data.empty or demand_data.empty:
     print("No new data to process. Exiting.")
     exit(0)
 
-# **Step 1: Check for Matching Dates and Hours**
-# Align both datasets to the last matching date and hour
-weather_data['hour'] = weather_data['datetime'].dt.hour
-demand_data['hour'] = demand_data['time'].dt.hour
+# Merge weather and demand data on datetime
+combined_data = pd.merge(
+    demand_data.rename(columns={'time': 'datetime'}),
+    weather_data,
+    on='datetime',
+    how='left'
+)
 
-last_common_timestamp = min(weather_data['datetime'].max(), demand_data['time'].max())
-
-# Filter to include only matching dates and hours
-weather_data = weather_data[weather_data['datetime'] <= last_common_timestamp]
-demand_data = demand_data[demand_data['time'] <= last_common_timestamp]
-
-print(f"Merging data up to: {last_common_timestamp}")
-
-# Adjust precision for weather data to 3 decimal places
-cols_to_adjust = ['temp', 'feelslike', 'humidity', 'windspeed', 'cloudcover', 'solaradiation', 'precip']
-weather_data[cols_to_adjust] = weather_data[cols_to_adjust].round(3)
-
-# Extract date and hour from the datetime columns in weather and demand data
-weather_data['date'] = weather_data['datetime'].dt.date
-weather_data['hour'] = weather_data['datetime'].dt.strftime('%H').str.zfill(2)  # Ensure two-digit hour
-demand_data['date'] = demand_data['time'].dt.date
-demand_data['hour'] = demand_data['time'].dt.strftime('%H').str.zfill(2)  # Ensure two-digit hour
-
-# Drop the original datetime columns as they are no longer needed
-weather_data.drop('datetime', axis=1, inplace=True)
-demand_data.drop('time', axis=1, inplace=True)
-
-# Merge weather and demand data on date and hour
-combined_data = pd.merge(demand_data, weather_data, on=['date', 'hour'], how='left')
-
-# Prepare the holiday data (adjust date format for consistency)
+# Merge holiday data
+combined_data['date'] = combined_data['datetime'].dt.date
 holiday_data['date'] = holiday_data['date'].dt.date
 combined_data = pd.merge(combined_data, holiday_data, on='date', how='left')
 
-# Create a binary column indicating whether the day is a holiday
+# Create binary column for holidays
 combined_data['is_holiday'] = combined_data['name'].notna().astype(int)
+combined_data.drop(columns=['name'], inplace=True)
 
-# Drop the 'name' column as it's no longer needed
-combined_data.drop('name', axis=1, inplace=True)
-
-# Fill forward any missing values
+# Fill missing values
 combined_data.ffill(inplace=True)
 
 # Ensure numeric conversion for applicable columns
-# Explicitly exclude non-numeric columns such as 'preciptype'
-non_numeric_columns = ['date', 'hour', 'preciptype']
-numeric_cols = combined_data.select_dtypes(include=['object']).columns.difference(non_numeric_columns)
+numeric_cols = combined_data.select_dtypes(include=['float64', 'int64']).columns
+combined_data[numeric_cols] = combined_data[numeric_cols].round(3)
 
-# Apply numeric conversion only to the identified numeric columns
-combined_data[numeric_cols] = combined_data[numeric_cols].apply(pd.to_numeric, errors='coerce', axis=1)
-
-# Interpolate only numeric columns
-numeric_only_cols = combined_data.select_dtypes(include=['number']).columns
-combined_data[numeric_only_cols] = combined_data[numeric_only_cols].interpolate(method='linear', inplace=False)
-
-# Ensure 'date', 'hour', and 'preciptype' remain unchanged
-combined_data['date'] = combined_data['date'].astype(str)
-combined_data['hour'] = combined_data['hour'].astype(str)
-# 'preciptype' remains non-numeric and untouched
-
-# Rename 'value' column to 'electric' if present
+# Rename and reorder columns for compatibility with models
 if 'value' in combined_data.columns:
     combined_data.rename(columns={'value': 'electric'}, inplace=True)
+combined_data.rename(columns={'electric': 'y'}, inplace=True)
 
-# Reorder columns: date, hour, followed by others
-column_order = ['date', 'hour', 'electric'] + [col for col in combined_data.columns if col not in ['date', 'hour', 'electric']]
-combined_data = combined_data[column_order]
-
-print(combined_data.head())
-print(combined_data.tail())
+# Prepare the dataset with 'ds' column for models
+combined_data['ds'] = combined_data['datetime']
+final_columns = ['ds', 'y'] + [col for col in combined_data.columns if col not in ['ds', 'y', 'datetime']]
+combined_data = combined_data[final_columns]
 
 # Check if the output file exists and is not empty
 if os.path.exists(output_file) and os.path.getsize(output_file) > 0:
-    # Load existing data
     existing_data = pd.read_csv(output_file)
+    existing_data['datetime'] = pd.to_datetime(existing_data['datetime'])
+    combined_data['datetime'] = pd.to_datetime(combined_data['ds'])
 
-    # Handle datetime conversion
-    existing_data['date'] = existing_data['date'].fillna('1970-01-01')  # Handle NaN values
-    existing_data['hour'] = pd.to_numeric(existing_data['hour'], errors='coerce').fillna(0).astype(int).astype(str).str.zfill(2)
-    existing_data['datetime'] = pd.to_datetime(
-        existing_data['date'].astype(str) + ' ' + existing_data['hour']
-    )
-
-    # Sort by the combined datetime column
-    existing_data.sort_values(by='datetime', inplace=True)
-
-    # Identify the latest timestamp in the existing data
-    latest_timestamp = existing_data['datetime'].max()
-
-    # Ensure combined_data has a datetime column for comparison
-    combined_data['datetime'] = pd.to_datetime(
-        combined_data['date'].astype(str) + ' ' + combined_data['hour']
-    )
-
-    # Filter new data to append (rows with datetime later than latest_timestamp)
-    new_data = combined_data[combined_data['datetime'] > latest_timestamp]
-
-    # Append new data to the existing data
+    # Filter new data to append
+    new_data = combined_data[combined_data['datetime'] > existing_data['datetime'].max()]
     combined_data = pd.concat([existing_data, new_data], ignore_index=True)
 
-    # Drop the temporary datetime column before saving
-    combined_data.drop(columns=['datetime'], inplace=True)
-else:
-    print(f"No existing data found. Creating a new file.")
-
-# Save the combined and appended data
+# Save the combined dataset
 combined_data.to_csv(output_file, index=False)
-
-# Display a success message
 print(f"Data has been processed and saved to {output_file}")
 
-
+# Display sample rows
+print(combined_data.head())
+print(combined_data.tail())
 
 
 
