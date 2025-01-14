@@ -61,20 +61,25 @@ combined_data.drop('name', axis=1, inplace=True)
 combined_data.ffill(inplace=True)
 
 # Ensure numeric conversion for applicable columns
-numeric_cols = combined_data.select_dtypes(include=['object']).columns
-numeric_cols = numeric_cols.drop(['date', 'hour'], errors='ignore')  # Exclude 'date' and 'hour'
+# Explicitly exclude non-numeric columns such as 'preciptype'
+non_numeric_columns = ['date', 'hour', 'preciptype']
+numeric_cols = combined_data.select_dtypes(include=['object']).columns.difference(non_numeric_columns)
+
+# Apply numeric conversion only to the identified numeric columns
 combined_data[numeric_cols] = combined_data[numeric_cols].apply(pd.to_numeric, errors='coerce', axis=1)
 
-# Ensure consistent types for interpolation
-combined_data = combined_data.infer_objects(copy=False)
-combined_data.interpolate(method='linear', inplace=True)
+# Interpolate only numeric columns
+numeric_only_cols = combined_data.select_dtypes(include=['number']).columns
+combined_data[numeric_only_cols] = combined_data[numeric_only_cols].interpolate(method='linear', inplace=False)
 
-# Ensure 'date' and 'hour' columns are treated correctly
+# Ensure 'date', 'hour', and 'preciptype' remain unchanged
 combined_data['date'] = combined_data['date'].astype(str)
 combined_data['hour'] = combined_data['hour'].astype(str)
+# 'preciptype' remains non-numeric and untouched
 
-# Rename 'value' column to 'electric'
-combined_data.rename(columns={'value': 'electric'}, inplace=True)
+# Rename 'value' column to 'electric' if present
+if 'value' in combined_data.columns:
+    combined_data.rename(columns={'value': 'electric'}, inplace=True)
 
 # Reorder columns: date, hour, followed by others
 column_order = ['date', 'hour', 'electric'] + [col for col in combined_data.columns if col not in ['date', 'hour', 'electric']]
@@ -122,6 +127,9 @@ combined_data.to_csv(output_file, index=False)
 
 # Display a success message
 print(f"Data has been processed and saved to {output_file}")
+
+
+
 
 
 """
