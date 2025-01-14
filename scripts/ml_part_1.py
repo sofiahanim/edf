@@ -30,6 +30,42 @@ weather_data = load_and_combine_csv(weather_files, 'datetime')
 demand_data = load_and_combine_csv(demand_files, 'time')
 holiday_data = load_and_combine_csv(holiday_files, 'date')
 
+# **Step 1: Check for Matching Dates**
+# Extract unique dates from each dataset
+weather_dates = set(weather_data['datetime'].dt.date.unique())
+demand_dates = set(demand_data['time'].dt.date.unique())
+holiday_dates = set(holiday_data['date'].dt.date.unique())
+
+
+# Check the last date and time in the existing CSV
+if os.path.exists(output_file) and os.path.getsize(output_file) > 0:
+    existing_data = pd.read_csv(output_file, parse_dates=[['date', 'hour']])
+    existing_data['datetime'] = pd.to_datetime(existing_data['date_hour'], format='%Y-%m-%d %H')
+    latest_timestamp = existing_data['datetime'].max()
+    print(f"Last merged timestamp: {latest_timestamp}")
+
+    # Filter weather and demand data to start from the next hour
+    weather_data = weather_data[weather_data['datetime'] > latest_timestamp]
+    demand_data = demand_data[demand_data['time'] > latest_timestamp]
+
+# Proceed only if there's new data to process
+if weather_data.empty or demand_data.empty:
+    print("No new data to process. Exiting.")
+    exit(0)
+
+# **Step 1: Check for Matching Dates and Hours**
+# Align both datasets to the last matching date and hour
+weather_data['hour'] = weather_data['datetime'].dt.hour
+demand_data['hour'] = demand_data['time'].dt.hour
+
+last_common_timestamp = min(weather_data['datetime'].max(), demand_data['time'].max())
+
+# Filter to include only matching dates and hours
+weather_data = weather_data[weather_data['datetime'] <= last_common_timestamp]
+demand_data = demand_data[demand_data['time'] <= last_common_timestamp]
+
+print(f"Merging data up to: {last_common_timestamp}")
+
 # Adjust precision for weather data to 3 decimal places
 cols_to_adjust = ['temp', 'feelslike', 'humidity', 'windspeed', 'cloudcover', 'solaradiation', 'precip']
 weather_data[cols_to_adjust] = weather_data[cols_to_adjust].round(3)
