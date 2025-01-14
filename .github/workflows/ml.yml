@@ -1,6 +1,9 @@
 name: ML Part 1
 
 on:
+  push:
+    branches:
+      - main 
   schedule:
     - cron: "0 18 * * *" # Runs daily at 18:00 UTC
   workflow_dispatch: # Allows manual triggering
