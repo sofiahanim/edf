@@ -70,28 +70,40 @@ combined_data.rename(columns={'value': 'electric'}, inplace=True)
 column_order = ['date', 'hour', 'electric'] + [col for col in combined_data.columns if col not in ['date', 'hour', 'electric']]
 combined_data = combined_data[column_order]
 
-
 print(combined_data.head())
 print(combined_data.tail())
-
 
 # Check if the output file exists and is not empty
 if os.path.exists(output_file) and os.path.getsize(output_file) > 0:
     # Load existing data
-    existing_data = pd.read_csv(output_file, parse_dates=['date'])
-    latest_date = existing_data['date'].max()
+    existing_data = pd.read_csv(output_file)
     
-    # Filter new data to append
-    new_data = combined_data[combined_data['date'] > latest_date]
+    # Combine date and hour into a datetime column for sorting and comparison
+    existing_data['datetime'] = pd.to_datetime(existing_data['date'] + ' ' + existing_data['hour'])
+    
+    # Sort by the combined datetime column
+    existing_data.sort_values(by='datetime', inplace=True)
+    
+    # Identify the latest timestamp in the existing data
+    latest_timestamp = existing_data['datetime'].max()
+    
+    # Ensure combined_data has a datetime column for comparison
+    combined_data['datetime'] = pd.to_datetime(combined_data['date'] + ' ' + combined_data['hour'])
+    
+    # Filter new data to append (rows with datetime later than latest_timestamp)
+    new_data = combined_data[combined_data['datetime'] > latest_timestamp]
+    
+    # Append new data to the existing data
     combined_data = pd.concat([existing_data, new_data], ignore_index=True)
+    
+    # Drop the temporary datetime column before saving
+    combined_data.drop(columns=['datetime'], inplace=True)
 else:
     print(f"No existing data found. Creating a new file.")
 
 # Save the combined and appended data
 combined_data.to_csv(output_file, index=False)
 
-# Display a success message
-print(f"Data has been processed and saved to {output_file}")
 
 
 """
