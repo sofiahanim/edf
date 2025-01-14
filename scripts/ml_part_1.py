@@ -27,9 +27,9 @@ weather_data[cols_to_adjust] = weather_data[cols_to_adjust].round(3)
 
 # Extract date and hour from the datetime columns in weather and demand data
 weather_data['date'] = weather_data['datetime'].dt.date
-weather_data['hour'] = weather_data['datetime'].dt.strftime('%H')
+weather_data['hour'] = weather_data['datetime'].dt.strftime('%H').str.zfill(2)  # Ensure two-digit hour
 demand_data['date'] = demand_data['time'].dt.date
-demand_data['hour'] = demand_data['time'].dt.strftime('%H')
+demand_data['hour'] = demand_data['time'].dt.strftime('%H').str.zfill(2)  # Ensure two-digit hour
 
 # Drop the original datetime columns as they are no longer needed
 weather_data.drop('datetime', axis=1, inplace=True)
@@ -51,7 +51,7 @@ combined_data.drop('name', axis=1, inplace=True)
 # Fill forward any missing values
 combined_data.ffill(inplace=True)
 
-# Exclude 'date' and 'hour' from numeric conversion
+# Ensure numeric conversion for applicable columns
 numeric_cols = combined_data.select_dtypes(include=['object']).columns
 numeric_cols = numeric_cols.drop(['date', 'hour'], errors='ignore')  # Exclude 'date' and 'hour'
 combined_data[numeric_cols] = combined_data[numeric_cols].apply(pd.to_numeric, errors='coerce', axis=1)
@@ -81,10 +81,11 @@ if os.path.exists(output_file) and os.path.getsize(output_file) > 0:
 
     # Handle datetime conversion
     existing_data['date'] = existing_data['date'].fillna('1970-01-01')  # Handle NaN values
-    existing_data['hour'] = existing_data['hour'].fillna('00')          # Handle NaN values
+    existing_data['hour'] = pd.to_numeric(existing_data['hour'], errors='coerce').fillna(0).astype(int).astype(str).str.zfill(2)
     existing_data['datetime'] = pd.to_datetime(
-        existing_data['date'].astype(str) + ' ' + existing_data['hour'].astype(str)
+        existing_data['date'].astype(str) + ' ' + existing_data['hour']
     )
+
 
     # Sort by the combined datetime column
     existing_data.sort_values(by='datetime', inplace=True)
@@ -94,7 +95,7 @@ if os.path.exists(output_file) and os.path.getsize(output_file) > 0:
 
     # Ensure combined_data has a datetime column for comparison
     combined_data['datetime'] = pd.to_datetime(
-        combined_data['date'].astype(str) + ' ' + combined_data['hour'].astype(str)
+        combined_data['date'].astype(str) + ' ' + combined_data['hour']
     )
 
     # Filter new data to append (rows with datetime later than latest_timestamp)
@@ -110,8 +111,6 @@ else:
 
 # Save the combined and appended data
 combined_data.to_csv(output_file, index=False)
-
-
 
 
 
