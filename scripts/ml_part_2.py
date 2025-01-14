@@ -1,114 +1,79 @@
-import pandas as pd
 import os
-import numpy as np
-import matplotlib.pyplot as plt
-from prophet import Prophet
-from neuralprophet import NeuralProphet
-import lightgbm as lgb
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import MinMaxScaler
+import pandas as pd
+from darts import TimeSeries
+from darts.models import ExponentialSmoothing
+from darts.utils.missing_values import fill_missing_values
+from autogluon.timeseries import TimeSeriesPredictor
+from pycaret.time_series import *
 
 # Define directories
+print("Current working directory:", os.getcwd())
 base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 data_dir = os.path.join(base_dir, 'data')
 merge_dir = os.path.join(data_dir, 'merge')
+input_file = os.path.join(base_dir, 'data', 'merge', 'allyears.csv')
 
-# Load the merged dataset
-input_file = os.path.join(merge_dir, 'allyears.csv')
+print(input_file)
+
+# Load dataset
 data = pd.read_csv(input_file)
-
-# Prepare data
 data['hour'] = data['hour'].astype(str).str.zfill(2)
 data['datetime'] = pd.to_datetime(data['date'] + ' ' + data['hour'] + ':00:00')
-prophet_data = data[['datetime', 'electric']].rename(columns={'datetime': 'ds', 'electric': 'y'})
+data = data[['datetime', 'electric']].rename(columns={'datetime': 'ds', 'electric': 'y'})
 
-# Remove duplicate timestamps for NeuralProphet
-prophet_data = prophet_data.drop_duplicates(subset='ds')
+# Ensure there are no duplicates
+data = data.drop_duplicates(subset='ds')
 
-# Split data for evaluation
-train = prophet_data
+# Darts
+try:
+    print("Running Darts...")
+    # Fill missing dates for consistency
+    data = data.set_index('ds')
+    data = fill_missing_values(data, freq='H')
+    data.reset_index(inplace=True)
 
-# Prophet Forecasting
-prophet_model = Prophet()
-prophet_model.fit(train)
-future_prophet = prophet_model.make_future_dataframe(periods=14 * 24, freq='H')
-prophet_forecast = prophet_model.predict(future_prophet)
+    # Convert to Darts TimeSeries
+    series = TimeSeries.from_dataframe(data, time_col="ds", value_col="y", fill_missing_dates=True, freq="H")
 
-# NeuralProphet Forecasting
-neuralprophet_model = NeuralProphet()
-neuralprophet_model.fit(train)
-future_neural = neuralprophet_model.make_future_dataframe(train, periods=14 * 24)
-neural_forecast = neuralprophet_model.predict(future_neural)
+    # Train a Darts model
+    model_darts = ExponentialSmoothing()
+    model_darts.fit(series)
+    forecast_darts = model_darts.predict(14 * 24)  # Predict next 14 days (hourly)
 
-# LightGBM Forecasting
-features = ['temp', 'feelslike', 'humidity', 'windspeed', 'cloudcover', 'solaradiation', 'precip', 'is_holiday']
-target = 'electric'
+    print("Darts forecast completed.")
+except Exception as e:
+    print(f"Darts error: {e}")
 
-scaler = MinMaxScaler()
-data[features] = scaler.fit_transform(data[features])
-X = data[features]
-y = data[target]
+# AutoGluon
+try:
+    print("Running AutoGluon...")
+    predictor = TimeSeriesPredictor(label="y")
+    predictor.fit(data)
+    forecast_autogluon = predictor.predict(14 * 24)  # Predict next 14 days
+    print("AutoGluon forecast completed.")
+except Exception as e:
+    print(f"AutoGluon error: {e}")
 
-# Prepare training set (past data only)
-X_train, _, y_train, _ = train_test_split(X, y, test_size=0.2, shuffle=False)
+# PyCaret
+try:
+    print("Running PyCaret...")
+    setup(data=data, target='y', session_id=123)
+    best_model = compare_models()
+    future_pycaret = predict_model(best_model, fh=14 * 24)
+    print("PyCaret forecast completed.")
+except Exception as e:
+    print(f"PyCaret error: {e}")
 
-# Train LightGBM model
-lgb_model = lgb.LGBMRegressor()
-lgb_model.fit(X_train, y_train)
-
-# Create future features for LightGBM
-future_features = pd.DataFrame(data.tail(14 * 24)[features], columns=features)  # Use recent trends
-lgb_forecast = lgb_model.predict(future_features)
-
-# Prepare output
-future_predictions = pd.DataFrame({
-    'predict_at': pd.Timestamp.now(),
-    'predict_for': prophet_forecast['ds'][-14 * 24:],  # Use datetime from Prophet
-    'Prophet': prophet_forecast['yhat'][-14 * 24:],
-    'NeuralProphet': neural_forecast['yhat1'][-14 * 24:],
-    'LightGBM': lgb_forecast
-})
-
-# Save the results
+# Save results
 output_file = os.path.join(merge_dir, 'future_14_day_predictions.csv')
-future_predictions.to_csv(output_file, index=False)
-
-print(f"Future predictions saved to {output_file}")
-
-# Visualization
-plt.figure(figsize=(15, 8))
-plt.plot(future_predictions['predict_for'], future_predictions['Prophet'], label='Prophet', linestyle='--')
-plt.plot(future_predictions['predict_for'], future_predictions['NeuralProphet'], label='NeuralProphet', linestyle='-.')
-plt.plot(future_predictions['predict_for'], future_predictions['LightGBM'], label='LightGBM', linestyle='-')
-plt.fill_between(
-    prophet_forecast['ds'][-14 * 24:],
-    prophet_forecast['yhat_lower'][-14 * 24:],
-    prophet_forecast['yhat_upper'][-14 * 24:],
-    color='gray',
-    alpha=0.3,
-    label='Prophet Confidence Interval'
-)
-plt.xlabel('Datetime')
-plt.ylabel('Electric Demand')
-plt.title('Electric Demand Forecast for the Next 14 Days (Hourly)')
-plt.legend()
-plt.grid(True)
-plt.show()
-
-# Feature Importance Analysis (LightGBM)
-lgb_feature_importance = pd.DataFrame({
-    'Feature': features,
-    'Importance': lgb_model.feature_importances_
-}).sort_values(by='Importance', ascending=False)
-
-print("\nFeature Importance (LightGBM):")
-print(lgb_feature_importance)
-
-# Plot Feature Importance
-plt.figure(figsize=(10, 6))
-plt.barh(lgb_feature_importance['Feature'], lgb_feature_importance['Importance'], color='teal')
-plt.xlabel('Importance')
-plt.ylabel('Feature')
-plt.title('Feature Importance (LightGBM)')
-plt.gca().invert_yaxis()
-plt.show()
+try:
+    results = pd.DataFrame({
+        'predict_at': pd.Timestamp.now(),
+        'Darts': forecast_darts.pd_series() if 'forecast_darts' in locals() else None,
+        'AutoGluon': forecast_autogluon if 'forecast_autogluon' in locals() else None,
+        'PyCaret': future_pycaret if 'future_pycaret' in locals() else None
+    })
+    results.to_csv(output_file, index=False)
+    print(f"Results saved to {output_file}")
+except Exception as e:
+    print(f"Error saving results: {e}")
