@@ -13,6 +13,11 @@ import json
 import re
 import plotly.express as px
 from serverless_wsgi import handle_request
+from sklearn.preprocessing import LabelEncoder
+from xgboost import XGBRegressor
+from sklearn.model_selection import train_test_split
+import joblib
+import numpy as np
 
 # Initialize app and API
 app = Flask(__name__, static_folder='static', template_folder='templates')
@@ -469,6 +474,22 @@ def health_check():
         return jsonify({"status": "unhealthy", "error": str(e)}), 500
 
 """7. END SECTION 7 HEALTHCHECK ENDPOINT"""
+
+"""8. START SECTION 8 MACHINE LEARNING"""
+
+
+
+
+
+
+
+
+
+
+"""8. END SECTION 8 MACHINE LEARNING"""
+
+
+
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=8000)

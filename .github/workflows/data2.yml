@@ -73,9 +73,9 @@ jobs:
       # Step 8: Notify success
       - name: Notify success
         if: success()
-        run: echo "🎉 Data pipeline completed successfully!"
+        run: echo "🎉 Data pipeline 2 completed successfully!"
 
       # Step 9: Notify failure
       - name: Notify failure
         if: failure()
-        run: echo "❌ Data pipeline failed. Check logs for details."
+        run: echo "❌ Data pipeline 2 failed. Check logs for details."
