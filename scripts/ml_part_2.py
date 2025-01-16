@@ -11,6 +11,9 @@ import time
 import numpy as np
 import h2o
 from h2o.estimators.gbm import H2OGradientBoostingEstimator
+import pickle
+from joblib import dump
+
 
 logging.getLogger("cmdstanpy").setLevel(logging.ERROR)
 
@@ -26,8 +29,10 @@ base_dir = os.path.abspath('.')
 data_dir = os.path.join(base_dir, 'data', 'merge')
 evaluation_dir = os.path.join(base_dir, 'evaluation')
 training_dir = os.path.join(base_dir, 'training')
+validation_dir = os.path.join(base_dir, 'validation')
 os.makedirs(evaluation_dir, exist_ok=True)
 os.makedirs(training_dir, exist_ok=True)
+os.makedirs(validation_dir, exist_ok=True)
 
 # Error logging
 error_log_file = os.path.join(training_dir, 'error_log.txt')
@@ -35,23 +40,43 @@ def log_error(message):
     with open(error_log_file, 'a') as f:
         f.write(f"{datetime.now()}: {message}\n")
 
+
 def append_to_csv(file_path, df):
-    if os.path.exists(file_path):
-        try:
-            existing_data = pd.read_csv(file_path)
-            if existing_data.empty:
+    """
+    Appends data to a CSV file. If the file is empty or doesn't exist, it creates a new one
+    with the provided DataFrame structure.
+    """
+    try:
+        # Check if the file exists
+        if os.path.exists(file_path):
+            try:
+                existing_data = pd.read_csv(file_path)
+
+                # Handle empty or corrupted files
+                if existing_data.empty or len(existing_data.columns) == 0:
+                    print(f"File {file_path} is empty or corrupted. Creating a new one.")
+                    existing_data = pd.DataFrame(columns=df.columns)
+
+            except (pd.errors.EmptyDataError, pd.errors.ParserError):
+                print(f"File {file_path} is empty or corrupted. Creating a new one.")
                 existing_data = pd.DataFrame(columns=df.columns)
-        except (pd.errors.EmptyDataError, pd.errors.ParserError):
-            print(f"File {file_path} is corrupted or empty. Creating a new one.")
-            existing_data = pd.DataFrame(columns=df.columns)
-        
-        df = pd.concat([existing_data, df]).drop_duplicates(ignore_index=True)
-    df.to_csv(file_path, index=False)
+
+            # Concatenate new data with existing data and deduplicate
+            df = pd.concat([existing_data, df]).drop_duplicates(ignore_index=True)
+
+        # Write to the file (overwrite if creating new)
+        df.to_csv(file_path, index=False)
+    except Exception as e:
+        print(f"Error appending to file {file_path}: {e}")
+        log_error(f"Error appending to file {file_path}: {e}")
 
 
-def calculate_metrics(y_true, y_pred, is_future=False):
+
+def calculate_metrics(model, y_true, y_pred, is_future=False):
     if is_future:  # No actual values for future
         return {
+            "Model": model,
+            "Generated_At": datetime.now().isoformat(),
             "MAE": None,
             "MAPE": None,
             "RMSE": None,
@@ -60,6 +85,8 @@ def calculate_metrics(y_true, y_pred, is_future=False):
             "MBE": None
         }
     return {
+        "Model": model,
+        "Generated_At": datetime.now().isoformat(),
         "MAE": mean_absolute_error(y_true, y_pred),
         "MAPE": mean_absolute_percentage_error(y_true, y_pred),
         "RMSE": np.sqrt(mean_squared_error(y_true, y_pred)),
@@ -68,21 +95,57 @@ def calculate_metrics(y_true, y_pred, is_future=False):
         "MBE": np.mean(y_pred - y_true)
     }
 
-def generate_and_save_summary(model_name, model_file, iteration, timestamp):
-    try:
-        if not os.path.exists(model_file):
-            print(f"No predictions found for {model_name}. Skipping summary generation.")
-            return
+def ensure_columns(df, required_columns):
+    """
+    Ensures the required columns exist in the DataFrame. If not, adds them with default None or empty values.
+    """
+    for col in required_columns:
+        if col not in df.columns:
+            df[col] = None  # Default value if the column is missing
+    return df
 
-        # Load data
+def validate_file(file_path, required_columns=None):
+    """
+    Validates a file. If the file is empty or corrupted, it creates a new file
+    with the required columns if specified.
+    """
+    if not os.path.exists(file_path):
+        print(f"File {file_path} does not exist. Creating a new file.")
+        if required_columns:
+            pd.DataFrame(columns=required_columns).to_csv(file_path, index=False)
+        return False
+
+    try:
+        df = pd.read_csv(file_path)
+        if df.empty or len(df.columns) == 0:
+            print(f"File {file_path} is empty or corrupted. Creating a new file.")
+            if required_columns:
+                pd.DataFrame(columns=required_columns).to_csv(file_path, index=False)
+            return False
+    except (pd.errors.EmptyDataError, pd.errors.ParserError):
+        print(f"File {file_path} is empty or corrupted. Creating a new file.")
+        if required_columns:
+            pd.DataFrame(columns=required_columns).to_csv(file_path, index=False)
+        return False
+
+    return True
+
+def generate_and_save_summary(model_name, model_file, iteration, timestamp):
+    """
+    Generates and saves a summary report for a given model.
+    """
+    required_columns = ['Model','Predicted', 'Actual', 'Type', 'Iteration']
+    if not validate_file(model_file, required_columns):
+        print(f"Skipping summary generation for {model_name} due to invalid file.")
+        return
+
+    try:
         data = pd.read_csv(model_file)
 
         # Ensure required columns exist
-        if not {'Actual', 'Predicted', 'Type', 'Iteration'}.issubset(data.columns):
-            print(f"Skipping {model_name} - Required columns missing.")
-            return
+        data = ensure_columns(data, required_columns)
 
-        # Calculate summary metrics
+        # Aggregate summary metrics
         summary = (
             data.groupby(['Iteration', 'Type'])[['Actual', 'Predicted']]
             .agg(['mean', 'min', 'max'])
@@ -90,28 +153,41 @@ def generate_and_save_summary(model_name, model_file, iteration, timestamp):
         )
 
         # Flatten multi-index columns
-        summary.columns = [f"{col[0]}_{col[1]}" if col[1] else col[0] for col in summary.columns]
+        summary.columns = [
+            f"{col[0]}_{col[1]}" if col[1] else col[0]
+            for col in summary.columns
+        ]
 
-        # Add timestamp
+        # Add model name and timestamp
+        summary['Model'] = model_name  # This should add the 'Model' column
         summary['Generated_At'] = timestamp
 
-        # Append or create a summary file
-        summary_file = os.path.join(evaluation_dir, f"{model_name.lower()}_summary.csv")
+        # Append the summary to a consolidated file
+        summary_file = os.path.join(evaluation_dir, 'summary_report.csv')
         append_to_csv(summary_file, summary)
+
         print(f"Summary for {model_name} appended to {summary_file}")
     except Exception as e:
         print(f"Error generating summary for {model_name}: {e}")
+        log_error(f"Error generating summary for {model_name}: {e}")
 
-# Load dataset
 input_file = os.path.join(data_dir, 'allyears.csv')
 data = pd.read_csv(input_file)
-
-
-# Data preparation
 data['ds'] = pd.to_datetime(data['ds'])
-data = data.rename(columns={'y': 'y'})
-data = data[['ds', 'y']]
-data = data.drop_duplicates(subset='ds')
+data = data[['ds', 'y']].drop_duplicates(subset='ds')
+
+# Initialize H2O
+h2o.init(nthreads=-1, max_mem_size="2G")
+
+
+try:
+    h2o_data = h2o.import_file(input_file)
+    # After importing data
+    print(h2o_data)
+except Exception as e:
+    print(f"Error loading dataset: {e}")
+
+
 
 # Validations
 if data.isnull().any().any():
@@ -129,18 +205,139 @@ if len(data['ds'].unique()) != len(data['ds']):
 # Logging dataset info
 print(f"Dataset loaded with {len(data)} rows.")
 
-# Logging dataset info
-print(f"Dataset loaded with {len(data)} rows.")
-# Initialize H2O
-h2o.init()
+# Data splitting for training, validation, and testing
+historical_cutoff = len(data) - 336  # Exclude last 14 days for future testing
+train_cutoff = int(0.9 * historical_cutoff)  # 90% of historical data for training
 
+train_data = data[:train_cutoff]
+validation_data = data[train_cutoff:historical_cutoff]
+historical_test_data = data[historical_cutoff:]
+
+# Define target and predictors
+target = 'y'  # Replace 'y' with the actual target column name if different
+predictors = [col for col in train_data.columns if col != target]
+
+# Convert training and validation data to H2O frames
+train_h2o = h2o.H2OFrame(train_data)
+validation_h2o = h2o.H2OFrame(validation_data)
+
+# Ensure target column exists
+if target not in train_h2o.columns or target not in validation_h2o.columns:
+    raise ValueError(f"Target column '{target}' missing in train or validation H2O Frame.")
+
+# Consolidate validation metrics
+validation_files = [
+    os.path.join(validation_dir, 'theta_validation_metrics.csv'),
+    os.path.join(validation_dir, 'prophet_validation_metrics.csv'),
+    os.path.join(validation_dir, 'h2o_validation_metrics.csv')
+]
+
+all_validation_metrics = []
+
+for file_path in validation_files:
+    if validate_file(file_path, required_columns=['Model', 'MAE', 'MAPE', 'RMSE', 'MSE', 'R²', 'MBE', 'Generated_At']):
+        df = pd.read_csv(file_path)
+        all_validation_metrics.append(df)
+
+
+if all_validation_metrics:
+    consolidated_validation = pd.concat(all_validation_metrics, ignore_index=True)
+    consolidated_file = os.path.join(validation_dir, 'consolidated_validation_metrics.csv')
+    consolidated_validation.to_csv(consolidated_file, index=False)
+    print(f"Consolidated validation metrics saved to {consolidated_file}")
+
+# Darts Theta Validation
 try:
-    h2o_data = h2o.import_file(input_file)
-    # After importing data
-    print(h2o_data)
-except Exception as e:
-    print(f"Error loading dataset: {e}")
+    train_series = TimeSeries.from_dataframe(train_data, time_col="ds", value_cols="y")
+    validation_series = TimeSeries.from_dataframe(validation_data, time_col="ds", value_cols="y")
 
+    model_theta = Theta()
+    model_theta.fit(train_series)
+
+    validation_prediction = model_theta.predict(len(validation_series))
+    validation_metrics_theta = calculate_metrics(
+        "Darts Theta",
+        validation_series.values().flatten(),
+        validation_prediction.values().flatten()
+    )
+    validation_metrics_theta['Model'] = "Darts Theta"
+    validation_metrics_theta['Generated_At'] = datetime.now().isoformat()
+   
+    print("Validation Metrics (Theta):", validation_metrics_theta)
+    # Save validation metrics
+    theta_validation_file = os.path.join(validation_dir, 'theta_validation_metrics.csv')
+    theta_validation_df = pd.DataFrame([validation_metrics_theta])
+    append_to_csv(theta_validation_file, theta_validation_df)
+    print(f"Theta validation metrics saved to {theta_validation_file}")
+
+except Exception as e:
+    print(f"Error during Darts Theta validation: {e}")
+    log_error(f"Error during Darts Theta validation: {e}")
+
+
+# Prophet Validation
+try:
+    model_prophet = Prophet()  # Instantiate a new object for each iteration
+    model_prophet.fit(train_data)
+
+    validation_future = validation_data[['ds']]
+    validation_forecast = model_prophet.predict(validation_future)
+
+    validation_actual = validation_data['y'].values
+    validation_predicted = validation_forecast['yhat'].values
+    validation_metrics_prophet = calculate_metrics("Prophet",validation_actual, validation_predicted)
+    print("Validation Metrics (Prophet):", validation_metrics_prophet)
+
+    validation_metrics_prophet['Model'] = "Prophet"
+    validation_metrics_prophet['Generated_At'] = datetime.now().isoformat()
+    # Save validation metrics
+    prophet_validation_file = os.path.join(validation_dir, 'prophet_validation_metrics.csv')
+    prophet_validation_df = pd.DataFrame([validation_metrics_prophet])
+    append_to_csv(prophet_validation_file, prophet_validation_df)
+    print(f"Prophet validation metrics saved to {prophet_validation_file}")
+
+except Exception as e:
+    print(f"Error during Prophet validation: {e}")
+    log_error(f"Error during Prophet validation: {e}")
+
+
+# H2O GBM Validation
+try:
+    train_h2o = h2o.H2OFrame(train_data)
+    validation_h2o = h2o.H2OFrame(validation_data)
+
+    # Ensure target column exists
+    if target not in train_h2o.columns or target not in validation_h2o.columns:
+        raise ValueError(f"Target column '{target}' missing in train or validation H2O Frame.")
+    
+    # Train H2O GBM Model
+    h2o_gbm = H2OGradientBoostingEstimator(ntrees=50, max_depth=5, learn_rate=0.1)
+    h2o_gbm.train(x=predictors, y=target, training_frame=train_h2o)
+
+    # Predict on Validation Data
+    validation_predicted = h2o_gbm.predict(validation_h2o).as_data_frame()
+    validation_actual = validation_h2o[target].as_data_frame()
+
+    # Calculate Validation Metrics
+    validation_metrics_h2o = calculate_metrics(
+        "H2O GBM",
+        validation_actual.values.flatten(),
+        validation_predicted.values.flatten()
+    )
+
+    validation_metrics_h2o['Model'] = "H2O GBM"
+    validation_metrics_h2o['Generated_At'] = datetime.now().isoformat()
+    print("Validation Metrics (H2O GBM):", validation_metrics_h2o)
+
+    # Save Validation Metrics for H2O GBM
+    h2o_validation_file = os.path.join(validation_dir, 'h2o_validation_metrics.csv')
+    h2o_validation_df = pd.DataFrame([validation_metrics_h2o])
+    append_to_csv(h2o_validation_file, h2o_validation_df)
+    print(f"H2O validation metrics saved to {h2o_validation_file}")
+
+except Exception as e:
+    print(f"Error during H2O validation: {e}")
+    log_error(f"Error during H2O validation: {e}")
 
 
 # Define predictors and target
@@ -165,6 +362,10 @@ def save_metrics(model_name, metrics):
 from tqdm import tqdm
 
 training_info = []
+
+for i in tqdm(range(10), desc="Processing Models"):
+    time.sleep(1)  # Simulate processing
+
 
 for iteration in tqdm(range(1, 4), desc="Training Iterations"):
     print(f"Starting training iteration {iteration}...")
@@ -193,6 +394,7 @@ for iteration in tqdm(range(1, 4), desc="Training Iterations"):
                 # Split the data into training and testing datasets
                 train, test = h2o_data.split_frame(ratios=[0.8], seed=1234)
 
+                h2o.init()
                 # Initialize and train the H2O GBM model
                 h2o_gbm = H2OGradientBoostingEstimator(ntrees=50, max_depth=5, learn_rate=0.1)
                 h2o_gbm.train(x=predictors, y=target, training_frame=train)
@@ -201,6 +403,7 @@ for iteration in tqdm(range(1, 4), desc="Training Iterations"):
                 train_actual = train[target].as_data_frame()
                 train_predicted = h2o_gbm.predict(train).as_data_frame()
                 historical_metrics = calculate_metrics(
+                    "H2O GBM",
                     train_actual.values.flatten(),
                     train_predicted.values.flatten()
                 )
@@ -253,6 +456,7 @@ for iteration in tqdm(range(1, 4), desc="Training Iterations"):
                 aggregated_df.columns = ['_'.join(col).strip() if isinstance(col, tuple) else col for col in aggregated_df.columns]
 
                 # Add iteration and timestamp
+                aggregated_df['Model'] = "H2O GBM"
                 aggregated_df['Iteration'] = iteration
                 aggregated_df['Generated_At'] = predicted_at
 
@@ -260,7 +464,10 @@ for iteration in tqdm(range(1, 4), desc="Training Iterations"):
                 append_to_csv(prediction_file, aggregated_df)
                 
                 print("H2O GBM Model completed successfully.")
-
+                # Call generate_and_save_summary for each model after saving predictions
+                
+                generate_and_save_summary("H2O GBM", prediction_file, iteration, predicted_at)
+                
             except Exception as e:
                 print(f"H2O GBM failed: {e}")
                 log_error(f"H2O GBM Model failed: {e}")
@@ -279,6 +486,7 @@ for iteration in tqdm(range(1, 4), desc="Training Iterations"):
                 if series is None or len(series) == 0:
                     raise ValueError("Darts TimeSeries is invalid or empty. Check the input data.")
 
+                np.random.seed(42)
                 # Train the model
                 model_theta = Theta()
                 model_theta.fit(series[:-336])  # Exclude the last 336 hours (14 days)
@@ -294,7 +502,7 @@ for iteration in tqdm(range(1, 4), desc="Training Iterations"):
                 # Historical metrics calculation
                 historical_actual = series[-336:]
                 historical_predicted = forecast_theta
-                historical_metrics = calculate_metrics(historical_actual.values().flatten(), historical_predicted.values().flatten())
+                historical_metrics = calculate_metrics( "Darts Theta",historical_actual.values().flatten(), historical_predicted.values().flatten())
 
                 # Combine historical and future data
                 historical_df = pd.DataFrame({
@@ -335,6 +543,7 @@ for iteration in tqdm(range(1, 4), desc="Training Iterations"):
                 aggregated_df.columns = ['_'.join(col).strip() if isinstance(col, tuple) else col for col in aggregated_df.columns]
 
                 # Add iteration and timestamp
+                aggregated_df['Model'] = "Darts Theta"
                 aggregated_df['Iteration'] = iteration
                 aggregated_df['Generated_At'] = predicted_at
 
@@ -343,7 +552,8 @@ for iteration in tqdm(range(1, 4), desc="Training Iterations"):
 
                 # Save aggregated results
                 append_to_csv(prediction_file, aggregated_df)
-
+                # Call generate_and_save_summary for each model after saving predictions
+                generate_and_save_summary("Darts Theta", prediction_file, iteration, predicted_at)                
             except Exception as e:
                 print(f"Darts Theta Model failed: {e}")
                 log_error(f"Darts Theta Model failed: {e}")
@@ -382,7 +592,7 @@ for iteration in tqdm(range(1, 4), desc="Training Iterations"):
                 historical_actual = historical_actual.iloc[:min_length]
                 historical_predicted = historical_predicted.iloc[:min_length]
 
-                historical_metrics = calculate_metrics(historical_actual, historical_predicted)
+                historical_metrics = calculate_metrics("Prophet",historical_actual, historical_predicted)
 
                 # Combine data for historical and future predictions
                 historical_df = pd.DataFrame({
@@ -431,11 +641,15 @@ for iteration in tqdm(range(1, 4), desc="Training Iterations"):
                 aggregated_df.columns = ['_'.join(col).strip() if isinstance(col, tuple) else col for col in aggregated_df.columns]
 
                 # Add iteration and timestamp
+                aggregated_df['Model'] = "Prophet"
                 aggregated_df['Iteration'] = iteration
                 aggregated_df['Generated_At'] = predicted_at
 
                 # Save aggregated results
                 append_to_csv(prediction_file, aggregated_df)
+                # Call generate_and_save_summary for each model after saving predictions
+                generate_and_save_summary("Prophet", prediction_file, iteration, predicted_at)
+                print(f"Prophet model saved for iteration {iteration}")
 
             except Exception as e:
                 print(f"Prophet Model failed: {e}")
