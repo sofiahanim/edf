@@ -31,7 +31,7 @@ jobs:
 
     - name: Run Model Training Script
       run: |
-        python3 scripts/ml_training_script.py
+        python3 scripts/ml_part_2.py
       env:
         PYTHONUNBUFFERED: 1
 
@@ -47,20 +47,33 @@ jobs:
           fi
         done
 
+    - name: Verify Evaluation Files
+      run: |
+          echo "Checking evaluation files..."
+          for file in evaluation/h2o_predictions.csv evaluation/darts_theta_predictions.csv evaluation/prophet_predictions.csv evaluation/summary_report.csv; do
+            if [ -f "$file" ]; then
+              echo "✅ $file exists and is ready."
+            else
+              echo "❌ $file is missing."
+              exit 1
+            fi
+          done
+
     - name: Commit and Push Metrics Files
       run: |
         git config --global user.name "github-actions[bot]"
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
         git add training/h2o_metrics.csv training/darts_theta_metrics.csv training/prophet_metrics.csv training/training_info.csv || echo "No changes to commit."
-        git diff --cached --exit-code || git commit -m "Update metrics files after training"
+        git add evaluation/h2o_predictions.csv evaluation/darts_theta_predictions.csv evaluation/prophet_predictions.csv evaluation/summary_report.csv || echo "No changes to commit."
+        git diff --cached --exit-code || git commit -m "Update metrics and evaluation files after training"
         git push || echo "No changes to push."
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Notify Success
       if: success()
-      run: echo "🎉 Model training and metrics update completed successfully!"
+      run: echo "🎉 Model training and evaluation update completed successfully!"
 
     - name: Notify Failure
       if: failure()
-      run: echo "❌ Model training or metrics update failed. Check logs for details."
+      run: echo "❌ Model training or evaluation update failed. Check logs for details."
