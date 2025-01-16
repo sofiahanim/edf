@@ -64,8 +64,8 @@ jobs:
       # Step 7: Commit and push updated CSV
       - name: Commit and push updated CSV
         run: |
-          git config --local user.name "GitHub Actions"
-          git config --local user.email "actions@github.com"
+          git config --local user.name "GitHub Actions[bot]"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git add --force data/demand/2025.csv
           git commit -m "Update CSV with new data" || echo "Nothing to commit."
           git push || echo "No changes pushed."

@@ -1,110 +1,115 @@
 import os
 import pandas as pd
-from darts import TimeSeries
-from darts.models import Theta
-from neuralprophet import NeuralProphet
-from pycaret.time_series import setup, compare_models, predict_model
+import matplotlib.pyplot as plt
+from datetime import datetime
+import openai
+
+# Set OpenAI API Key
+openai.api_key = "sk-proj-VYx5HXgXhdyLvRrlSkVtY3mPLmJtwaOOhv0phy6zkj6nLpWnCDl1YEWus_KilZEXWvUzYjqt8cS6u3npgA"
 
 # Define directories
-print("Current working directory:", os.getcwd())
-base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-data_dir = os.path.join(base_dir, 'data')
-merge_dir = os.path.join(data_dir, 'merge')
-evaluation_dir = os.path.join(data_dir, 'evaluation2')
+training_dir = os.path.join('.', 'training')
+evaluation_dir = os.path.join('.', 'evaluation')
+report_dir = os.path.join('.', 'reports')
+os.makedirs(report_dir, exist_ok=True)
 
-# Ensure necessary directories exist
-os.makedirs(evaluation_dir, exist_ok=True)
-# Load dataset directly from allyears.csv
-input_file = os.path.join(merge_dir, 'allyears.csv')
-print(f"Reading input file: {input_file}")
-data = pd.read_csv(input_file)
+# Helper: Load CSV
+def load_csv(file_path):
+    if os.path.exists(file_path):
+        return pd.read_csv(file_path)
+    else:
+        print(f"File not found: {file_path}")
+        return None
 
-# Ensure 'hour' is zero-padded and create a datetime column
-data['hour'] = data['hour'].astype(str).str.zfill(2)  # Ensure hour format is HH
-data['datetime'] = pd.to_datetime(data['date'] + ' ' + data['hour'] + ':00:00')
+# Helper: Generate Visualizations
+def generate_visualizations(data, output_path, metric):
+    plt.figure(figsize=(10, 6))
+    for model in data['Model'].unique():
+        subset = data[data['Model'] == model]
+        plt.plot(subset['Iteration'], subset[metric], marker='o', label=model)
+    plt.title(f'{metric} Across Iterations')
+    plt.xlabel('Iteration')
+    plt.ylabel(metric)
+    plt.legend()
+    plt.grid()
+    plt.savefig(output_path)
+    plt.close()
 
-# Select required columns for modeling
-data = data.rename(columns={'datetime': 'ds', 'electric': 'y'})
-selected_columns = ['ds', 'y', 'temp', 'feelslike', 'humidity', 'windspeed', 
-                    'cloudcover', 'solaradiation', 'precip', 'is_holiday']
-data = data[selected_columns]
+# Helper: Generate Dynamic Insights
+def generate_insights(metrics_df):
+    summary = metrics_df.groupby("Model").mean()
+    insights = "**Model Performance Insights:**\n\n"
+    for model in summary.index:
+        insights += f"- **{model}**:\n"
+        insights += f"  - RMSE: {summary.loc[model, 'RMSE']:.2f}\n"
+        insights += f"  - MAPE: {summary.loc[model, 'MAPE']:.2f}%\n"
+        insights += f"  - R²: {summary.loc[model, 'R²']:.2f}\n"
+        insights += f"  - **Summary**: This model is {'good' if summary.loc[model, 'R²'] > 0.8 else 'challenged'} for {('low RMSE' if summary.loc[model, 'RMSE'] < summary['RMSE'].mean() else 'error minimization')}.\n\n"
 
-# Remove duplicates and handle missing data
-data = data.drop_duplicates(subset='ds').set_index('ds').asfreq('H')  # Ensure hourly frequency
-data['y'] = data['y'].interpolate()  # Handle missing values with interpolation
-data.reset_index(inplace=True)
+    overall_recommendation = f"""
+    **Overall Recommendations:**
+    - The model with the lowest average RMSE is **{summary['RMSE'].idxmin()}** with an RMSE of {summary['RMSE'].min():.2f}.
+    - The best average R² score was achieved by **{summary['R²'].idxmax()}** with an R² of {summary['R²'].max():.2f}.
+    - Average MAPE across all models is **{summary['MAPE'].mean():.2f}%**.
+    """
+    insights += overall_recommendation
+    return insights
 
-# Verify dataset is ready
-print("Data preview:")
-print(data.head())
+# Helper: AI-Generated Insights
+def interpret_results(metrics_df):
+    summary = metrics_df.groupby('Model').agg(
+        {'MAE': 'mean', 'MAPE': 'mean', 'RMSE': 'mean', 'MSE': 'mean', 'R²': 'mean', 'MBE': 'mean'}
+    ).reset_index()
+    summary_text = summary.to_string(index=False)
 
+    prompt = f"""
+    The following evaluation metrics were calculated for multiple models:
+    {summary_text}
 
-# Forecasting with Darts Theta Model
-try:
-    print("Running Darts with Theta Model...")
-    series = TimeSeries.from_dataframe(data[['ds', 'y']], time_col="ds", value_cols="y", freq="H")
-    model_darts_theta = Theta()
-    model_darts_theta.fit(series)
-    forecast_darts_theta = model_darts_theta.predict(14 * 24)  # Predict next 14 days (hourly)
+    Provide a detailed discussion including:
+    - Strengths and weaknesses of each model.
+    - Identification of the best-performing model and justification.
+    - Recommendations for model improvement and parameter adjustments.
+    """
 
-    darts_results_file = os.path.join(evaluation_dir, 'darts_theta_forecast.csv')
-    forecast_darts_theta.pd_series().to_csv(darts_results_file, header=True)
-    print("Darts Theta forecast completed.")
-except Exception as e:
-    print(f"Darts Theta error: {e}")
+    response = openai.Completion.create(
+        engine="text-davinci-003",
+        prompt=prompt,
+        max_tokens=500,
+        temperature=0.7
+    )
+    return response['choices'][0]['text']
 
-# Forecasting with NeuralProphet
-try:
-    print("Running NeuralProphet...")
-    neuralprophet_data = data[['ds', 'y']]
-    model_np = NeuralProphet(batch_size=32, epochs=30)
-    model_np.fit(neuralprophet_data, freq="H")
-    future = model_np.make_future_dataframe(neuralprophet_data, periods=14 * 24)
-    forecast_np = model_np.predict(future)
+# Load all metrics
+metrics_files = [
+    os.path.join(training_dir, 'h2o_gbm_metrics.csv'),
+    os.path.join(training_dir, 'darts_theta_metrics.csv'),
+    os.path.join(training_dir, 'prophet_metrics.csv')
+]
+metrics_data = pd.concat([load_csv(f) for f in metrics_files if load_csv(f) is not None], ignore_index=True)
 
-    neuralprophet_results_file = os.path.join(evaluation_dir, 'neuralprophet_forecast.csv')
-    forecast_np.to_csv(neuralprophet_results_file, index=False)
-    print("NeuralProphet forecast completed.")
-except Exception as e:
-    print(f"NeuralProphet error: {e}")
+# Generate Visualizations for Metrics
+metrics_to_visualize = ['MAE', 'MAPE', 'RMSE', 'MSE', 'R²', 'MBE']
+for metric in metrics_to_visualize:
+    output_path = os.path.join(report_dir, f'{metric}_comparison.png')
+    generate_visualizations(metrics_data, output_path, metric)
 
-# Forecasting with PyCaret
-try:
-    print("Running PyCaret...")
-    setup(data=data, target='y', session_id=123, fold=2, fh=48)
-    best_model = compare_models()
-    future_pycaret = predict_model(best_model, fh=14 * 24)
+# Generate Automated Insights
+automated_insights = generate_insights(metrics_data)
 
-    pycaret_results_file = os.path.join(evaluation_dir, 'pycaret_forecast.csv')
-    if isinstance(future_pycaret, pd.DataFrame):
-        future_pycaret.to_csv(pycaret_results_file, index=False)
-    print("PyCaret forecast completed.")
-except Exception as e:
-    print(f"PyCaret error: {e}")
+# Generate AI-Driven Interpretation
+ai_insights = interpret_results(metrics_data)
 
-# Summary of results
-try:
-    print("Generating summary of results...")
-    summary_file = os.path.join(evaluation_dir, 'summary_forecast.csv')
-    predict_for = pd.date_range(start=data['ds'].max(), periods=14 * 24, freq='H')
+# Save Report with Insights
+report_file = os.path.join(report_dir, f'report_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.md')
+with open(report_file, 'w') as f:
+    f.write("# Model Evaluation Report\n\n")
+    f.write("## Visualizations\n\n")
+    for metric in metrics_to_visualize:
+        f.write(f"![{metric} Comparison](./{metric}_comparison.png)\n\n")
+    f.write("## Automated Insights\n\n")
+    f.write(automated_insights + "\n\n")
+    f.write("## AI-Driven Insights\n\n")
+    f.write(ai_insights)
 
- # Add forecasts to the summary
-    if 'forecast_darts_theta' in locals():
-        results['Darts Theta'] = forecast_darts_theta.pd_series().values
-    if 'forecast_np' in locals():
-        results['NeuralProphet'] = forecast_np['yhat1'].values[:len(predict_for)]
-    if 'future_pycaret' in locals():
-        results['PyCaret'] = future_pycaret['Label'].values[:len(predict_for)]
-        
-    results = pd.DataFrame({
-        'predict_at': pd.Timestamp.now(),
-        'predict_for': predict_for,
-        'Darts Theta': forecast_darts_theta.pd_series().values if 'forecast_darts_theta' in locals() else None,
-        'NeuralProphet': forecast_np['yhat1'].values[:len(predict_for)] if 'forecast_np' in locals() else None,
-        'PyCaret': future_pycaret['Label'].values[:len(predict_for)] if 'future_pycaret' in locals() else None
-    })
-
-    results.to_csv(summary_file, index=False)
-    print(f"Summary results saved to {summary_file} with {len(results)} rows.")
-except Exception as e:
-    print(f"Error saving summary results: {e}")
+print(f"Report saved to: {report_file}")

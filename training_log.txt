@@ -1,0 +1,60 @@
+DEBUG:cmdstanpy:cmd: where.exe tbb.dll
+cwd: None
+DEBUG:cmdstanpy:Adding TBB (C:\Users\hanim\AppData\Local\Programs\Python\Python311\Lib\site-packages\prophet\stan_model\cmdstan-2.33.1\stan\lib\stan_math\lib\tbb) to PATH
+DEBUG:cmdstanpy:input tempfile: C:\Users\hanim\AppData\Local\Temp\tmpux9572gd\tw61wvve.json
+DEBUG:cmdstanpy:input tempfile: C:\Users\hanim\AppData\Local\Temp\tmpux9572gd\ikektqtk.json
+DEBUG:cmdstanpy:idx 0
+DEBUG:cmdstanpy:running CmdStan, num_threads: None
+DEBUG:cmdstanpy:CmdStan args: ['C:\\Users\\hanim\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\prophet\\stan_model\\prophet_model.bin', 'random', 'seed=30758', 'data', 'file=C:\\Users\\hanim\\AppData\\Local\\Temp\\tmpux9572gd\\tw61wvve.json', 'init=C:\\Users\\hanim\\AppData\\Local\\Temp\\tmpux9572gd\\ikektqtk.json', 'output', 'file=C:\\Users\\hanim\\AppData\\Local\\Temp\\tmpux9572gd\\prophet_modelfiv7ku30\\prophet_model-20250116062805.csv', 'method=optimize', 'algorithm=lbfgs', 'iter=10000']
+INFO:cmdstanpy:Chain [1] start processing
+INFO:cmdstanpy:Chain [1] done processing
+DEBUG:cmdstanpy:cmd: where.exe tbb.dll
+cwd: None
+DEBUG:cmdstanpy:TBB already found in load path
+DEBUG:cmdstanpy:input tempfile: C:\Users\hanim\AppData\Local\Temp\tmpux9572gd\9bk0rteq.json
+DEBUG:cmdstanpy:input tempfile: C:\Users\hanim\AppData\Local\Temp\tmpux9572gd\yvqgjpb_.json
+DEBUG:cmdstanpy:idx 0
+DEBUG:cmdstanpy:running CmdStan, num_threads: None
+DEBUG:cmdstanpy:CmdStan args: ['C:\\Users\\hanim\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\prophet\\stan_model\\prophet_model.bin', 'random', 'seed=54560', 'data', 'file=C:\\Users\\hanim\\AppData\\Local\\Temp\\tmpux9572gd\\9bk0rteq.json', 'init=C:\\Users\\hanim\\AppData\\Local\\Temp\\tmpux9572gd\\yvqgjpb_.json', 'output', 'file=C:\\Users\\hanim\\AppData\\Local\\Temp\\tmpux9572gd\\prophet_modelbc04olky\\prophet_model-20250116062924.csv', 'method=optimize', 'algorithm=lbfgs', 'iter=10000']
+INFO:cmdstanpy:Chain [1] start processing
+INFO:cmdstanpy:Chain [1] done processing
+DEBUG:cmdstanpy:cmd: where.exe tbb.dll
+cwd: None
+DEBUG:cmdstanpy:TBB already found in load path
+DEBUG:cmdstanpy:input tempfile: C:\Users\hanim\AppData\Local\Temp\tmpux9572gd\f7akfh_a.json
+DEBUG:cmdstanpy:input tempfile: C:\Users\hanim\AppData\Local\Temp\tmpux9572gd\qi2pu2rs.json
+DEBUG:cmdstanpy:idx 0
+DEBUG:cmdstanpy:running CmdStan, num_threads: None
+DEBUG:cmdstanpy:CmdStan args: ['C:\\Users\\hanim\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\prophet\\stan_model\\prophet_model.bin', 'random', 'seed=40629', 'data', 'file=C:\\Users\\hanim\\AppData\\Local\\Temp\\tmpux9572gd\\f7akfh_a.json', 'init=C:\\Users\\hanim\\AppData\\Local\\Temp\\tmpux9572gd\\qi2pu2rs.json', 'output', 'file=C:\\Users\\hanim\\AppData\\Local\\Temp\\tmpux9572gd\\prophet_modelefz14qt3\\prophet_model-20250116063047.csv', 'method=optimize', 'algorithm=lbfgs', 'iter=10000']
+INFO:cmdstanpy:Chain [1] start processing
+INFO:cmdstanpy:Chain [1] done processing
+DEBUG:cmdstanpy:cmd: where.exe tbb.dll
+cwd: None
+DEBUG:cmdstanpy:Adding TBB (C:\Users\hanim\AppData\Local\Programs\Python\Python311\Lib\site-packages\prophet\stan_model\cmdstan-2.33.1\stan\lib\stan_math\lib\tbb) to PATH
+DEBUG:cmdstanpy:input tempfile: C:\Users\hanim\AppData\Local\Temp\tmp49z6guso\8vihu20r.json
+DEBUG:cmdstanpy:input tempfile: C:\Users\hanim\AppData\Local\Temp\tmp49z6guso\6qoypg5i.json
+DEBUG:cmdstanpy:idx 0
+DEBUG:cmdstanpy:running CmdStan, num_threads: None
+DEBUG:cmdstanpy:CmdStan args: ['C:\\Users\\hanim\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\prophet\\stan_model\\prophet_model.bin', 'random', 'seed=57952', 'data', 'file=C:\\Users\\hanim\\AppData\\Local\\Temp\\tmp49z6guso\\8vihu20r.json', 'init=C:\\Users\\hanim\\AppData\\Local\\Temp\\tmp49z6guso\\6qoypg5i.json', 'output', 'file=C:\\Users\\hanim\\AppData\\Local\\Temp\\tmp49z6guso\\prophet_model7rs7ixc_\\prophet_model-20250116065043.csv', 'method=optimize', 'algorithm=lbfgs', 'iter=10000']
+INFO:cmdstanpy:Chain [1] start processing
+INFO:cmdstanpy:Chain [1] done processing
+DEBUG:cmdstanpy:cmd: where.exe tbb.dll
+cwd: None
+DEBUG:cmdstanpy:TBB already found in load path
+DEBUG:cmdstanpy:input tempfile: C:\Users\hanim\AppData\Local\Temp\tmp49z6guso\f7iumd1d.json
+DEBUG:cmdstanpy:input tempfile: C:\Users\hanim\AppData\Local\Temp\tmp49z6guso\m9z5iion.json
+DEBUG:cmdstanpy:idx 0
+DEBUG:cmdstanpy:running CmdStan, num_threads: None
+DEBUG:cmdstanpy:CmdStan args: ['C:\\Users\\hanim\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\prophet\\stan_model\\prophet_model.bin', 'random', 'seed=89165', 'data', 'file=C:\\Users\\hanim\\AppData\\Local\\Temp\\tmp49z6guso\\f7iumd1d.json', 'init=C:\\Users\\hanim\\AppData\\Local\\Temp\\tmp49z6guso\\m9z5iion.json', 'output', 'file=C:\\Users\\hanim\\AppData\\Local\\Temp\\tmp49z6guso\\prophet_modelrs12vetg\\prophet_model-20250116065132.csv', 'method=optimize', 'algorithm=lbfgs', 'iter=10000']
+INFO:cmdstanpy:Chain [1] start processing
+INFO:cmdstanpy:Chain [1] done processing
+DEBUG:cmdstanpy:cmd: where.exe tbb.dll
+cwd: None
+DEBUG:cmdstanpy:TBB already found in load path
+DEBUG:cmdstanpy:input tempfile: C:\Users\hanim\AppData\Local\Temp\tmp49z6guso\otsluh6e.json
+DEBUG:cmdstanpy:input tempfile: C:\Users\hanim\AppData\Local\Temp\tmp49z6guso\80oiknzs.json
+DEBUG:cmdstanpy:idx 0
+DEBUG:cmdstanpy:running CmdStan, num_threads: None
+DEBUG:cmdstanpy:CmdStan args: ['C:\\Users\\hanim\\AppData\\Local\\Programs\\Python\\Python311\\Lib\\site-packages\\prophet\\stan_model\\prophet_model.bin', 'random', 'seed=5622', 'data', 'file=C:\\Users\\hanim\\AppData\\Local\\Temp\\tmp49z6guso\\otsluh6e.json', 'init=C:\\Users\\hanim\\AppData\\Local\\Temp\\tmp49z6guso\\80oiknzs.json', 'output', 'file=C:\\Users\\hanim\\AppData\\Local\\Temp\\tmp49z6guso\\prophet_modelyr_oh89k\\prophet_model-20250116065228.csv', 'method=optimize', 'algorithm=lbfgs', 'iter=10000']
+INFO:cmdstanpy:Chain [1] start processing
+INFO:cmdstanpy:Chain [1] done processing
