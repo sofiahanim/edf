@@ -66,6 +66,11 @@ jobs:
         python3 -m pip install auto-sklearn --verbose --no-cache-dir
       continue-on-error: true
 
+    - name: Check Dependency Tree
+      run: |
+        python3 -m pip install pipdeptree
+        pipdeptree
+
     # Step 7: Run Model Training Script
     - name: Run Model Training Script
       run: |
