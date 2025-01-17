@@ -3,63 +3,75 @@ name: ML Part 2
 on:
   push:
     branches:
-      - main  # Trigger workflow on pushes to main branch
+      - main
   schedule:
-    - cron: "0 19 * * *"  # Schedule daily at 19:00 UTC (3:00 AM Malaysia Time)
-  workflow_dispatch:  # Allow manual triggering
+    - cron: "0 19 * * *"
+  workflow_dispatch:
 
 permissions:
-  contents: write  # Grants permission to commit and push changes
+  contents: write
 
 jobs:
   ml-training:
     runs-on: ubuntu-20.04
 
     steps:
+    # Step 1: Checkout Repository
     - name: Checkout Repository
       uses: actions/checkout@v3
 
+    # Step 2: Set Up Python Environment
     - name: Set Up Python
       uses: actions/setup-python@v4
       with:
         python-version: "3.11.10"
 
+    # Step 3: Install System-Level Dependencies
     - name: Install System-Level Dependencies
       run: |
         echo "🔄 Installing system-level dependencies..."
         sudo apt-get update -y
         sudo apt-get install -y \
-            build-essential \
-            swig \
-            python3-dev \
-            python3-pip \
-            libopenblas-dev \
-            liblapack-dev \
-            gfortran \
-            libatlas-base-dev \
-            libhdf5-dev \
-            libeigen3-dev \
-            libssl-dev \
-            zlib1g-dev \
-            libcurl4-openssl-dev \
-            libffi-dev \
-            libxml2-dev \
-            libxslt-dev \
-            libpq-dev
+          build-essential \
+          swig \
+          python3-dev \
+          python3-pip \
+          libopenblas-dev \
+          liblapack-dev \
+          gfortran \
+          libatlas-base-dev \
+          libhdf5-dev \
+          libeigen3-dev \
+          libssl-dev \
+          zlib1g-dev \
+          libcurl4-openssl-dev \
+          libffi-dev \
+          libxml2-dev \
+          libxslt-dev \
+          libpq-dev \
+          libevent-dev
 
+    # Step 4: Install Java (Required for H2O)
     - name: Install Java
       run: |
         echo "🔄 Installing Java for H2O..."
         sudo apt-get install -y openjdk-11-jdk
 
+    # Step 5: Upgrade Python Tools and Install Dependencies
     - name: Upgrade Python Tools and Install Dependencies
       run: |
         echo "🔄 Upgrading pip, setuptools, and wheel..."
         python3 -m pip install --upgrade pip setuptools wheel
 
-        echo "🔄 Installing Python dependencies..."
-        python3 -m pip install -r requirements_linux.txt --verbose
+        echo "🔄 Setting up compiler environment variables..."
+        export CC=gcc
+        export CXX=g++
 
+        echo "🔄 Installing Python dependencies..."
+        python3 -m pip install --only-binary=:all: --no-cache-dir \
+          -r requirements_linux.txt --verbose
+
+    # Step 6: Run Model Training Script
     - name: Run Model Training Script
       run: |
         echo "🏃 Running the ML training script with verbose output..."
@@ -67,6 +79,7 @@ jobs:
       env:
         PYTHONUNBUFFERED: 1
 
+    # Step 7: Verify Metrics Files
     - name: Verify Metrics Files
       run: |
         echo "🔍 Verifying metrics files..."
@@ -79,6 +92,7 @@ jobs:
           fi
         done
 
+    # Step 8: Verify Evaluation Files
     - name: Verify Evaluation Files
       run: |
         echo "🔍 Verifying evaluation files..."
@@ -91,6 +105,7 @@ jobs:
           fi
         done
 
+    # Step 9: Verify Validation Files
     - name: Verify Validation Files
       run: |
         echo "🔍 Verifying validation files..."
@@ -103,6 +118,7 @@ jobs:
           fi
         done
 
+    # Step 10: Commit and Push Metrics Files
     - name: Commit and Push Metrics Files
       run: |
         echo "📂 Committing and pushing metrics, validation, and evaluation files..."
@@ -116,10 +132,12 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+    # Step 11: Notify Success
     - name: Notify Success
       if: success()
       run: echo "🎉 Model training and evaluation update completed successfully!"
 
+    # Step 12: Notify Failure
     - name: Notify Failure
       if: failure()
       run: echo "❌ Model training or evaluation update failed. Check logs for details."

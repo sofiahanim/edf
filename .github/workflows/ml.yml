@@ -26,9 +26,9 @@ jobs:
 
     - name: Install System-Level Dependencies
       run: |
-        echo "🔄 Installing system-level dependencies..."
-        sudo apt-get update -y
-        sudo apt-get install -y \
+          echo "🔄 Installing system-level dependencies..."
+          sudo apt-get update -y
+          sudo apt-get install -y \
             build-essential \
             swig \
             python3-dev \
@@ -45,20 +45,28 @@ jobs:
             libffi-dev \
             libxml2-dev \
             libxslt-dev \
-            libpq-dev
-
+            libpq-dev \
+            libevent-dev
+  
+      # Step 4: Install Java (Required for H2O)
     - name: Install Java
       run: |
-        echo "🔄 Installing Java for H2O..."
-        sudo apt-get install -y openjdk-11-jdk
-
+          echo "🔄 Installing Java for H2O..."
+          sudo apt-get install -y openjdk-11-jdk
+  
+      # Step 5: Upgrade Python Tools and Install Dependencies
     - name: Upgrade Python Tools and Install Dependencies
       run: |
-        echo "🔄 Upgrading pip, setuptools, and wheel..."
-        python3 -m pip install --upgrade pip setuptools wheel
-
-        echo "🔄 Installing Python dependencies..."
-        python3 -m pip install -r requirements_linux.txt --verbose
+          echo "🔄 Upgrading pip, setuptools, and wheel..."
+          python3 -m pip install --upgrade pip setuptools wheel
+  
+          echo "🔄 Setting up compiler environment variables..."
+          export CC=gcc
+          export CXX=g++
+  
+          echo "🔄 Installing Python dependencies..."
+          python3 -m pip install --only-binary=:all: --no-cache-dir \
+            -r requirements_linux.txt --verbose
 
     - name: Run Preprocessing Script
       run: |
