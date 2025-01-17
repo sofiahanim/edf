@@ -1,186 +1,128 @@
 import os
 import pandas as pd
-import matplotlib.pyplot as plt
+import numpy as np
 from datetime import datetime
-import openai
-from dotenv import load_dotenv
+from sklearn.metrics import mean_absolute_error, mean_squared_error
+import h2o
+from h2o.automl import H2OAutoML
+from tpot import TPOTClassifier
+from autosklearn.classification import AutoSklearnClassifier
 
-# Load environment variables from .env file
-load_dotenv()
+# Initialize H2O Cluster
+h2o.init()
 
-# Set OpenAI API Key
-openai.api_key = os.getenv("OPENAI_API_KEY")
-if not openai.api_key:
-    raise ValueError("OPENAI_API_KEY is not set. Please set it in your environment or in the .env file.")
-
-# Define directories for data and reports
-base_dir = os.path.abspath('.')
-data_dir = os.path.join(base_dir, 'data', 'merge')
-evaluation_dir = os.path.join(base_dir, 'evaluation')
-training_dir = os.path.join(base_dir, 'training')
-reports_dir = os.path.join(base_dir, 'reports')  # Reports folder in root
-os.makedirs(evaluation_dir, exist_ok=True)
-os.makedirs(training_dir, exist_ok=True)
-os.makedirs(reports_dir, exist_ok=True)
-
-# Error logging
-error_log_file = os.path.join(reports_dir, 'error_log.txt')
-def log_error(message):
-    with open(error_log_file, 'a') as f:
-        f.write(f"{datetime.now()}: {message}\n")
-
-# Append data to a CSV file
-def append_to_csv(file_path, content):
-    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    new_row = {'Timestamp': timestamp, 'Insights': content}
-    df = pd.DataFrame([new_row])
-    if os.path.exists(file_path):
-        existing = pd.read_csv(file_path)
-        updated = pd.concat([existing, df], ignore_index=True)
+# Utility to append results with timestamp and source
+def append_results(df, output_csv, source):
+    df['Timestamp'] = datetime.now()
+    df['Source'] = source
+    if os.path.exists(output_csv):
+        existing = pd.read_csv(output_csv)
+        combined = pd.concat([existing, df], ignore_index=True)
     else:
-        updated = df
-    updated.to_csv(file_path, index=False)
-    print(f"Appended insights to {file_path}")
+        combined = df
+    combined.to_csv(output_csv, index=False)
 
-# Clean and load a CSV
-def load_and_clean_csv(file_path):
-    try:
-        df = pd.read_csv(file_path)
-        # Drop irrelevant columns if present
-        if 'Timestamp' in df.columns:
-            df = df.drop(columns=['Timestamp'])
-        return df
-    except Exception as e:
-        print(f"Error loading {file_path}: {e}")
-        return pd.DataFrame()  # Return an empty DataFrame if loading fails
+# Combine all files into a single DataFrame
+def combine_files(file_dict):
+    combined_data = pd.DataFrame()
+    for name, path in file_dict.items():
+        if os.path.exists(path):
+            df = pd.read_csv(path)
+            df['Source'] = name
+            combined_data = pd.concat([combined_data, df], ignore_index=True)
+    return combined_data
 
-# Define CSV paths
+# Analyze metrics using Scikit-learn
+def analyze_with_sklearn(data, output_csv):
+    summary = data.groupby('Source').mean().reset_index()
+    insights = []
+    for _, row in summary.iterrows():
+        source = row['Source']
+        mae = row.get('MAE', np.nan)
+        mse = row.get('MSE', np.nan)
+        rmse = np.sqrt(mse) if not np.isnan(mse) else np.nan
+        insights.append({"Source": source, "MAE": mae, "MSE": mse, "RMSE": rmse})
+    insights_df = pd.DataFrame(insights)
+    append_results(insights_df, output_csv, "scikit-learn")
+
+# Analyze metrics using H2O AutoML
+def analyze_with_h2o(data, target_column, output_csv):
+    h2o_data = h2o.H2OFrame(data)
+    train, test = h2o_data.split_frame(ratios=[0.8], seed=42)
+    aml = H2OAutoML(max_models=5, seed=42)
+    aml.train(y=target_column, training_frame=train)
+    leaderboard = aml.leaderboard.as_data_frame()
+    append_results(pd.DataFrame(leaderboard), output_csv, "h2o")
+
+# Analyze metrics using TPOT
+def analyze_with_tpot(data, target_column, output_csv):
+    train = data.sample(frac=0.8, random_state=42)
+    test = data.drop(train.index)
+    tpot = TPOTClassifier(generations=5, population_size=20, verbosity=2, random_state=42)
+    tpot.fit(train.drop(columns=[target_column]), train[target_column])
+    score = tpot.score(test.drop(columns=[target_column]), test[target_column])
+    tpot.export("tpot_pipeline.py")
+    append_results(pd.DataFrame([{"Accuracy": score}]), output_csv, "tpot")
+
+# Analyze metrics using Auto-sklearn
+def analyze_with_autosklearn(data, target_column, output_csv):
+    train = data.sample(frac=0.8, random_state=42)
+    test = data.drop(train.index)
+    automl = AutoSklearnClassifier(time_left_for_this_task=600, per_run_time_limit=60)
+    automl.fit(train.drop(columns=[target_column]), train[target_column])
+    predictions = automl.predict(test.drop(columns=[target_column]))
+    mae = mean_absolute_error(test[target_column], predictions)
+    mse = mean_squared_error(test[target_column], predictions)
+    rmse = np.sqrt(mse)
+    append_results(pd.DataFrame([{"MAE": mae, "MSE": mse, "RMSE": rmse}]), output_csv, "autosklearn")
+
+# Main process
+def process_all_tools(evaluation_files, training_files, validation_files, target_column):
+    evaluation_data = combine_files(evaluation_files)
+    training_data = combine_files(training_files)
+    validation_data = combine_files(validation_files)
+
+    os.makedirs("reports", exist_ok=True)
+
+    # Scikit-learn Analysis
+    analyze_with_sklearn(evaluation_data, "reports/evaluation_metrics.csv")
+    analyze_with_sklearn(training_data, "reports/training_metrics.csv")
+    analyze_with_sklearn(validation_data, "reports/validation_metrics.csv")
+
+    # H2O AutoML Analysis
+    analyze_with_h2o(evaluation_data, target_column, "reports/evaluation_metrics.csv")
+    analyze_with_h2o(training_data, target_column, "reports/training_metrics.csv")
+    analyze_with_h2o(validation_data, target_column, "reports/validation_metrics.csv")
+
+    # TPOT Analysis
+    analyze_with_tpot(evaluation_data, target_column, "reports/evaluation_metrics.csv")
+    analyze_with_tpot(training_data, target_column, "reports/training_metrics.csv")
+    analyze_with_tpot(validation_data, target_column, "reports/validation_metrics.csv")
+
+    # Auto-sklearn Analysis
+    analyze_with_autosklearn(evaluation_data, target_column, "reports/evaluation_metrics.csv")
+    analyze_with_autosklearn(training_data, target_column, "reports/training_metrics.csv")
+    analyze_with_autosklearn(validation_data, target_column, "reports/validation_metrics.csv")
+
+# Define files and target column
 evaluation_files = {
-    "darts_theta_predictions": os.path.join(evaluation_dir, "darts_theta_predictions.csv"),
-    "h2o_predictions": os.path.join(evaluation_dir, "h2o_predictions.csv"),
-    "prophet_predictions": os.path.join(evaluation_dir, "prophet_predictions.csv"),
-    "summary_report": os.path.join(evaluation_dir, "summary_report.csv"),
+    "darts_theta_predictions": os.path.join("evaluation", "darts_theta_predictions.csv"),
+    "h2o_predictions": os.path.join("evaluation", "h2o_predictions.csv"),
+    "prophet_predictions": os.path.join("evaluation", "prophet_predictions.csv"),
+    "summary_report": os.path.join("evaluation", "summary_report.csv"),
 }
 training_files = {
-    "darts_theta_metrics": os.path.join(training_dir, "darts_theta_metrics.csv"),
-    "h2o_metrics": os.path.join(training_dir, "h2o_metrics.csv"),
-    "prophet_metrics": os.path.join(training_dir, "prophet_metrics.csv"),
-    "training_info": os.path.join(training_dir, "training_info.csv"),
+    "darts_theta_metrics": os.path.join("training", "darts theta_metrics.csv"),
+    "h2o_metrics": os.path.join("training", "h2o_metrics.csv"),
+    "prophet_metrics": os.path.join("training", "prophet_metrics.csv"),
+    "training_info": os.path.join("training", "training_info.csv"),
+}
+validation_files = {
+    "h2o_validation_metrics": os.path.join("validation", "h2o_validation_metrics.csv"),
+    "prophet_validation_metrics": os.path.join("validation", "prophet_validation_metrics.csv"),
+    "theta_validation_metrics": os.path.join("validation", "theta_validation_metrics.csv"),
+    "consolidated_validation_metrics": os.path.join("validation", "consolidated_validation_metrics.csv"),
 }
 
-# Load and clean data
-evaluation_data = {name: load_and_clean_csv(path) for name, path in evaluation_files.items()}
-# Load and clean data with 'Model' column assignment
-training_data = {}
-for name, path in training_files.items():
-    df = load_and_clean_csv(path)
-    if not df.empty:
-        df['Model'] = name  # Assign the file name (key) as the model name
-        training_data[name] = df
-
-# Inspect data
-print("Inspecting Training Data")
-for model, df in training_data.items():
-    print(f"Model: {model}, Shape: {df.shape}")
-    print(df.head())
-
-print("Inspecting Evaluation Data")
-for name, df in evaluation_data.items():
-    print(f"{name}: {df.shape}")
-    print(df.head())
-
-# Combine data for analysis
-try:
-    combined_training_data = pd.concat(training_data.values(), ignore_index=True)
-    combined_evaluation_data = pd.concat(evaluation_data.values(), ignore_index=True)
-    print("Combined training and evaluation data successfully.")
-except Exception as e:
-    print(f"Error combining data: {e}")
-    log_error(f"Error combining data: {e}")
-
-# Debug combined data
-print("Columns in combined_training_data:", combined_training_data.columns)
-print("Sample data in combined_training_data:\n", combined_training_data.head())
-print("Columns in combined_evaluation_data:", combined_evaluation_data.columns)
-print("Sample data in combined_evaluation_data:\n", combined_evaluation_data.head())
-
-# Generate visualizations for metrics
-def generate_visualizations(data, output_path, metric):
-    plt.figure(figsize=(10, 6))
-    for model in data['Model'].unique():
-        subset = data[data['Model'] == model]
-        plt.plot(subset['Iteration'], subset[metric], marker='o', label=model)
-    plt.title(f'{metric} Across Iterations')
-    plt.xlabel('Iteration')
-    plt.ylabel(metric)
-    plt.legend()
-    plt.grid()
-    plt.savefig(output_path)
-    plt.close()
-
-metrics_to_visualize = ['MAE', 'MAPE', 'RMSE', 'MSE', 'R²', 'MBE']
-for metric in metrics_to_visualize:
-    if metric in combined_training_data.columns:
-        output_path = os.path.join(reports_dir, f'{metric}_training_comparison.png')
-        generate_visualizations(combined_training_data, output_path, metric)
-    if metric in combined_evaluation_data.columns:
-        output_path = os.path.join(reports_dir, f'{metric}_evaluation_comparison.png')
-        generate_visualizations(combined_evaluation_data, output_path, metric)
-
-# Generate insights
-def generate_insights(metrics_df):
-    if "Model" not in metrics_df.columns:
-        print("Error: 'Model' column is missing from the DataFrame.")
-        return "Insights cannot be generated. 'Model' column is missing."
-
-    numeric_columns = metrics_df.select_dtypes(include=['number']).columns
-    summary = metrics_df.groupby("Model")[numeric_columns].mean()
-    insights = "**Model Performance Insights:**\n\n"
-    for model in summary.index:
-        insights += f"- **{model}**:\n"
-        for col in summary.columns:
-            insights += f"  - {col}: {summary.loc[model, col]:.2f}\n"
-        insights += "\n"
-    return insights
-
-training_insights = generate_insights(combined_training_data)
-evaluation_insights = generate_insights(combined_evaluation_data)
-
-training_insights_path = os.path.join(reports_dir, 'training_insights.csv')
-evaluation_insights_path = os.path.join(reports_dir, 'evaluation_insights.csv')
-append_to_csv(training_insights_path, training_insights)
-append_to_csv(evaluation_insights_path, evaluation_insights)
-
-# Use OpenAI to generate AI-driven insights
-def interpret_results(metrics_df):
-    summary = metrics_df.groupby('Model').agg({
-        'MAE': 'mean', 'MAPE': 'mean', 'RMSE': 'mean', 'MSE': 'mean', 'R²': 'mean', 'MBE': 'mean'
-    }).reset_index()
-    summary_text = summary.to_string(index=False)
-
-    prompt = f"""
-    The following evaluation metrics were calculated for multiple models:
-    {summary_text}
-
-    Provide a detailed discussion including:
-    - Strengths and weaknesses of each model.
-    - Identification of the best-performing model and justification.
-    - Recommendations for model improvement and parameter adjustments.
-    """
-    response = openai.Completion.create(
-        engine="text-davinci-003",
-        prompt=prompt,
-        max_tokens=500,
-        temperature=0.7
-    )
-    return response['choices'][0]['text']
-
-ai_training_insights = interpret_results(combined_training_data)
-ai_evaluation_insights = interpret_results(combined_evaluation_data)
-
-ai_training_path = os.path.join(reports_dir, 'ai_training_insights.csv')
-ai_evaluation_path = os.path.join(reports_dir, 'ai_evaluation_insights.csv')
-append_to_csv(ai_training_path, ai_training_insights)
-append_to_csv(ai_evaluation_path, ai_evaluation_insights)
-
-print("All insights and AI-driven insights have been saved.")
+# Process all tools
+process_all_tools(evaluation_files, training_files, validation_files, "target_column")
