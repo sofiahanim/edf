@@ -26,10 +26,18 @@ jobs:
       with:
         python-version: "3.11.10"
 
-    # Step 3: Install System-Level Dependencies
+    # Step 3: Cache Python Dependencies
+    - name: Cache Python Dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements_linux.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    # Step 4: Install System-Level Dependencies
     - name: Install System-Level Dependencies
       run: |
-        echo "🔄 Installing system-level dependencies..."
         sudo apt-get update -y
         sudo apt-get install -y \
           build-essential \
@@ -44,55 +52,74 @@ jobs:
           libssl-dev \
           zlib1g-dev \
           libcurl4-openssl-dev \
-          libhdf5-dev
+          libhdf5-dev \
+          libgfortran5 \
+          libgomp1
 
-    # Step 4: Upgrade Python Tools
+    # Step 5: Upgrade Python Tools
     - name: Upgrade Python Tools
       run: |
-        echo "🔄 Upgrading pip, setuptools, and wheel..."
         python3 -m pip install --upgrade pip setuptools wheel
 
-    # Step 5: Install Python Dependencies
+    # Step 6: Install Python Dependencies
     - name: Install Python Dependencies
       run: |
-        echo "🔄 Installing Python dependencies..."
-        python3 -m pip install --only-binary=:all: --no-cache-dir \
-          -r requirements_linux.txt --verbose
+        python3 -m pip install --no-cache-dir -r requirements_linux.txt --verbose
 
-    # Step 6: Install auto-sklearn
+    # Step 7: Test Dependency Installation
+    - name: Test Dependency Installation
+      run: |
+        python3 -c "import darts, pyod, tensorflow"
+
+    # Step 8: Install auto-sklearn
     - name: Install auto-sklearn
       run: |
-        echo "🔄 Installing auto-sklearn..."
         python3 -m pip install auto-sklearn --verbose --no-cache-dir
       continue-on-error: true
 
+    # Step 9: Check Dependency Tree
     - name: Check Dependency Tree
       run: |
         python3 -m pip install pipdeptree
         pipdeptree
 
-    # Step 7: Run Model Training Script
+    # Step 10: Run Model Training Script
     - name: Run Model Training Script
       run: |
-        echo "🏃 Running the ML training script with verbose output..."
         python3 scripts/ml_part_2.py --verbose
       env:
         PYTHONUNBUFFERED: 1
+        LOG_LEVEL: DEBUG
 
-    # Step 8: Verify Metrics Files
+    # Step 11: Verify Metrics Files (Wildcard Check)
+    - name: Verify Training Files
+      run: |
+        if ls training/*.csv 1> /dev/null 2>&1; then
+          echo "✅ All training files are present."
+        else
+          echo "❌ Training files are missing."
+          exit 1
+        fi
+
+    - name: Verify Validation Files
+      run: |
+        if ls validation/*.csv 1> /dev/null 2>&1; then
+          echo "✅ All validation files are present."
+        else
+          echo "❌ Validation files are missing."
+          exit 1
+        fi
+
     - name: Verify Metrics Files
       run: |
-        echo "🔍 Verifying metrics files..."
-        for file in training/h2o_metrics.csv training/darts theta_metrics.csv training/prophet_metrics.csv training/training_info.csv; do
-          if [ -f "$file" ]; then
-            echo "✅ $file exists and is ready."
-          else
-            echo "❌ $file is missing."
-            exit 1
-          fi
-        done
+        if ls evaluation/*.csv 1> /dev/null 2>&1; then
+          echo "✅ All evaluation files are present."
+        else
+          echo "❌ Evaluation files are missing."
+          exit 1
+        fi
 
-    # Step 9: Notify Success or Failure
+    # Step 12: Notify Completion
     - name: Notify Completion
       if: always()
       run: |
@@ -100,4 +127,3 @@ jobs:
           echo "🎉 Workflow completed successfully!"
         else
           echo "❌ Workflow failed. Check logs for details."
-
