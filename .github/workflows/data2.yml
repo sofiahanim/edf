@@ -27,9 +27,14 @@ jobs:
           python-version: 3.11.10
 
       # Step 3: Install dependencies
-      - name: Install dependencies
+      - name: Upgrade System Dependencies
         run: |
-          python3 -m pip install --upgrade pip
+          sudo apt-get update
+          sudo apt-get install -y gcc g++ make liblapack-dev libblas-dev gfortran
+
+      - name: Install Python Dependencies
+        run: |
+          python3 -m pip install --upgrade pip setuptools wheel
           python3 -m pip install -r requirements_linux.txt
 
       # Step 4: Set AWS credentials (this will use the environment variables for AWS credentials)
