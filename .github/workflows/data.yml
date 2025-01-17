@@ -29,13 +29,19 @@ jobs:
       # Step 3: Install dependencies
       - name: Upgrade System Dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc g++ make liblapack-dev libblas-dev gfortran
+          echo "🔄 Upgrading system dependencies..."
+          sudo apt-get update -y
+          sudo apt-get install -y gcc g++ make libopenblas-dev liblapack-dev libblas-dev gfortran
+          pip install --only-binary=:all: numpy
+        env:
+          DEBIAN_FRONTEND: noninteractive
 
       - name: Install Python Dependencies
         run: |
+          echo "🔄 Installing Python dependencies with verbose logging..."
           python3 -m pip install --upgrade pip setuptools wheel
-          python3 -m pip install -r requirements_linux.txt
+          python3 -m pip install -r requirements_linux.txt --verbose
+
 
       # Step 4: Set AWS credentials (this will use the environment variables for AWS credentials)
       - name: Set AWS credentials

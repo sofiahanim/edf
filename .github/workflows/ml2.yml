@@ -26,23 +26,29 @@ jobs:
 
     - name: Upgrade System Dependencies
       run: |
-        sudo apt-get update
-        sudo apt-get install -y gcc g++ make liblapack-dev libblas-dev gfortran
+        echo "🔄 Upgrading system dependencies..."
+        sudo apt-get update -y
+        sudo apt-get install -y gcc g++ make libopenblas-dev liblapack-dev libblas-dev gfortran
+        pip install --only-binary=:all: numpy
+      env:
+        DEBIAN_FRONTEND: noninteractive
 
     - name: Install Python Dependencies
       run: |
+        echo "🔄 Installing Python dependencies with verbose logging..."
         python3 -m pip install --upgrade pip setuptools wheel
-        python3 -m pip install -r requirements_linux.txt
+        python3 -m pip install -r requirements_linux.txt --verbose
 
     - name: Run Model Training Script
       run: |
-        python3 scripts/ml_part_2.py
+        echo "🏃 Running the ML training script with verbose output..."
+        python3 scripts/ml_part_2.py --verbose
       env:
         PYTHONUNBUFFERED: 1
 
     - name: Verify Metrics Files
       run: |
-        echo "Checking metrics files..."
+        echo "🔍 Verifying metrics files..."
         for file in training/h2o_metrics.csv training/darts_theta_metrics.csv training/prophet_metrics.csv training/training_info.csv; do
           if [ -f "$file" ]; then
             echo "✅ $file exists and is ready."
@@ -54,18 +60,19 @@ jobs:
 
     - name: Verify Evaluation Files
       run: |
-          echo "Checking evaluation files..."
-          for file in evaluation/h2o_predictions.csv evaluation/darts_theta_predictions.csv evaluation/prophet_predictions.csv evaluation/summary_report.csv; do
-            if [ -f "$file" ]; then
-              echo "✅ $file exists and is ready."
-            else
-              echo "❌ $file is missing."
-              exit 1
-            fi
-          done
+        echo "🔍 Verifying evaluation files..."
+        for file in evaluation/h2o_predictions.csv evaluation/darts_theta_predictions.csv evaluation/prophet_predictions.csv evaluation/summary_report.csv; do
+          if [ -f "$file" ]; then
+            echo "✅ $file exists and is ready."
+          else
+            echo "❌ $file is missing."
+            exit 1
+          fi
+        done
 
     - name: Commit and Push Metrics Files
       run: |
+        echo "📂 Committing and pushing metrics and evaluation files..."
         git config --global user.name "github-actions[bot]"
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
         git add training/h2o_metrics.csv training/darts_theta_metrics.csv training/prophet_metrics.csv training/training_info.csv || echo "No changes to commit."
