@@ -9,10 +9,17 @@ from sklearn.metrics import mean_absolute_error, mean_absolute_percentage_error,
 from datetime import datetime, timedelta
 import time
 import numpy as np
-import h2o
-from h2o.estimators.gbm import H2OGradientBoostingEstimator
 import pickle
 from joblib import dump
+from sktime.forecasting.theta import ThetaForecaster
+from sktime.forecasting.model_selection import temporal_train_test_split
+from sktime.performance_metrics.forecasting import mean_absolute_error, mean_squared_error, mean_absolute_percentage_error
+from sktime.forecasting.base import ForecastingHorizon
+from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.model_selection import train_test_split
+from cmdstanpy import install_cmdstan
+
+install_cmdstan()
 
 
 logging.getLogger("cmdstanpy").setLevel(logging.ERROR)
@@ -176,19 +183,6 @@ data = pd.read_csv(input_file)
 data['ds'] = pd.to_datetime(data['ds'])
 data = data[['ds', 'y']].drop_duplicates(subset='ds')
 
-# Initialize H2O
-h2o.init(nthreads=-1, max_mem_size="2G")
-
-
-try:
-    h2o_data = h2o.import_file(input_file)
-    # After importing data
-    print(h2o_data)
-except Exception as e:
-    print(f"Error loading dataset: {e}")
-
-
-
 # Validations
 if data.isnull().any().any():
     raise ValueError("Dataset contains missing values.")
@@ -217,19 +211,11 @@ historical_test_data = data[historical_cutoff:]
 target = 'y'  # Replace 'y' with the actual target column name if different
 predictors = [col for col in train_data.columns if col != target]
 
-# Convert training and validation data to H2O frames
-train_h2o = h2o.H2OFrame(train_data)
-validation_h2o = h2o.H2OFrame(validation_data)
-
-# Ensure target column exists
-if target not in train_h2o.columns or target not in validation_h2o.columns:
-    raise ValueError(f"Target column '{target}' missing in train or validation H2O Frame.")
-
 # Consolidate validation metrics
 validation_files = [
     os.path.join(validation_dir, 'theta_validation_metrics.csv'),
     os.path.join(validation_dir, 'prophet_validation_metrics.csv'),
-    os.path.join(validation_dir, 'h2o_validation_metrics.csv')
+    os.path.join(validation_dir, 'gbr_validation_metrics.csv')
 ]
 
 all_validation_metrics = []
@@ -300,50 +286,40 @@ except Exception as e:
     print(f"Error during Prophet validation: {e}")
     log_error(f"Error during Prophet validation: {e}")
 
+# Sktime ThetaForecaster Validation
+try:  
+    # Split the data for training and validation
+    train_series, validation_series = temporal_train_test_split(data['y'], test_size=336)  # Last 14 days for validation
+    fh = ForecastingHorizon(validation_series.index, is_relative=False)
 
-# H2O GBM Validation
-try:
-    train_h2o = h2o.H2OFrame(train_data)
-    validation_h2o = h2o.H2OFrame(validation_data)
+    # Initialize and train ThetaForecaster
+    theta_forecaster = ThetaForecaster(sp=24)  # Assuming daily seasonality (hourly data with 24-hour cycle)
+    theta_forecaster.fit(train_series)
 
-    # Ensure target column exists
-    if target not in train_h2o.columns or target not in validation_h2o.columns:
-        raise ValueError(f"Target column '{target}' missing in train or validation H2O Frame.")
-    
-    # Train H2O GBM Model
-    h2o_gbm = H2OGradientBoostingEstimator(ntrees=50, max_depth=5, learn_rate=0.1)
-    h2o_gbm.train(x=predictors, y=target, training_frame=train_h2o)
-
-    # Predict on Validation Data
-    validation_predicted = h2o_gbm.predict(validation_h2o).as_data_frame()
-    validation_actual = validation_h2o[target].as_data_frame()
+    # Predict on the validation set
+    validation_predicted = theta_forecaster.predict(fh)
 
     # Calculate Validation Metrics
-    validation_metrics_h2o = calculate_metrics(
-        "H2O GBM",
-        validation_actual.values.flatten(),
-        validation_predicted.values.flatten()
-    )
+    validation_metrics_sktime = {
+        "Model": "ThetaForecaster",
+        "Generated_At": datetime.now().isoformat(),
+        "MAE": mean_absolute_error(validation_series, validation_predicted),
+        "MAPE": mean_absolute_percentage_error(validation_series, validation_predicted),
+        "RMSE": np.sqrt(mean_squared_error(validation_series, validation_predicted)),
+        "MSE": mean_squared_error(validation_series, validation_predicted),
+    }
 
-    validation_metrics_h2o['Model'] = "H2O GBM"
-    validation_metrics_h2o['Generated_At'] = datetime.now().isoformat()
-    print("Validation Metrics (H2O GBM):", validation_metrics_h2o)
+    print("Validation Metrics (ThetaForecaster):", validation_metrics_sktime)
 
-    # Save Validation Metrics for H2O GBM
-    h2o_validation_file = os.path.join(validation_dir, 'h2o_validation_metrics.csv')
-    h2o_validation_df = pd.DataFrame([validation_metrics_h2o])
-    append_to_csv(h2o_validation_file, h2o_validation_df)
-    print(f"H2O validation metrics saved to {h2o_validation_file}")
+    # Save Validation Metrics for ThetaForecaster
+    sktime_validation_file = os.path.join(validation_dir, 'sktime_theta_validation_metrics.csv')
+    sktime_validation_df = pd.DataFrame([validation_metrics_sktime])
+    append_to_csv(sktime_validation_file, sktime_validation_df)
+    print(f"ThetaForecaster validation metrics saved to {sktime_validation_file}")
 
 except Exception as e:
-    print(f"Error during H2O validation: {e}")
-    log_error(f"Error during H2O validation: {e}")
-
-
-# Define predictors and target
-target = 'y'
-predictors = [col for col in h2o_data.columns if col not in [target, 'date']]
-
+    print(f"Error during ThetaForecaster validation: {e}")
+    log_error(f"Error during ThetaForecaster validation: {e}")
 
 if data['ds'].isna().any() or data['y'].isna().any():
     raise ValueError("Dataset contains missing or invalid values.")
@@ -351,12 +327,10 @@ if data['ds'].isna().any() or data['y'].isna().any():
 if len(data['ds'].unique()) != len(data['ds']):
     raise ValueError("Timestamp column contains duplicate entries.")
 
-
 def save_metrics(model_name, metrics):
     metrics_file = os.path.join(training_dir, f"{model_name.lower()}_metrics.csv")
     metrics_df = pd.DataFrame([metrics])
     append_to_csv(metrics_file, metrics_df)
-
 
 # Training loop
 from tqdm import tqdm
@@ -374,52 +348,52 @@ for iteration in tqdm(range(1, 4), desc="Training Iterations"):
 
     for model_name, prediction_file in {
         "Darts Theta": os.path.join(evaluation_dir, 'darts_theta_predictions.csv'),
-        "H2O": os.path.join(evaluation_dir, 'h2o_predictions.csv'),
+        "H2O": os.path.join(evaluation_dir, 'gbr_predictions.csv'),
         "Prophet": os.path.join(evaluation_dir, 'prophet_predictions.csv')
     }.items():
+
         if model_name == "H2O":
-            # H2O GBM Model
             try:
-                print("\nTraining H2O GBM Model...")
+                print("\nTraining GradientBoostingRegressor Model...")
                 start_time = time.time()
 
                 # Validate dataset
-                if h2o_data is None or h2o_data.nrows == 0:
-                    raise ValueError("H2O dataset is empty or invalid.")
-                if target not in h2o_data.columns:
-                    raise ValueError(f"Target column '{target}' is missing in H2O data.")
-                if not all(col in h2o_data.columns for col in predictors):
-                    raise ValueError("One or more predictor columns are missing in H2O data.")
+                if data is None or data.empty:
+                    raise ValueError("Dataset is empty or invalid.")
+                if target not in data.columns:
+                    raise ValueError(f"Target column '{target}' is missing in the dataset.")
+                if not all(col in data.columns for col in predictors):
+                    raise ValueError("One or more predictor columns are missing in the dataset.")
 
                 # Split the data into training and testing datasets
-                train, test = h2o_data.split_frame(ratios=[0.8], seed=1234)
+                X = data[predictors]
+                y = data[target]
+                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=1234)
 
-                h2o.init()
-                # Initialize and train the H2O GBM model
-                h2o_gbm = H2OGradientBoostingEstimator(ntrees=50, max_depth=5, learn_rate=0.1)
-                h2o_gbm.train(x=predictors, y=target, training_frame=train)
+                # Initialize and train the GradientBoostingRegressor model
+                gbm = GradientBoostingRegressor(n_estimators=50, max_depth=5, learning_rate=0.1, random_state=42)
+                gbm.fit(X_train, y_train)
 
                 # Historical predictions and metrics
-                train_actual = train[target].as_data_frame()
-                train_predicted = h2o_gbm.predict(train).as_data_frame()
+                train_predicted = gbm.predict(X_train)
                 historical_metrics = calculate_metrics(
-                    "H2O GBM",
-                    train_actual.values.flatten(),
-                    train_predicted.values.flatten()
+                    "GradientBoostingRegressor",
+                    y_train.values,
+                    train_predicted
                 )
 
                 # Prepare historical DataFrame
                 historical_df = pd.DataFrame({
-                    "Actual": train_actual.values.flatten(),
-                    "Predicted": train_predicted.values.flatten(),
+                    "Actual": y_train.values,
+                    "Predicted": train_predicted,
                     "Type": "Historical"
                 })
 
                 # Future predictions
-                test_predicted = h2o_gbm.predict(test).as_data_frame()
+                test_predicted = gbm.predict(X_test)
                 future_df = pd.DataFrame({
-                    "Actual": [None] * len(test_predicted),  # No actual values for future
-                    "Predicted": test_predicted.values.flatten(),
+                    "Actual": y_test.values,
+                    "Predicted": test_predicted,
                     "Type": "Future"
                 })
 
@@ -428,27 +402,27 @@ for iteration in tqdm(range(1, 4), desc="Training Iterations"):
                 combined_df['Iteration'] = iteration
 
                 # Debugging logs to verify data correctness
-                print("Train actual sample:", train_actual.head())
-                print("Train predicted sample:", train_predicted.head())
+                print("Train actual sample:", y_train.head())
+                print("Train predicted sample:", train_predicted[:5])
                 print("Combined DataFrame sample:", combined_df.head())
-                
+
                 end_time = time.time()
                 metrics = {
-                    "Model": "H2O GBM",
+                    "Model": "GradientBoostingRegressor",
                     "Iteration": iteration,
                     "MAE": historical_metrics['MAE'],
                     "MAPE": historical_metrics['MAPE'],
                     "RMSE": historical_metrics['RMSE'],
                     "MSE": historical_metrics['MSE'],
                     "Time_Taken": end_time - start_time,  # Ensure consistency
-                    "Training_Rows": train.nrows,
-                    "Test_Rows": test.nrows,
+                    "Training_Rows": len(X_train),
+                    "Test_Rows": len(X_test),
                     "Predicted_At": predicted_at
                 }
 
-                save_metrics("H2O", metrics)
+                save_metrics("GradientBoostingRegressor", metrics)
                 training_info.append(metrics)
-                
+
                 # Aggregate results
                 aggregated_df = combined_df.groupby('Type')[['Actual', 'Predicted']].agg(['mean', 'min', 'max']).reset_index()
 
@@ -456,21 +430,21 @@ for iteration in tqdm(range(1, 4), desc="Training Iterations"):
                 aggregated_df.columns = ['_'.join(col).strip() if isinstance(col, tuple) else col for col in aggregated_df.columns]
 
                 # Add iteration and timestamp
-                aggregated_df['Model'] = "H2O GBM"
+                aggregated_df['Model'] = "GradientBoostingRegressor"
                 aggregated_df['Iteration'] = iteration
                 aggregated_df['Generated_At'] = predicted_at
 
                 # Save aggregated results
                 append_to_csv(prediction_file, aggregated_df)
-                
-                print("H2O GBM Model completed successfully.")
+
+                print("GradientBoostingRegressor Model completed successfully.")
                 # Call generate_and_save_summary for each model after saving predictions
-                
-                generate_and_save_summary("H2O GBM", prediction_file, iteration, predicted_at)
-                
+
+                generate_and_save_summary("GradientBoostingRegressor", prediction_file, iteration, predicted_at)
+
             except Exception as e:
-                print(f"H2O GBM failed: {e}")
-                log_error(f"H2O GBM Model failed: {e}")
+                print(f"GradientBoostingRegressor failed: {e}")
+                log_error(f"GradientBoostingRegressor Model failed: {e}")
 
 
         elif model_name == "Darts Theta":
@@ -672,17 +646,9 @@ except Exception as e:
 # Final Logging and Cleanup
 print("All forecasts and training iterations completed.")
 
-try:
-    print("Cleaning up H2O resources...")
-    h2o.remove_all()
-    h2o.cluster().shutdown(prompt=False)
-    print("H2O cluster shutdown completed.")
-except Exception as e:
-    print(f"Error during H2O cleanup: {e}")
-
 # Generate a summary report
 metrics_files = [
-    os.path.join(training_dir, 'h2o_metrics.csv'),
+    os.path.join(training_dir, 'gbr_metrics.csv'),
     os.path.join(training_dir, 'darts_theta_metrics.csv'),
     os.path.join(training_dir, 'prophet_metrics.csv')
 ]
@@ -692,7 +658,7 @@ metrics_files = [
 summary_file = os.path.join(evaluation_dir, 'summary_report.csv')
 all_metrics = []
 for file_path in [
-    os.path.join(evaluation_dir, 'h2o_predictions.csv'),
+    os.path.join(evaluation_dir, 'gbr_predictions.csv'),
     os.path.join(evaluation_dir, 'darts_theta_predictions.csv'),
     os.path.join(evaluation_dir, 'prophet_predictions.csv')
 ]:
