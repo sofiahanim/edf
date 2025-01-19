@@ -31,10 +31,13 @@ jobs:
         sudo apt-get update -y
         sudo apt-get install -y \
           build-essential \
+          g++ \
+          gcc \
           swig \
           cmake \
           python3-dev \
           python3-pip \
+          libpython3-dev \
           libopenblas-dev \
           liblapack-dev \
           libatlas-base-dev \
@@ -42,13 +45,19 @@ jobs:
           libssl-dev \
           zlib1g-dev \
           libcurl4-openssl-dev \
-          libhdf5-dev
+          libhdf5-dev 
 
     # Step 4: Upgrade Python Tools
     - name: Upgrade Python Tools
       run: |
         echo "🔄 Upgrading pip, setuptools, and wheel..."
         python3 -m pip install --upgrade pip setuptools wheel
+
+    - name: Validate Python Environment
+      run: |
+        python3 --version
+        python3 -m pip check
+        python3 -m pip list
 
     # Step 5: Install Python Dependencies
     - name: Install Python Dependencies
@@ -74,6 +83,7 @@ jobs:
         python3 scripts/ml_part_1.py
       env:
         PYTHONUNBUFFERED: 1 # Ensures real-time output in logs
+        LOG_LEVEL: DEBUG
 
     - name: Commit and Push Changes
       run: |

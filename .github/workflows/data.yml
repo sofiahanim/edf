@@ -24,7 +24,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v2
         with:
-          python-version: 3.10
+          python-version: "3.10"
 
       # Step 3: Install System-Level Dependencies
       - name: Install System-Level Dependencies
@@ -33,6 +33,8 @@ jobs:
           sudo apt-get update -y
           sudo apt-get install -y \
             build-essential \
+            g++ \
+            gcc \
             swig \
             cmake \
             python3-dev \
@@ -100,6 +102,9 @@ jobs:
       # Step 6: Run Python script to update CSV (if needed)
       - name: Run data pipeline script
         run: python3 scripts/pipe_data.py
+        env:
+          PYTHONUNBUFFERED: 1
+          LOG_LEVEL: DEBUG
 
       # Step 7: Commit and push updated CSV
       - name: Commit and push updated CSV
