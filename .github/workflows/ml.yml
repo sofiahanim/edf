@@ -22,7 +22,7 @@ jobs:
     - name: Set Up Python
       uses: actions/setup-python@v4
       with:
-        python-version: "3.11.10" # Adjust to match your script's Python version
+        python-version: "3.10" # Adjust to match your script's Python version
 
     # Step 3: Install System-Level Dependencies
     - name: Install System-Level Dependencies
