@@ -66,7 +66,8 @@ jobs:
     # Step 6: Install Python Dependencies
     - name: Install Python Dependencies
       run: |
-        python3 -m pip cache purge pip install --no-cache-dir -r requirements_linux.txt --verbose
+        python3 -m pip cache purge
+        python3 -m pip install --no-cache-dir -r requirements_linux.txt --verbose
 
     # Step 7: Test Dependency Installation
     - name: Test Dependency Installation
