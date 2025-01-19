@@ -16,18 +16,19 @@ jobs:
     runs-on: ubuntu-20.04
 
     steps:
+    # Step 1: Checkout Repository
     - name: Checkout Repository
       uses: actions/checkout@v3
 
+    # Step 2: Set Up Python
     - name: Set Up Python
       uses: actions/setup-python@v4
       with:
-        python-version: "3.9" # Adjust to match your script's Python version
+        python-version: "3.9"
 
     # Step 3: Install System-Level Dependencies
     - name: Install System-Level Dependencies
       run: |
-        echo "🔄 Installing system-level dependencies..."
         sudo apt-get update -y
         sudo apt-get install -y \
           build-essential \
@@ -37,7 +38,6 @@ jobs:
           cmake \
           python3-dev \
           python3-pip \
-          libpython3-dev \
           libopenblas-dev \
           liblapack-dev \
           libatlas-base-dev \
@@ -45,44 +45,49 @@ jobs:
           libssl-dev \
           zlib1g-dev \
           libcurl4-openssl-dev \
-          libhdf5-dev 
+          libhdf5-dev \
+          libgfortran5 \
+          libgomp1
 
     # Step 4: Upgrade Python Tools
     - name: Upgrade Python Tools
       run: |
-        echo "🔄 Upgrading pip, setuptools, and wheel..."
         python3 -m pip install --upgrade pip setuptools wheel
-
-    - name: Validate Python Environment
-      run: |
-        python3 --version
-        python3 -m pip check
-        python3 -m pip list
 
     # Step 5: Install Python Dependencies
     - name: Install Python Dependencies
       run: |
-        echo "🔄 Installing Python dependencies..."
-        python3 -m pip install --only-binary=:all: --no-cache-dir \
-          -r requirements_linux.txt --verbose
+        python3 -m pip cache purge
+        python3 -m pip install --force-reinstall \
+          "scikit-learn==1.2.2" \
+          "darts==0.23.1" \
+          "prophet==1.1.2" \
+          "holidays==0.14.2" \
+          "pyod==1.0.7"
+        python3 -m pip install --no-cache-dir -r requirements_linux.txt --verbose
 
-    # Step 6: Install auto-sklearn
-    - name: Install auto-sklearn
+    # Step 6: Test Dependency Installation
+    - name: Test Dependency Installation
       run: |
-        echo "🔄 Installing auto-sklearn..."
-        python3 -m pip install auto-sklearn --verbose --no-cache-dir
-      continue-on-error: true
+        python3 -c "import pandas, numpy, sklearn, tensorflow, darts, pyod, prophet" || exit 1
 
+    # Step 7: Debug Installed Packages
+    - name: Debug Installed Packages
+      run: |
+        python3 -m pip list
+
+    # Step 8: Check Dependency Tree
     - name: Check Dependency Tree
       run: |
         python3 -m pip install pipdeptree
         pipdeptree
 
+    # Step 9: Run Model Training Script
     - name: Run Preprocessing Script
       run: |
         python3 scripts/ml_part_1.py
       env:
-        PYTHONUNBUFFERED: 1 # Ensures real-time output in logs
+        PYTHONUNBUFFERED: 1 
         LOG_LEVEL: DEBUG
 
     - name: Commit and Push Changes
@@ -95,11 +100,12 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    # Step 9: Notify Success or Failure
     - name: Notify Completion
       if: always()
       run: |
-        if [ "$GITHUB_JOB" == "success" ]; then
-          echo "🎉 Workflow completed successfully!"
-        else
-          echo "❌ Workflow failed. Check logs for details."
+            if [ "$GITHUB_JOB" == "success" ]; then
+              echo "🎉 Workflow completed successfully!"
+            else
+              echo "❌ Workflow failed. Check logs for details."
+            fi
+  

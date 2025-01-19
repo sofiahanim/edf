@@ -17,19 +17,18 @@ jobs:
 
     steps:
       # Step 1: Check out the repository
-      - name: Checkout code
-        uses: actions/checkout@v2
+      - name: Checkout Repository
+        uses: actions/checkout@v3
 
-      # Step 2: Set up Python environment
-      - name: Set up Python
-        uses: actions/setup-python@v2
+      # Step 2: Set Up Python
+      - name: Set Up Python
+        uses: actions/setup-python@v4
         with:
           python-version: "3.9"
 
       # Step 3: Install System-Level Dependencies
       - name: Install System-Level Dependencies
         run: |
-          echo "🔄 Installing system-level dependencies..."
           sudo apt-get update -y
           sudo apt-get install -y \
             build-essential \
@@ -46,33 +45,50 @@ jobs:
             libssl-dev \
             zlib1g-dev \
             libcurl4-openssl-dev \
-            libhdf5-dev
+            libhdf5-dev \
+            libgfortran5 \
+            libgomp1
 
       # Step 4: Upgrade Python Tools
       - name: Upgrade Python Tools
         run: |
-          echo "🔄 Upgrading pip, setuptools, and wheel..."
           python3 -m pip install --upgrade pip setuptools wheel
 
       # Step 5: Install Python Dependencies
       - name: Install Python Dependencies
         run: |
-          echo "🔄 Installing Python dependencies..."
-          python3 -m pip install --only-binary=:all: --no-cache-dir \
-            -r requirements_linux.txt --verbose
+          python3 -m pip cache purge
+          python3 -m pip install --force-reinstall \
+            "scikit-learn==1.2.2" \
+            "darts==0.23.1" \
+            "prophet==1.1.2" \
+            "holidays==0.14.2" \
+            "pyod==1.0.7"
+          python3 -m pip install --no-cache-dir -r requirements_linux.txt --verbose
 
-      # Step 6: Install auto-sklearn
-      - name: Install auto-sklearn
+      # Step 6: Test Dependency Installation
+      - name: Test Dependency Installation
         run: |
-          echo "🔄 Installing auto-sklearn..."
-          python3 -m pip install auto-sklearn --verbose --no-cache-dir
-        continue-on-error: true
+          python3 -c "import pandas, numpy, sklearn, tensorflow, darts, pyod, prophet" || exit 1
 
+      # Step 7: Debug Installed Packages
+      - name: Debug Installed Packages
+        run: |
+          python3 -m pip list
+
+      # Step 8: Check Dependency Tree
       - name: Check Dependency Tree
         run: |
           python3 -m pip install pipdeptree
           pipdeptree
 
+      # Step 9: Run Model Training Script
+      - name: Run Model Training Script
+        run: |
+          python3 scripts/ml_part_2.py --verbose
+        env:
+          PYTHONUNBUFFERED: 1
+          LOG_LEVEL: DEBUG
 
       # Step 4: Set AWS credentials (this will use the environment variables for AWS credentials)
       - name: Set AWS credentials
@@ -119,7 +135,9 @@ jobs:
       - name: Notify Completion
         if: always()
         run: |
-          if [ "$GITHUB_JOB" == "success" ]; then
-            echo "🎉 Workflow completed successfully!"
-          else
-            echo "❌ Workflow failed. Check logs for details."
+              if [ "$GITHUB_JOB" == "success" ]; then
+                echo "🎉 Workflow completed successfully!"
+              else
+                echo "❌ Workflow failed. Check logs for details."
+              fi
+    

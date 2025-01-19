@@ -238,7 +238,6 @@ try:
 except Exception as e:
     log_error(f"Error during GradientBoostingRegressor hyperparameter tuning: {e}")
 
-# Prepare future features
 if not future_features.empty:
     gbr_predictions = gbm.predict(future_features)
     gbr_predictions_df = pd.DataFrame({
@@ -250,6 +249,7 @@ if not future_features.empty:
     append_to_csv(os.path.join(evaluation_dir, 'gbr_predictions.csv'), gbr_predictions_df, model_name="GradientBoostingRegressor")
     print(f"GradientBoostingRegressor future predictions saved.")
 else:
+    log_error("No valid features for GradientBoostingRegressor predictions.")
     print("No valid features for GradientBoostingRegressor predictions.")
 
 # Validate validation data
