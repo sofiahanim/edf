@@ -1,128 +1,184 @@
 import os
 import pandas as pd
-import numpy as np
-from datetime import datetime
-from sklearn.metrics import mean_absolute_error, mean_squared_error
-import h2o
+import matplotlib.pyplot as plt
+import shap
 from h2o.automl import H2OAutoML
-from tpot import TPOTClassifier
-from autosklearn.classification import AutoSklearnClassifier
+from datetime import datetime
+import h2o
 
-# Initialize H2O Cluster
+# Initialize H2O
 h2o.init()
 
-# Utility to append results with timestamp and source
-def append_results(df, output_csv, source):
-    df['Timestamp'] = datetime.now()
-    df['Source'] = source
-    if os.path.exists(output_csv):
-        existing = pd.read_csv(output_csv)
-        combined = pd.concat([existing, df], ignore_index=True)
-    else:
-        combined = df
-    combined.to_csv(output_csv, index=False)
+# Directories for input CSVs
+training_dir = "training"
+validation_dir = "validation"
+evaluation_dir = "evaluation"
+reports_dir = "reports"
+os.makedirs(reports_dir, exist_ok=True)
 
-# Combine all files into a single DataFrame
-def combine_files(file_dict):
+# Function to read all CSV files in a directory
+def read_all_csv_in_dir(directory):
+    """
+    Reads all CSV files in the specified directory and combines them into a single DataFrame.
+    Each file's data is appended with its source file name.
+    """
     combined_data = pd.DataFrame()
-    for name, path in file_dict.items():
-        if os.path.exists(path):
-            df = pd.read_csv(path)
-            df['Source'] = name
-            combined_data = pd.concat([combined_data, df], ignore_index=True)
+    for file_name in os.listdir(directory):
+        file_path = os.path.join(directory, file_name)
+        if file_name.endswith(".csv") and os.path.isfile(file_path):
+            try:
+                df = pd.read_csv(file_path)
+                df["Source_File"] = file_name  # Add file name for reference
+                combined_data = pd.concat([combined_data, df], ignore_index=True)
+            except Exception as e:
+                print(f"Error reading file {file_name}: {e}")
     return combined_data
 
-# Analyze metrics using Scikit-learn
-def analyze_with_sklearn(data, output_csv):
-    summary = data.groupby('Source').mean().reset_index()
-    insights = []
-    for _, row in summary.iterrows():
-        source = row['Source']
-        mae = row.get('MAE', np.nan)
-        mse = row.get('MSE', np.nan)
-        rmse = np.sqrt(mse) if not np.isnan(mse) else np.nan
-        insights.append({"Source": source, "MAE": mae, "MSE": mse, "RMSE": rmse})
-    insights_df = pd.DataFrame(insights)
-    append_results(insights_df, output_csv, "scikit-learn")
+# Function to calculate summary metrics
+def calculate_summary_metrics(data, metrics_columns):
+    """
+    Calculates mean, standard deviation, count, min, and max for specified metrics columns.
+    """
+    summary = {}
+    for col in metrics_columns:
+        if col in data.columns and pd.api.types.is_numeric_dtype(data[col]):
+            summary[col] = {
+                "Mean": data[col].mean(),
+                "StdDev": data[col].std(),
+                "Count": data[col].count(),
+                "Min": data[col].min(),
+                "Max": data[col].max()
+            }
+    return summary
 
-# Analyze metrics using H2O AutoML
-def analyze_with_h2o(data, target_column, output_csv):
+# Function to save summary metrics as a CSV
+def save_summary_report(summary, output_file):
+    """
+    Saves the summary dictionary to a CSV file.
+    """
+    summary_df = pd.DataFrame.from_dict(summary, orient="index")
+    summary_df.reset_index(inplace=True)
+    summary_df.rename(columns={"index": "Metric"}, inplace=True)
+    summary_df["Last Updated At"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    summary_df.to_csv(output_file, index=False)
+    print(f"Summary report saved to {output_file}")
+
+# Function to analyze CSVs from a directory
+def analyze_directory(directory, output_file, metrics_columns):
+    """
+    Reads all CSVs from a directory, calculates summary metrics, and saves the report.
+    """
+    print(f"Analyzing directory: {directory}")
+    data = read_all_csv_in_dir(directory)
+    if data.empty:
+        print(f"No data found in {directory}.")
+        return
+
+    summary = calculate_summary_metrics(data, metrics_columns)
+    save_summary_report(summary, output_file)
+
+# Function to perform H2O AutoML and save the leaderboard
+def perform_h2o_automl(data, target_column, max_models=5):
+    """
+    Perform AutoML using H2O and return the leaderboard.
+    """
     h2o_data = h2o.H2OFrame(data)
     train, test = h2o_data.split_frame(ratios=[0.8], seed=42)
-    aml = H2OAutoML(max_models=5, seed=42)
+    aml = H2OAutoML(max_models=max_models, seed=42)
     aml.train(y=target_column, training_frame=train)
+
     leaderboard = aml.leaderboard.as_data_frame()
-    append_results(pd.DataFrame(leaderboard), output_csv, "h2o")
+    leaderboard_file = os.path.join(reports_dir, "automl_leaderboard.csv")
+    leaderboard.to_csv(leaderboard_file, index=False)
+    print(f"AutoML leaderboard saved to {leaderboard_file}")
 
-# Analyze metrics using TPOT
-def analyze_with_tpot(data, target_column, output_csv):
-    train = data.sample(frac=0.8, random_state=42)
-    test = data.drop(train.index)
-    tpot = TPOTClassifier(generations=5, population_size=20, verbosity=2, random_state=42)
-    tpot.fit(train.drop(columns=[target_column]), train[target_column])
-    score = tpot.score(test.drop(columns=[target_column]), test[target_column])
-    tpot.export("tpot_pipeline.py")
-    append_results(pd.DataFrame([{"Accuracy": score}]), output_csv, "tpot")
+    return leaderboard
 
-# Analyze metrics using Auto-sklearn
-def analyze_with_autosklearn(data, target_column, output_csv):
-    train = data.sample(frac=0.8, random_state=42)
-    test = data.drop(train.index)
-    automl = AutoSklearnClassifier(time_left_for_this_task=600, per_run_time_limit=60)
-    automl.fit(train.drop(columns=[target_column]), train[target_column])
-    predictions = automl.predict(test.drop(columns=[target_column]))
-    mae = mean_absolute_error(test[target_column], predictions)
-    mse = mean_squared_error(test[target_column], predictions)
-    rmse = np.sqrt(mse)
-    append_results(pd.DataFrame([{"MAE": mae, "MSE": mse, "RMSE": rmse}]), output_csv, "autosklearn")
+# Function to generate SHAP visualizations
+def explain_model_with_shap(model, data, output_dir):
+    """
+    Generate SHAP explanations for the model and save visualizations.
+    """
+    explainer = shap.Explainer(model.predict, data)
+    shap_values = explainer(data)
 
-# Main process
-def process_all_tools(evaluation_files, training_files, validation_files, target_column):
-    evaluation_data = combine_files(evaluation_files)
-    training_data = combine_files(training_files)
-    validation_data = combine_files(validation_files)
+    # Save summary plot
+    shap.summary_plot(shap_values, data, show=False)
+    plt.savefig(os.path.join(output_dir, "shap_summary_plot.png"))
+    plt.close()
 
-    os.makedirs("reports", exist_ok=True)
+    # Save individual force plot for the first prediction
+    shap.force_plot(
+        explainer.expected_value[0],
+        shap_values[0],
+        data.iloc[0],
+        matplotlib=True
+    )
+    plt.savefig(os.path.join(output_dir, "shap_force_plot.png"))
+    plt.close()
 
-    # Scikit-learn Analysis
-    analyze_with_sklearn(evaluation_data, "reports/evaluation_metrics.csv")
-    analyze_with_sklearn(training_data, "reports/training_metrics.csv")
-    analyze_with_sklearn(validation_data, "reports/validation_metrics.csv")
+# Function to generate manual discussions
+def generate_discussion(metrics_file, output_file):
+    """
+    Generates an automated discussion based on metrics in the input CSV file.
+    """
+    try:
+        data = pd.read_csv(metrics_file)
+        discussions = []
 
-    # H2O AutoML Analysis
-    analyze_with_h2o(evaluation_data, target_column, "reports/evaluation_metrics.csv")
-    analyze_with_h2o(training_data, target_column, "reports/training_metrics.csv")
-    analyze_with_h2o(validation_data, target_column, "reports/validation_metrics.csv")
+        for _, row in data.iterrows():
+            source = row.get("Source_File", "Unknown Source")
+            mae = row.get("MAE", None)
+            mape = row.get("MAPE", None)
+            rmse = row.get("RMSE", None)
+            r2 = row.get("R²", None)
+            mbe = row.get("MBE", None)
 
-    # TPOT Analysis
-    analyze_with_tpot(evaluation_data, target_column, "reports/evaluation_metrics.csv")
-    analyze_with_tpot(training_data, target_column, "reports/training_metrics.csv")
-    analyze_with_tpot(validation_data, target_column, "reports/validation_metrics.csv")
+            discussion = f"### Analysis for {source}:\n\n"
+            if mae is not None:
+                discussion += f"- **MAE**: {mae:.2f} - Measures average absolute error.\n"
+            if mape is not None:
+                discussion += f"- **MAPE**: {mape:.2f}% - Indicates percentage error. "
+                discussion += "Good accuracy.\n" if mape < 10 else "Improvement needed.\n"
+            if rmse is not None:
+                discussion += f"- **RMSE**: {rmse:.2f} - Penalizes large errors.\n"
+            if r2 is not None:
+                discussion += f"- **R²**: {r2:.2f} - Explains variance. "
+                discussion += "Good fit.\n" if r2 >= 0.8 else "Moderate fit.\n"
+            if mbe is not None:
+                discussion += f"- **MBE**: {mbe:.2f} - Positive = Overestimate, Negative = Underestimate.\n"
 
-    # Auto-sklearn Analysis
-    analyze_with_autosklearn(evaluation_data, target_column, "reports/evaluation_metrics.csv")
-    analyze_with_autosklearn(training_data, target_column, "reports/training_metrics.csv")
-    analyze_with_autosklearn(validation_data, target_column, "reports/validation_metrics.csv")
+            discussions.append(discussion)
 
-# Define files and target column
-evaluation_files = {
-    "darts_theta_predictions": os.path.join("evaluation", "darts_theta_predictions.csv"),
-    "h2o_predictions": os.path.join("evaluation", "h2o_predictions.csv"),
-    "prophet_predictions": os.path.join("evaluation", "prophet_predictions.csv"),
-    "summary_report": os.path.join("evaluation", "summary_report.csv"),
-}
-training_files = {
-    "darts_theta_metrics": os.path.join("training", "darts theta_metrics.csv"),
-    "h2o_metrics": os.path.join("training", "h2o_metrics.csv"),
-    "prophet_metrics": os.path.join("training", "prophet_metrics.csv"),
-    "training_info": os.path.join("training", "training_info.csv"),
-}
-validation_files = {
-    "h2o_validation_metrics": os.path.join("validation", "h2o_validation_metrics.csv"),
-    "prophet_validation_metrics": os.path.join("validation", "prophet_validation_metrics.csv"),
-    "theta_validation_metrics": os.path.join("validation", "theta_validation_metrics.csv"),
-    "consolidated_validation_metrics": os.path.join("validation", "consolidated_validation_metrics.csv"),
-}
+        with open(output_file, "w") as f:
+            f.write("\n\n".join(discussions))
+        print(f"Discussion saved to {output_file}")
 
-# Process all tools
-process_all_tools(evaluation_files, training_files, validation_files, "target_column")
+    except Exception as e:
+        print(f"Error generating discussion: {e}")
+
+# Main logic for analyzing all results
+metrics_columns = ["MAE", "MAPE", "RMSE", "MSE", "R²", "MBE"]
+
+# Analyze training
+training_summary_file = os.path.join(reports_dir, "training_summary.csv")
+analyze_directory(training_dir, training_summary_file, metrics_columns)
+generate_discussion(training_summary_file, os.path.join(reports_dir, "training_discussion.txt"))
+
+# Analyze validation
+validation_summary_file = os.path.join(reports_dir, "validation_summary.csv")
+analyze_directory(validation_dir, validation_summary_file, metrics_columns)
+generate_discussion(validation_summary_file, os.path.join(reports_dir, "validation_discussion.txt"))
+
+# Analyze evaluation
+evaluation_summary_file = os.path.join(reports_dir, "evaluation_summary.csv")
+analyze_directory(evaluation_dir, evaluation_summary_file, metrics_columns)
+generate_discussion(evaluation_summary_file, os.path.join(reports_dir, "evaluation_discussion.txt"))
+
+# Perform AutoML on training data
+training_data = pd.concat([pd.read_csv(os.path.join(training_dir, f)) for f in os.listdir(training_dir) if f.endswith(".csv")])
+leaderboard = perform_h2o_automl(training_data, target_column="y")
+
+# SHAP explanation for top model
+top_model_data = training_data.drop(columns=["y"])
+explain_model_with_shap(leaderboard.iloc[0]["model_id"], top_model_data, reports_dir)
