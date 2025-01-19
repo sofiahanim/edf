@@ -180,7 +180,6 @@ log_error("All rows in the dataset are historical. Placeholder rows created for 
 print(f"Info: Placeholder rows created for {len(future_data)} future rows.")
 
 
-
 # Split historical data into training and validation
 train_cutoff = int(0.9 * len(history_data))
 train_data = history_data[:train_cutoff]
@@ -195,31 +194,6 @@ train_target = train_data['y']
 validation_features = validation_data.drop(columns=['ds', 'y'], errors='ignore').select_dtypes(include=[np.number])
 validation_features = validation_features.fillna(validation_features.mean())
 validation_target = validation_data['y']
-
-# Prepare future features
-if not future_features.empty:
-    gbr_predictions = gbm.predict(future_features)
-    gbr_predictions_df = pd.DataFrame({
-        "ds": future_data["ds"],
-        "Predicted": gbr_predictions,
-        "Model": "GradientBoostingRegressor",
-        "Generated_At": datetime.now().isoformat()
-    })
-    append_to_csv(os.path.join(evaluation_dir, 'gbr_predictions.csv'), gbr_predictions_df, model_name="GradientBoostingRegressor")
-    print(f"GradientBoostingRegressor future predictions saved.")
-else:
-    print("No valid features for GradientBoostingRegressor predictions.")
-
-
-# Validate validation data
-if validation_data.empty:
-    log_error("Validation data is empty. Check training and history split.")
-    raise ValueError("Validation data is empty.")
-
-
-# Log dataset details
-print(f"Dataset loaded with {len(data)} rows.")
-print(f"History: {len(history_data)} rows, Future: {len(future_data)} rows.")
 
 # Hyperparameter tuning for GradientBoostingRegressor
 try:
@@ -246,6 +220,30 @@ try:
     gbm = grid_search.best_estimator_
 except Exception as e:
     log_error(f"Error during GradientBoostingRegressor hyperparameter tuning: {e}")
+
+# Prepare future features
+if not future_features.empty:
+    gbr_predictions = gbm.predict(future_features)
+    gbr_predictions_df = pd.DataFrame({
+        "ds": future_data["ds"],
+        "Predicted": gbr_predictions,
+        "Model": "GradientBoostingRegressor",
+        "Generated_At": datetime.now().isoformat()
+    })
+    append_to_csv(os.path.join(evaluation_dir, 'gbr_predictions.csv'), gbr_predictions_df, model_name="GradientBoostingRegressor")
+    print(f"GradientBoostingRegressor future predictions saved.")
+else:
+    print("No valid features for GradientBoostingRegressor predictions.")
+
+# Validate validation data
+if validation_data.empty:
+    log_error("Validation data is empty. Check training and history split.")
+    raise ValueError("Validation data is empty.")
+
+# Log dataset details
+print(f"Dataset loaded with {len(data)} rows.")
+print(f"History: {len(history_data)} rows, Future: {len(future_data)} rows.")
+
 
 # Train and validate models
 try:

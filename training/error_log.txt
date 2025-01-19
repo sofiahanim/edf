@@ -1,1 +1,12 @@
 2025-01-18 03:21:05.347356: All rows in the dataset are historical. Placeholder rows created for future predictions.
+2025-01-19 20:18:35.634467: All rows in the dataset are historical. Placeholder rows created for future predictions.
+2025-01-19 20:27:14.790627: Error appending to file C:\Users\hanim\edf\training\training_info.csv: unhashable type: 'dict'
+2025-01-19 20:27:37.286009: Error appending to file C:\Users\hanim\edf\training\training_info.csv: unhashable type: 'dict'
+2025-01-19 20:27:37.458326: Error generating future predictions: at least one array or dtype is required
+2025-01-19 20:56:54.111536: All rows in the dataset are historical. Placeholder rows created for future predictions.
+2025-01-19 21:06:33.618127: Error appending to file C:\Users\hanim\edf\training\training_info.csv: unhashable type: 'dict'
+2025-01-19 21:06:34.390043: Error appending to file C:\Users\hanim\edf\training\training_info.csv: unhashable type: 'dict'
+2025-01-19 21:06:34.413955: Error appending to file C:\Users\hanim\edf\validation\theta_validation_metrics.csv: unhashable type: 'dict'
+2025-01-19 21:06:55.659825: Error appending to file C:\Users\hanim\edf\training\training_info.csv: unhashable type: 'dict'
+2025-01-19 21:06:55.691390: Error appending to file C:\Users\hanim\edf\validation\prophet_validation_metrics.csv: unhashable type: 'dict'
+2025-01-19 21:06:55.828573: Error generating future predictions: at least one array or dtype is required
