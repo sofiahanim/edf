@@ -52,7 +52,8 @@ def log_hyperparams(message):
 
 def append_to_csv(file_path, df, model_name=None):
     """
-    Appends data to a CSV file, adding timestamp and model name if not already present.
+    Appends data to a CSV file, adding timestamp and model name if not already present,
+    and ensures no duplicate rows are added.
     """
     try:
         if "Generated_At" not in df.columns:
@@ -67,11 +68,10 @@ def append_to_csv(file_path, df, model_name=None):
                     existing_data = pd.DataFrame(columns=df.columns)
             except (pd.errors.EmptyDataError, pd.errors.ParserError):
                 existing_data = pd.DataFrame(columns=df.columns)
-            df = pd.concat([existing_data, df]).drop_duplicates(ignore_index=True)
+            df = pd.concat([existing_data, df]).drop_duplicates(subset=["Model", "Generated_At"], ignore_index=True)
         df.to_csv(file_path, index=False)
     except Exception as e:
         log_error(f"Error appending to file {file_path}: {e}")
-
 
 # Validate file structure
 def validate_file(file_path, required_columns=None):
@@ -104,7 +104,7 @@ def calculate_metrics(model, y_true, y_pred, is_future=False):
             "R²": None,
             "MBE": None
         }
-    return {
+    result = {
         "Model": model,
         "Generated_At": datetime.now().isoformat(),
         "MAE": mean_absolute_error(y_true, y_pred),
@@ -112,22 +112,39 @@ def calculate_metrics(model, y_true, y_pred, is_future=False):
         "RMSE": np.sqrt(mean_squared_error(y_true, y_pred)),
         "MSE": mean_squared_error(y_true, y_pred),
         "R²": r2_score(y_true, y_pred),
-        "MBE": np.mean(y_pred - y_true)
+        "MBE": np.mean(y_pred - y_true),
     }
+
+    if model == "GradientBoostingRegressor":
+        result["Parameters"] = str(best_gbr_params)
+    elif model == "Darts Theta":
+        result["Parameters"] = str({"Theta Value": model_theta.theta, "Seasonality Mode": model_theta.season_mode})
+    elif model == "Prophet":
+        result["Parameters"] = str({"Changepoint Prior Scale": 0.05, "Seasonality Mode": "multiplicative"})
+
+    return result
+
 
 # Append training details to training_info.csv
 def append_training_details(model_name, iteration, params, metrics):
+    """
+    Appends training details (parameters and metrics) to the training_info.csv file.
+    """
     training_details = {
         "Model": model_name,
         "Iteration": iteration,
-        "Parameters": params,
-        "Metrics": metrics,
+        "Parameters": str(params),  # Convert parameters to string for consistent logging
+        "MAE": metrics.get("MAE"),
+        "MAPE": metrics.get("MAPE"),
+        "RMSE": metrics.get("RMSE"),
+        "MSE": metrics.get("MSE"),
+        "R²": metrics.get("R²"),
+        "MBE": metrics.get("MBE"),
         "Generated_At": datetime.now().isoformat(),
     }
     training_file = os.path.join(training_dir, 'training_info.csv')
     training_df = pd.DataFrame([training_details])
     append_to_csv(training_file, training_df, model_name=model_name)
-
 
 # Save metrics to validation CSV files
 def save_metrics(model_name, metrics, file_path):
@@ -385,10 +402,12 @@ try:
 
     if all_metrics:
         consolidated_validation_df = pd.concat(all_metrics, ignore_index=True)
+        consolidated_validation_df = consolidated_validation_df.drop_duplicates(subset=["Model", "Generated_At"], ignore_index=True)
         consolidated_validation_df.to_csv(consolidated_validation_file, index=False)
         print(f"Consolidated validation metrics saved to {consolidated_validation_file}")
     else:
         print("No validation metrics available to consolidate.")
+
 except Exception as e:
     log_error(f"Error consolidating validation metrics: {e}")
     print(f"Error: {e}")
@@ -398,10 +417,12 @@ try:
     summary_file = os.path.join(evaluation_dir, 'summary_report.csv')
     if all_metrics:
         summary_df = pd.concat(all_metrics, ignore_index=True)
+        summary_df = summary_df.drop_duplicates(subset=["Model", "Generated_At"], ignore_index=True)
         summary_df.to_csv(summary_file, index=False)
         print(f"Summary report saved to {summary_file}")
     else:
         print("No metrics found to generate a summary report.")
+
 except Exception as e:
     log_error(f"Error generating summary report: {e}")
     print(f"Error: {e}")
