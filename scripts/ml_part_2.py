@@ -220,16 +220,19 @@ try:
         "learning_rate": [0.01, 0.05, 0.1],
     }
     gbr = GradientBoostingRegressor(random_state=42)
-    try:
+    
+    if train_features.empty or train_target.empty:
+        log_error("Training data is empty. GradientBoostingRegressor tuning skipped.")
+    else:
+        print(f"Training data shape: {train_features.shape}, Target shape: {train_target.shape}")
         grid_search = GridSearchCV(gbr, gbr_params, cv=3, scoring="neg_mean_squared_error")
-        #grid_search.fit(train_data.drop(columns=['ds', 'y']), train_data['y'])
-        grid_search.fit(train_features, train_target)
+        try:
+            grid_search.fit(train_features, train_target)
+            best_gbr_params = grid_search.best_params_
+            log_hyperparams(f"GradientBoostingRegressor Best Params: {best_gbr_params}")
+        except Exception as e:
+            log_error(f"Error during GradientBoostingRegressor tuning: {e}")
 
-    except Exception as e:
-        log_error(f"Error during GradientBoostingRegressor hyperparameter tuning: {e}")
-        raise
-
-    best_gbr_params = grid_search.best_params_
     best_gbr_score = -grid_search.best_score_
     log_hyperparams(f"GradientBoostingRegressor Best Params: {best_gbr_params}, Best Score: {best_gbr_score}")
     print(f"GradientBoostingRegressor Best Params: {best_gbr_params}, Best Score: {best_gbr_score}")
@@ -238,7 +241,10 @@ try:
 except Exception as e:
     log_error(f"Error during GradientBoostingRegressor hyperparameter tuning: {e}")
 
-if not future_features.empty:
+if future_features.empty:
+    log_error("No valid features for GradientBoostingRegressor predictions.")
+    print("Future features are empty, skipping GradientBoostingRegressor predictions.")
+else:
     gbr_predictions = gbm.predict(future_features)
     gbr_predictions_df = pd.DataFrame({
         "ds": future_data["ds"],
@@ -247,10 +253,7 @@ if not future_features.empty:
         "Generated_At": datetime.now().isoformat()
     })
     append_to_csv(os.path.join(evaluation_dir, 'gbr_predictions.csv'), gbr_predictions_df, model_name="GradientBoostingRegressor")
-    print(f"GradientBoostingRegressor future predictions saved.")
-else:
-    log_error("No valid features for GradientBoostingRegressor predictions.")
-    print("No valid features for GradientBoostingRegressor predictions.")
+    print(f"GradientBoostingRegressor future predictions saved to {os.path.join(evaluation_dir, 'gbr_predictions.csv')}")
 
 # Validate validation data
 if validation_data.empty:
@@ -274,11 +277,23 @@ try:
     append_to_csv(os.path.join(validation_dir, 'gbr_validation_metrics.csv'), pd.DataFrame([validation_metrics]))
 
     # Darts Theta
-    train_series = TimeSeries.from_dataframe(train_data, time_col="ds", value_cols="y")
     validation_series = TimeSeries.from_dataframe(validation_data, time_col="ds", value_cols="y")
-    model_theta = Theta()
-    model_theta.fit(train_series)
-    validation_prediction = model_theta.predict(len(validation_series))
+    if train_features.empty:
+        log_error("No data available for Darts Theta training.")
+        print("Training data is empty, skipping Darts Theta training.")
+    else:
+        try:
+            train_series = TimeSeries.from_dataframe(train_data, time_col="ds", value_cols="y")
+            validation_series = TimeSeries.from_dataframe(validation_data, time_col="ds", value_cols="y")
+            if len(train_series) == 0 or len(validation_series) == 0:
+                raise ValueError("Train or Validation series is empty.")
+            model_theta = Theta()
+            model_theta.fit(train_series)
+            validation_prediction = model_theta.predict(len(validation_series))
+        except Exception as e:
+            log_error(f"Error during Theta model training or validation: {e}")
+
+
     validation_data['Theta_Predicted'] = validation_prediction.values().flatten()
     validation_metrics_theta = calculate_metrics(
         "Darts Theta",
@@ -291,14 +306,25 @@ try:
     append_to_csv(os.path.join(validation_dir, 'theta_validation_metrics.csv'), pd.DataFrame([validation_metrics_theta]))
 
     # Prophet
-    model_prophet = Prophet(
-        seasonality_mode="multiplicative",
-        yearly_seasonality=True,
-        weekly_seasonality=True,
-        daily_seasonality=False,
-        changepoint_prior_scale=0.05
-    )
-    model_prophet.fit(train_data)
+    if train_features.empty:
+        log_error("No data available for Prophet training.")
+        print("Training data is empty, skipping Prophet training.")
+    else:
+        changepoint_prior_scale = 0.05  # Default value
+        try:
+            model_prophet = Prophet(
+                seasonality_mode="multiplicative",
+                yearly_seasonality=True,
+                weekly_seasonality=True,
+                daily_seasonality=False,
+                changepoint_prior_scale=changepoint_prior_scale
+            )
+            model_prophet.fit(train_data)
+            log_hyperparams(f"Prophet Model: Changepoint Prior Scale: {changepoint_prior_scale}")
+        except Exception as e:
+            log_error(f"Error during Prophet training: {e}")
+
+
     validation_forecast = model_prophet.predict(validation_data[['ds']])
     validation_data['Prophet_Predicted'] = validation_forecast['yhat'].values
     validation_metrics_prophet = calculate_metrics("Prophet", validation_data['y'], validation_forecast['yhat'].values)
@@ -331,6 +357,7 @@ try:
     })
     append_to_csv(theta_future_file, theta_predictions_df, model_name="Darts Theta")
     print(f"Darts Theta future predictions saved to {theta_future_file}")
+    print(f"Train Series Length: {len(train_series)}, Future Series Length: {len(future_series)}")
 
     # Ensure model_prophet is defined
     if 'model_prophet' not in globals():
@@ -362,24 +389,31 @@ try:
             "max_depth": [3, 5, 7],
             "learning_rate": [0.01, 0.05, 0.1],
         }
-        grid_search = GridSearchCV(gbr, gbr_params, cv=3, scoring="neg_mean_squared_error")
-        #grid_search.fit(train_data.drop(columns=['ds', 'y']), train_data['y'])
-        grid_search.fit(train_features, train_target)
+        if train_features.empty or train_target.empty:
+            log_error("Training data is empty. GradientBoostingRegressor tuning skipped.")
+            print("Training data is empty, skipping GradientBoostingRegressor tuning.")
+        else:
+            grid_search = GridSearchCV(gbr, gbr_params, cv=3, scoring="neg_mean_squared_error")
+            grid_search.fit(train_features, train_target)
+
 
         gbm = grid_search.best_estimator_
 
     # GradientBoostingRegressor Future Predictions
-    future_X = future_data.drop(columns=['ds', 'y'], errors='ignore')
-    gbr_predictions = gbm.predict(future_X)
-    gbr_future_file = os.path.join(evaluation_dir, 'gbr_predictions.csv')
-    gbr_predictions_df = pd.DataFrame({
-        "ds": future_data["ds"],
-        "Predicted": gbr_predictions,
-        "Model": "GradientBoostingRegressor",
-        "Generated_At": datetime.now().isoformat()
-    })
-    append_to_csv(gbr_future_file, gbr_predictions_df, model_name="GradientBoostingRegressor")
-    print(f"GradientBoostingRegressor future predictions saved to {gbr_future_file}")
+    if future_features.empty:
+        log_error("No valid features for GradientBoostingRegressor predictions.")
+        print("Future features are empty, skipping GradientBoostingRegressor predictions.")
+    else:
+        gbr_predictions = gbm.predict(future_features)
+        gbr_future_file = os.path.join(evaluation_dir, 'gbr_predictions.csv')
+        gbr_predictions_df = pd.DataFrame({
+            "ds": future_data["ds"],
+            "Predicted": gbr_predictions,
+            "Model": "GradientBoostingRegressor",
+            "Generated_At": datetime.now().isoformat()
+        })
+        append_to_csv(gbr_future_file, gbr_predictions_df, model_name="GradientBoostingRegressor")
+        print(f"GradientBoostingRegressor future predictions saved to {gbr_future_file}")
 
 except Exception as e:
     log_error(f"Error generating future predictions: {e}")
@@ -394,35 +428,48 @@ try:
             try:
                 df = pd.read_csv(file_path)
                 if not df.empty:
-                    if "Generated_At" not in df.columns:
-                        df["Generated_At"] = datetime.now().isoformat()
                     all_metrics.append(df)
+                else:
+                    log_error(f"Validation file {file_path} is empty.")
             except Exception as e:
                 log_error(f"Error reading validation file {file_path}: {e}")
+        else:
+            log_error(f"Validation file {file_path} does not exist.")
 
     if all_metrics:
-        consolidated_validation_df = pd.concat(all_metrics, ignore_index=True)
-        consolidated_validation_df = consolidated_validation_df.drop_duplicates(subset=["Model", "Generated_At"], ignore_index=True)
-        consolidated_validation_df.to_csv(consolidated_validation_file, index=False)
-        print(f"Consolidated validation metrics saved to {consolidated_validation_file}")
+        try:
+            consolidated_validation_df = pd.concat(all_metrics, ignore_index=True)
+            consolidated_validation_df = consolidated_validation_df.drop_duplicates(subset=["Model", "Generated_At"], ignore_index=True)
+            consolidated_validation_df.to_csv(consolidated_validation_file, index=False)
+            print(f"Consolidated validation metrics saved to {consolidated_validation_file}")
+        except Exception as e:
+            log_error(f"Error consolidating validation metrics: {e}")
+            print(f"Error consolidating validation metrics: {e}")
     else:
         print("No validation metrics available to consolidate.")
+        log_error("No validation metrics available for consolidation.")
 
 except Exception as e:
-    log_error(f"Error consolidating validation metrics: {e}")
-    print(f"Error: {e}")
+    log_error(f"Unexpected error in consolidating validation metrics: {e}")
+    print(f"Unexpected error: {e}")
+
 
 # Generate Summary Report
 try:
     summary_file = os.path.join(evaluation_dir, 'summary_report.csv')
     if all_metrics:
-        summary_df = pd.concat(all_metrics, ignore_index=True)
-        summary_df = summary_df.drop_duplicates(subset=["Model", "Generated_At"], ignore_index=True)
-        summary_df.to_csv(summary_file, index=False)
-        print(f"Summary report saved to {summary_file}")
+        print(f"Consolidating {len(all_metrics)} metrics into summary.")
+        try:
+            summary_df = pd.concat(all_metrics, ignore_index=True)
+            summary_df = summary_df.drop_duplicates(subset=["Model", "Generated_At"], ignore_index=True)
+            summary_df.to_csv(summary_file, index=False)
+            print(f"Summary report saved to {summary_file}")
+        except Exception as e:
+            log_error(f"Error generating summary report: {e}")
     else:
         print("No metrics found to generate a summary report.")
-
+        log_error("No metrics found for summary report.")
+        
 except Exception as e:
     log_error(f"Error generating summary report: {e}")
     print(f"Error: {e}")

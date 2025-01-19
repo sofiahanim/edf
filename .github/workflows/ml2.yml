@@ -118,11 +118,12 @@ jobs:
           exit 1
         fi
 
-    # Step 11: Notify Completion
     - name: Notify Completion
       if: always()
       run: |
-        if [ "$GITHUB_JOB" == "success" ]; then
-          echo "🎉 Workflow completed successfully!"
-        else
-          echo "❌ Workflow failed. Check logs for details."
+          if [ "$GITHUB_JOB" == "success" ]; then
+            echo "🎉 Workflow completed successfully!"
+          else
+            echo "❌ Workflow failed. Check logs for details."
+          fi
+      
