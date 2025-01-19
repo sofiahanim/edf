@@ -67,13 +67,12 @@ jobs:
     - name: Install Python Dependencies
       run: |
         python3 -m pip cache purge
-        python3 -m pip install --no-cache-dir -r requirements_linux.txt --verbose
+        python3 -m pip install --no-cache-dir scikit-learn>=0.24.0 -r requirements_linux.txt --verbose
 
     # Step 7: Test Dependency Installation
     - name: Test Dependency Installation
       run: |
-        python3 -c "import darts, pyod, tensorflow"
-
+        python3 -c "import pandas, numpy, sklearn, tensorflow, darts, pyod, prophet"
     # Step 8: Install auto-sklearn
     - name: Install auto-sklearn
       run: |
