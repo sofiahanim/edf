@@ -135,9 +135,9 @@ jobs:
       - name: Notify Completion
         if: always()
         run: |
-              if [ "$GITHUB_JOB" == "success" ]; then
-                echo "🎉 Workflow completed successfully!"
-              else
-                echo "❌ Workflow failed. Check logs for details."
-              fi
+            if [ $? -eq 0 ]; then
+              echo "🎉 Workflow completed successfully!"
+            else
+              echo "❌ Workflow failed. Check logs for details."
+            fi
     
