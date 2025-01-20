@@ -29,9 +29,9 @@ python-dotenv
 boto3
 botocore
 awscli
-dask
-distributed
-dask-expr
+dask>=2023.1.0
+distributed>=2023.1.0
+dask-expr==0.1.0
 setuptools
 wheel
 Cython
