@@ -52,6 +52,7 @@ jobs:
       - name: Install Core ML Libraries
         run: |
           echo "🔍 Installing core ML libraries..."
+          pip cache purge
           pip install --no-cache-dir -r requirements_linux.txt --verbose
         
       - name: Check for Dependency Conflicts
