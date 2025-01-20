@@ -5,28 +5,25 @@ on:
     branches:
       - main 
   schedule:
-    - cron: "0 18 * * *" # Runs daily at 18:00 UTC
-  workflow_dispatch: # Allows manual triggering
+    - cron: "0 18 * * *"  # 2:00 AM MALAYSIA TIME  
+  workflow_dispatch: 
 
 permissions:
-  contents: write # Grants write permission to commit and push changes
+  contents: write 
 
 jobs:
   preprocess:
     runs-on: ubuntu-20.04
 
     steps:
-    # Step 1: Checkout Repository
     - name: Checkout Repository
       uses: actions/checkout@v3
 
-    # Step 2: Set Up Python
     - name: Set Up Python
       uses: actions/setup-python@v4
       with:
         python-version: "3.9"
 
-    # Step 3: Install System-Level Dependencies
     - name: Install System-Level Dependencies
       run: |
         sudo apt-get update -y
@@ -49,40 +46,35 @@ jobs:
           libgfortran5 \
           libgomp1
 
-    # Step 4: Upgrade Python Tools
     - name: Upgrade Python Tools
       run: |
         python3 -m pip install --upgrade pip setuptools wheel
 
-    # Step 5: Install Python Dependencies
     - name: Install Python Dependencies
       run: |
         python3 -m pip cache purge
-        python3 -m pip install --force-reinstall \
-          "scikit-learn==1.2.2" \
-          "darts==0.23.1" \
-          "prophet==1.1.2" \
-          "holidays==0.14.2" \
-          "pyod==1.0.7"
-        python3 -m pip install --no-cache-dir -r requirements_linux.txt --verbose
+        pip install pip-tools
+        pip-compile --output-file=requirements_linux.lock.txt requirements_linux.txt
+        python3 -m pip install --no-cache-dir -r requirements_linux.lock.txt --verbose
 
-    # Step 6: Test Dependency Installation
+    - name: Install Stan via CmdStanPy
+      run: |
+        python3 -m cmdstanpy.install_cmdstan --version latest || exit 1
+        python3 -c "import cmdstanpy; print(f'CmdStanPy Version: {cmdstanpy.__version__}')"
+
     - name: Test Dependency Installation
       run: |
-        python3 -c "import pandas, numpy, sklearn, tensorflow, darts, pyod, prophet" || exit 1
+        python3 -c "import pandas, pycaret, numpy, sklearn, tensorflow, darts, pyod, prophet, statsforecast"
 
-    # Step 7: Debug Installed Packages
     - name: Debug Installed Packages
       run: |
         python3 -m pip list
 
-    # Step 8: Check Dependency Tree
     - name: Check Dependency Tree
       run: |
         python3 -m pip install pipdeptree
         pipdeptree
-
-    # Step 9: Run Model Training Script
+  
     - name: Run Preprocessing Script
       run: |
         python3 scripts/ml_part_1.py

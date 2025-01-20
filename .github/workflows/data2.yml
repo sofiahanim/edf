@@ -3,30 +3,27 @@ name: Data Pipeline Part 2
 on:
   push:
     branches:
-      - main  # Trigger the workflow on pushes to the main branch
-  workflow_dispatch:  # Allow manual triggering
+      - main  
+  workflow_dispatch: 
   schedule:
-  - cron: '0 17 * * *' # 1:00 AM MALAYSIA TIME  # Schedule the workflow to run daily at 1:00 AM
+  - cron: '0 17 * * *' # 1:00 AM MALAYSIA TIME  
    
 permissions:
-  contents: write  # Read and write permissions for repository contents
+  contents: write 
 
 jobs:
   data_pipeline:
     runs-on: ubuntu-20.04
 
     steps:
-      # Step 1: Checkout Repository
       - name: Checkout Repository
         uses: actions/checkout@v3
 
-      # Step 2: Set Up Python
       - name: Set Up Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.9"
 
-      # Step 3: Install System-Level Dependencies
       - name: Install System-Level Dependencies
         run: |
           sudo apt-get update -y
@@ -49,40 +46,35 @@ jobs:
             libgfortran5 \
             libgomp1
 
-      # Step 4: Upgrade Python Tools
       - name: Upgrade Python Tools
         run: |
           python3 -m pip install --upgrade pip setuptools wheel
 
-      # Step 5: Install Python Dependencies
       - name: Install Python Dependencies
         run: |
           python3 -m pip cache purge
-          python3 -m pip install --force-reinstall \
-            "scikit-learn==1.2.2" \
-            "darts==0.23.1" \
-            "prophet==1.1.2" \
-            "holidays==0.14.2" \
-            "pyod==1.0.7"
-          python3 -m pip install --no-cache-dir -r requirements_linux.txt --verbose
+          pip install pip-tools
+          pip-compile --output-file=requirements_linux.lock.txt requirements_linux.txt
+          python3 -m pip install --no-cache-dir -r requirements_linux.lock.txt --verbose
 
-      # Step 6: Test Dependency Installation
+      - name: Install Stan via CmdStanPy
+        run: |
+          python3 -m cmdstanpy.install_cmdstan --version latest || exit 1
+          python3 -c "import cmdstanpy; print(f'CmdStanPy Version: {cmdstanpy.__version__}')"
+
       - name: Test Dependency Installation
         run: |
-          python3 -c "import pandas, numpy, sklearn, tensorflow, darts, pyod, prophet" || exit 1
+          python3 -c "import pandas, pycaret, numpy, sklearn, tensorflow, darts, pyod, prophet, statsforecast"
 
-      # Step 7: Debug Installed Packages
       - name: Debug Installed Packages
         run: |
           python3 -m pip list
 
-      # Step 8: Check Dependency Tree
       - name: Check Dependency Tree
         run: |
           python3 -m pip install pipdeptree
           pipdeptree
-
-      # Step 9: Run Model Training Script
+          
       - name: Run Model Training Script
         run: |
           python3 scripts/ml_part_2.py --verbose
@@ -90,14 +82,12 @@ jobs:
           PYTHONUNBUFFERED: 1
           LOG_LEVEL: DEBUG
 
-      # Step 4: Set AWS credentials (this will use the environment variables for AWS credentials)
       - name: Set AWS credentials
         run: |
           echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> $GITHUB_ENV
           echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> $GITHUB_ENV
           echo "AWS_DEFAULT_REGION=us-east-1" >> $GITHUB_ENV
 
-      # Step 5: Verify file existence and content
       - name: Verify file existence and content
         run: |
           if [ -f "data/weather/2025.csv" ]; then
@@ -115,15 +105,12 @@ jobs:
             exit 1
           fi
 
-      # Step 6: Run Python script to update CSV (if needed)
       - name: Run data pipeline script
         run: python3 scripts/pipe_data_2.py
         env:
           PYTHONUNBUFFERED: 1
           LOG_LEVEL: DEBUG
 
-
-      # Step 7: Commit and push updated CSV
       - name: Commit and push updated CSV
         run: |
           git config --local user.name "GitHub Actions[bot]"
@@ -132,12 +119,10 @@ jobs:
           git commit -m "Update CSV with new data" || echo "Nothing to commit."
           git push || echo "No changes pushed."
 
-      # Step 8: Notify success
       - name: Notify success
         if: success()
         run: echo "🎉 Data pipeline 2 completed successfully!"
 
-      # Step 9: Notify Success or Failure
       - name: Notify Completion
         if: always()
         run: |
