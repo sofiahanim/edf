@@ -297,6 +297,27 @@ def fetch_hourly_demand():
         logger.error(f"Error fetching hourly demand data: {e}", exc_info=True)
         return jsonify({"error": "Failed to fetch hourly demand data"}), 500
 
+# Route for Electric Demand EDA
+@app.route('/eda/electric_demand')
+def electric_demand_eda():
+    try:
+        # Load and process demand data
+        years = range(2019, 2026)
+        demand_data = pd.concat([load_csv(f"demand/{year}.csv") for year in years], ignore_index=True)
+
+        # Summary statistics
+        mean_demand = demand_data['value'].mean()
+        median_demand = demand_data['value'].median()
+        std_demand = demand_data['value'].std()
+
+        return render_template('electric_demand_eda.html', 
+                               mean_demand=mean_demand, 
+                               median_demand=median_demand, 
+                               std_demand=std_demand)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 """3. END SECTION 3 HOURLY DEMAND"""
 
 """4. START SECTION 4 HOURLY WEATHER"""
@@ -358,6 +379,26 @@ def fetch_hourly_weather():
         logger.error(f"Error fetching hourly weather data: {e}", exc_info=True)
         return jsonify({'error': 'Failed to fetch hourly weather data'}), 500
 
+# Route for Weather EDA
+@app.route('/eda/weather')
+def weather_eda():
+    try:
+        # Load and process weather data
+        years = range(2019, 2026)
+        weather_data = pd.concat([load_csv(f"weather/{year}.csv") for year in years], ignore_index=True)
+
+        # Summary statistics
+        mean_temp = weather_data['temp'].mean()
+        median_temp = weather_data['temp'].median()
+        std_temp = weather_data['temp'].std()
+
+        return render_template('weather_eda.html', 
+                               mean_temp=mean_temp, 
+                               median_temp=median_temp, 
+                               std_temp=std_temp)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 """4. END SECTION 4 HOURLYWEATHER"""
 
 """5. START SECTION 5 HOLIDAYS"""
@@ -414,6 +455,26 @@ def fetch_holidays():
     except Exception as e:
         logger.error(f"Error fetching holidays data: {e}", exc_info=True)
         return jsonify({"error": "Failed to fetch holidays data"}), 500
+
+
+# Route for Holiday EDA
+@app.route('/eda/holiday')
+def holiday_eda():
+    try:
+        # Load and process holiday data
+        years = range(2019, 2026)
+        holiday_data = pd.concat([load_csv(f"holiday/{year}.csv") for year in years], ignore_index=True)
+
+        # Summary statistics
+        total_holidays = len(holiday_data)
+        common_month = holiday_data['date'].dt.month.mode()[0]
+
+        return render_template('holiday_eda.html', 
+                               total_holidays=total_holidays, 
+                               common_month=common_month)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 """5. END SECTION 5 HOLIDAYS"""
 

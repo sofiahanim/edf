@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+{% block title %}Electric Demand EDA{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h3 mb-4 text-gray-800">Electric Demand EDA</h1>
+
+    <!-- Visualization Section -->
+    <div class="row">
+        <div class="col-lg-6">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Time Series Plot</h6>
+                </div>
+                <div class="card-body">
+                    <div id="demand-time-series"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Summary Statistics</h6>
+                </div>
+                <div class="card-body">
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Statistic</th>
+                                <th>Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Mean</td>
+                                <td id="mean-demand">Loading...</td>
+                            </tr>
+                            <tr>
+                                <td>Median</td>
+                                <td id="median-demand">Loading...</td>
+                            </tr>
+                            <tr>
+                                <td>Standard Deviation</td>
+                                <td id="std-demand">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Histogram Section -->
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Demand Distribution</h6>
+                </div>
+                <div class="card-body">
+                    <div id="demand-histogram"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

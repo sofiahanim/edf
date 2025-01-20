@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% block title %}Holiday EDA{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h3 mb-4 text-gray-800">Holiday EDA</h1>
+
+    <!-- Visualization Section -->
+    <div class="row">
+        <div class="col-lg-6">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Holiday Trends</h6>
+                </div>
+                <div class="card-body">
+                    <div id="holiday-trends"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Holiday Statistics</h6>
+                </div>
+                <div class="card-body">
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Statistic</th>
+                                <th>Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Total Holidays</td>
+                                <td id="total-holidays">Loading...</td>
+                            </tr>
+                            <tr>
+                                <td>Most Common Holiday Month</td>
+                                <td id="common-holiday-month">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Histogram Section -->
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Holiday Distribution by Month</h6>
+                </div>
+                <div class="card-body">
+                    <div id="holiday-histogram"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

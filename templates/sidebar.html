@@ -24,13 +24,13 @@
     <hr class="sidebar-divider">
 
     <!-- Heading -->
-    <div class="sidebar-heading">Interface</div>
+    <div class="sidebar-heading">Data</div>
 
     <!-- Nav Item - Hourly Demand -->
     <li class="nav-item {% if request.path == url_for('hourly_demand_page') %}active{% endif %}">
         <a class="nav-link" href="{{ url_for('hourly_demand_page') }}" aria-label="Hourly Demand">
             <i class="fas fa-fw fa-clock"></i>
-            <span>Hourly Demand</span>
+            <span>Hourly Demand Data</span>
         </a>
     </li>
 
@@ -38,7 +38,7 @@
     <li class="nav-item {% if request.path == url_for('hourly_weather_page') %}active{% endif %}">
         <a class="nav-link" href="{{ url_for('hourly_weather_page') }}" aria-label="Hourly Weather">
             <i class="fas fa-fw fa-cloud"></i>
-            <span>Hourly Weather</span>
+            <span>Hourly Weather Data</span>
         </a>
     </li>
 
@@ -46,7 +46,7 @@
     <li class="nav-item {% if request.path == url_for('holidays_page') %}active{% endif %}">
         <a class="nav-link" href="{{ url_for('holidays_page') }}" aria-label="Holidays">
             <i class="fas fa-fw fa-calendar-alt"></i>
-            <span>Holidays</span>
+            <span>Holidays Data</span>
         </a>
     </li>
 
@@ -55,5 +55,32 @@
 
     <!-- Heading -->
     <div class="sidebar-heading">EDA</div>
+
+    <!-- Nav Item - Electric Demand EDA -->
+    <li class="nav-item">
+        <a class="nav-link" href="{{ url_for('electric_demand_eda') }}" aria-label="Electric Demand EDA">
+            <i class="fas fa-fw fa-bolt"></i>
+            <span>Hourly Demand EDA</span>
+        </a>
+    </li>
+
+    <!-- Nav Item - Weather EDA -->
+    <li class="nav-item">
+        <a class="nav-link" href="{{ url_for('weather_eda') }}" aria-label="Weather EDA">
+            <i class="fas fa-fw fa-cloud"></i>
+            <span>Hourly Weather EDA</span>
+        </a>
+    </li>
+
+    <!-- Nav Item - Holiday EDA -->
+    <li class="nav-item">
+        <a class="nav-link" href="{{ url_for('holiday_eda') }}" aria-label="Holiday EDA">
+            <i class="fas fa-fw fa-calendar"></i>
+            <span>Holiday EDA</span>
+        </a>
+    </li>
+
+</ul>
+
 
 </ul>
