@@ -33,7 +33,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 # Directory paths
-BASE_DIR = "/var/task"
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "data")
 TEMPLATES_DIR = os.path.join(BASE_DIR, "templates")
 STATIC_DIR = os.path.join(BASE_DIR, "static")
@@ -456,23 +456,33 @@ def fetch_holidays():
         logger.error(f"Error fetching holidays data: {e}", exc_info=True)
         return jsonify({"error": "Failed to fetch holidays data"}), 500
 
-
-# Route for Holiday EDA
 @app.route('/eda/holiday')
 def holiday_eda():
     try:
-        # Load and process holiday data
         years = range(2019, 2026)
-        holiday_data = pd.concat([load_csv(f"holiday/{year}.csv") for year in years], ignore_index=True)
+        holiday_dfs = []
+        for year in years:
+            file_path = os.path.join(DATA_DIR, "holiday", f"{year}.csv")
+            df = load_csv(file_path)
+            if not df.empty:
+                holiday_dfs.append(df)
+        holiday_data = pd.concat(holiday_dfs, ignore_index=True) if holiday_dfs else pd.DataFrame()
 
-        # Summary statistics
+        if holiday_data.empty or 'date' not in holiday_data.columns:
+            return jsonify({"error": "Holiday data is missing or invalid"}), 404
+
+        holiday_data['date'] = pd.to_datetime(holiday_data['date'], errors='coerce')
         total_holidays = len(holiday_data)
         common_month = holiday_data['date'].dt.month.mode()[0]
 
-        return render_template('holiday_eda.html', 
-                               total_holidays=total_holidays, 
-                               common_month=common_month)
+        # Pass data to the template
+        return render_template(
+            'holiday_eda.html',
+            total_holidays=total_holidays,
+            common_month=common_month
+        )
     except Exception as e:
+        logger.error(f"Error in Holiday EDA: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
 

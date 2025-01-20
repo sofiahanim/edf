@@ -14,6 +14,7 @@ if (typeof $ === 'undefined') {
         initializeTables(); // Initialize all DataTables (demand, weather, holidays)
         initializeSearchInput(); // Search functionality for input fields
         initializeMenuSearch(); // Sidebar menu search functionality
+        fetchHolidayDistribution(); // Fetch and render holiday distribution histogram
     });
 }
 
@@ -454,6 +455,60 @@ function initializeTables() {
 }
 
 // 7. END SECTION 7 INITIALIZE TABLES
+
+// 8. START SECTION 8 EDA HOLIDAYS
+
+// Fetch and render holiday histogram
+function fetchHolidayDistribution() {
+    $.ajax({
+        url: `${baseUrl}/api/holidays`, // API endpoint
+        type: 'GET',
+        success: function (response) {
+            if (response && response.data) {
+                const holidayData = response.data;
+
+                // Create distribution data for months
+                const monthCounts = Array(12).fill(0);
+                holidayData.forEach((holiday) => {
+                    const month = new Date(holiday.date).getMonth();
+                    if (!isNaN(month)) monthCounts[month]++;
+                });
+
+                // Plot histogram using Plotly
+                const trace = {
+                    x: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+                    y: monthCounts,
+                    type: 'bar',
+                    marker: { color: '#7793e9' },
+                };
+                const layout = {
+                    title: 'Holiday Distribution by Month',
+                    xaxis: { title: 'Month' },
+                    yaxis: { title: 'Number of Holidays' },
+                };
+
+                Plotly.newPlot('holiday-histogram', [trace], layout);
+            } else {
+                console.error('Invalid response for holiday distribution:', response);
+                alert('Failed to fetch holiday distribution data.');
+            }
+        },
+        error: function (jqXHR, textStatus, errorThrown) {
+            console.error('Error fetching holiday distribution data:', errorThrown);
+            alert('Unable to load holiday distribution.');
+        },
+    });
+}
+
+
+
+
+
+
+
+
+
+
 
 // 8. START SECTION 8 EDA DEMAND
 

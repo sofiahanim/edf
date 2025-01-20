@@ -33,13 +33,13 @@
                         <tbody>
                             <tr>
                                 <td>Total Holidays</td>
-                                <td id="total-holidays">Loading...</td>
+                                <td id="total-holidays">{{ total_holidays }}</td>
                             </tr>
                             <tr>
                                 <td>Most Common Holiday Month</td>
-                                <td id="common-holiday-month">Loading...</td>
+                                <td id="common-holiday-month">{{ common_month }}</td>
                             </tr>
-                        </tbody>
+                        </tbody>                        
                     </table>
                 </div>
             </div>
@@ -54,10 +54,10 @@
                     <h6 class="m-0 font-weight-bold text-primary">Holiday Distribution by Month</h6>
                 </div>
                 <div class="card-body">
-                    <div id="holiday-histogram"></div>
+                    <div id="holiday-histogram" style="width: 100%; height: 400px;"></div>
                 </div>
             </div>
         </div>
-    </div>
+    </div>    
 </div>
 {% endblock %}
