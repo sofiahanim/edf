@@ -90,9 +90,12 @@ jobs:
         git config --global user.name "github-actions[bot]"
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
         git add data/merge/allyears.csv
-        git diff --cached --exit-code
-        git commit -m "Update with daily preprocessing results at $(date -u '+%Y-%m-%d %H:%M:%S') UTC" || echo "Nothing to commit."
-        git push
+        if ! git diff --cached --quiet; then
+          git commit -m "Update with daily preprocessing results at $(date -u '+%Y-%m-%d %H:%M:%S') UTC"
+          git push
+        else
+          echo "⚠️ No changes to commit."
+        fi
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
