@@ -1,4 +1,4 @@
-name: ML Part 2
+name: ML Part 3
 
 on:
   push:
@@ -12,7 +12,7 @@ permissions:
   contents: write
 
 jobs:
-  ml-training:
+  ml-evaluation:
     runs-on: ubuntu-20.04
 
     steps:
@@ -26,7 +26,7 @@ jobs:
       with:
         python-version: "3.9"
 
-    # Step 3: Install System-Level Dependencies       
+    # Step 3: Install System-Level Dependencies
     - name: Install System-Level Dependencies
       run: |
         sudo apt-get update -y
@@ -62,7 +62,6 @@ jobs:
         python3 -m pip install statsforecast[autoarima,ets,croston]==2.0.0 --verbose
         python3 -c "from statsforecast import StatsForecast" || exit 1
 
-
     # Step 6: Test Dependency Installation
     - name: Test Dependency Installation
       run: |
@@ -82,7 +81,7 @@ jobs:
     # Step 9: Initialize Required Files and Directories
     - name: Initialize Required Files and Directories
       run: |
-        for dir in training validation evaluation; do
+        for dir in training validation evaluation reports; do
           if [ ! -d "$dir" ]; then
             echo "Creating missing directory: $dir"
             mkdir -p "$dir"
@@ -115,7 +114,7 @@ jobs:
           exit 1
         fi
 
-    - name: Verify Metrics Files
+    - name: Verify Evaluation Files
       run: |
         if ls evaluation/*.csv 1> /dev/null 2>&1; then
           echo "✅ All evaluation files are present."
@@ -132,11 +131,13 @@ jobs:
         ls -l validation/
         echo "Evaluation files:"
         ls -l evaluation/
+        echo "Reports directory:"
+        ls -l reports/
 
     # Step 11: Run Model Training Script
     - name: Run Model Training Script
       run: |
-        python3 scripts/ml_part_2.py --verbose
+        python3 scripts/ml_part_3.py --verbose
       env:
         PYTHONUNBUFFERED: 1
         LOG_LEVEL: DEBUG
@@ -146,8 +147,8 @@ jobs:
       run: |
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
         git config --global user.name "GitHub Actions"
-        git add training/*.csv validation/*.csv evaluation/*.csv
-        git commit -m "Update training, validation, and evaluation results" || echo "No changes to commit"
+        git add training/*.csv validation/*.csv evaluation/*.csv reports/*.csv
+        git commit -m "Update results: training, validation, evaluation, and reports" || echo "No changes to commit"
         git push
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
