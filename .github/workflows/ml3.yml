@@ -79,17 +79,6 @@ jobs:
         python3 -m pip install pipdeptree
         pipdeptree
 
-    - name: Initialize Required Files and Directories
-      run: |
-        for dir in training validation evaluation; do
-          mkdir -p "$dir"
-          [ ! -f "$dir/placeholder.csv" ] && echo "ds,y" > "$dir/placeholder.csv"
-        done
-
-    - name: Ensure Reports Directory Exists
-      run: |
-        mkdir -p reports
-
     - name: Validate Input Dataset
       run: |
         if [ ! -f "data/merge/allyears.csv" ]; then
