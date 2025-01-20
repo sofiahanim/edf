@@ -59,15 +59,13 @@ jobs:
       run: |
         python3 -m pip cache purge
         pip install pip-tools
-        pip-compile requirements_linux.txt
-        python3 -m pip install --no-cache-dir -r requirements.txt --verbose
-
+        pip-compile --output-file=requirements_linux.lock.txt requirements_linux.txt
+        python3 -m pip install --no-cache-dir -r requirements_linux.lock.txt --verbose
+    
     - name: Install Stan via CmdStanPy
       run: |
         python3 -m cmdstanpy.install_cmdstan --version latest || echo "CmdStanPy installation failed. Skipping."
         python3 -c "import cmdstanpy; print(f'CmdStanPy Version: {cmdstanpy.__version__}')"
-    
-
 
     # Step 7: Test Dependency Installation
     - name: Test Dependency Installation
