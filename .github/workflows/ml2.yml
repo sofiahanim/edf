@@ -76,14 +76,6 @@ jobs:
         python3 -m pip install pipdeptree
         pipdeptree
 
-    # Step 9: Run Model Training Script
-    - name: Run Model Training Script
-      run: |
-        python3 scripts/ml_part_2.py --verbose
-      env:
-        PYTHONUNBUFFERED: 1
-        LOG_LEVEL: DEBUG
-
     # Step 10: Verify Metrics Files (Wildcard Check)
     - name: Verify Training Files
       run: |
@@ -111,7 +103,33 @@ jobs:
           echo "❌ Evaluation files are missing."
           exit 1
         fi
+    - name: Debug File Existence
+      run: |
+        echo "Training files:"
+        ls -l training/
+        echo "Validation files:"
+        ls -l validation/
+        echo "Evaluation files:"
+        ls -l evaluation/
+    
+    # Step 9: Run Model Training Script
+    - name: Run Model Training Script
+      run: |
+        python3 scripts/ml_part_2.py --verbose
+      env:
+        PYTHONUNBUFFERED: 1
+        LOG_LEVEL: DEBUG
 
+    - name: Commit and Push Changes
+      run: |
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        git config --global user.name "GitHub Actions"
+        git add training/*.csv validation/*.csv evaluation/*.csv
+        git commit -m "Update training, validation, and evaluation results" || echo "No changes to commit"
+        git push
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
     - name: Notify Completion
       if: always()
       run: |
