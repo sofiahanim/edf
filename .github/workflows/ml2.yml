@@ -59,11 +59,12 @@ jobs:
       run: |
         python3 -m pip cache purge
         python3 -m pip install --no-cache-dir -r requirements_linux.txt --verbose
+        python3 -m pip install statsforecast[models] --verbose
 
     # Step 6: Test Dependency Installation
     - name: Test Dependency Installation
       run: |
-        python3 -c "import pandas, numpy, sklearn, tensorflow, darts, pyod, prophet" || exit 1
+        python3 -c "import pandas, numpy, sklearn, tensorflow, darts, pyod, prophet, statsforecast" || exit 1
 
     # Step 7: Debug Installed Packages
     - name: Debug Installed Packages
@@ -151,11 +152,8 @@ jobs:
 
     # Step 13: Notify Completion
     - name: Notify Completion
-      if: always()
-      run: |
-          if [ $? -eq 0 ]; then
-            echo "🎉 Workflow completed successfully!"
-          else
-            echo "❌ Workflow failed. Check logs for details."
-          fi
-
+      if: success()
+      run: echo "🎉 Workflow completed successfully!"
+    - name: Notify Failure
+      if: failure()
+      run: echo "❌ Workflow failed. Check logs for details."
