@@ -59,22 +59,6 @@ jobs:
     - name: Check for Dependency Conflicts
       run: |
         python3 -m pip check || exit 1
-
-    - name: Install Stan via CmdStanPy
-      run: |
-        n=0
-        until [ "$n" -ge 5 ]
-        do
-          python3 -m cmdstanpy.install_cmdstan --version latest && break
-          n=$((n+1))
-          echo "Retrying in $((2**n)) seconds..."
-          sleep $((2**n))
-        done
-        if [ "$n" -ge 5 ]; then
-          echo "❌ CmdStanPy installation failed after 5 attempts."
-          exit 1
-        fi
-
         
     - name: Debug Installed Packages
       run: |
