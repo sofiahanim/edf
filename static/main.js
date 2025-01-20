@@ -14,8 +14,7 @@ if (typeof $ === 'undefined') {
         initializeTables(); // Initialize all DataTables (demand, weather, holidays)
         initializeSearchInput(); // Search functionality for input fields
         initializeMenuSearch(); // Sidebar menu search functionality
-        fetchHolidayDistribution(); // Fetch and render holiday distribution histogram
-        fetchHolidayTrends();
+        fetchHolidayEDAData(); // Fetch and render EDA holiday data
     });
 }
 
@@ -458,118 +457,106 @@ function initializeTables() {
 // 7. END SECTION 7 INITIALIZE TABLES
 
 // 8. START SECTION 8 EDA HOLIDAYS
-
-function fetchHolidayDistribution() {
-    $.ajax({
-        url: `${baseUrl}/api/holidays`,
-        type: 'GET',
-        success: function (response) {
-            if (response && response.data) {
-                const holidayData = response.data;
-
-                // Prepare data for monthly distribution
-                const monthCounts = Array(12).fill(0);
-                holidayData.forEach((holiday) => {
-                    const month = new Date(holiday.date).getMonth();  // Extract month (0-11)
-                    if (!isNaN(month)) monthCounts[month]++;
-                });
-
-                // Plot histogram using Plotly
-                const trace = {
-                    x: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-                    y: monthCounts,
-                    type: 'bar',
-                    marker: { color: '#7793e9' }
-                };
-                const layout = {
-                    title: 'Holiday Distribution by Month',
-                    xaxis: { title: 'Month' },
-                    yaxis: { title: 'Number of Holidays' }
-                };
-
-                Plotly.newPlot('holiday-histogram', [trace], layout);
-            } else {
-                console.error('Invalid response for holiday distribution:', response);
-                alert('Failed to fetch holiday distribution data.');
-            }
-        },
-        error: function (jqXHR, textStatus, errorThrown) {
-            console.error('Error fetching holiday distribution data:', errorThrown);
-            alert('Unable to load holiday distribution.');
+// Function to fetch and process Holiday EDA data
+function fetchHolidayEDAData() {
+    fetch('/eda/holiday', {
+        headers: {
+            'Accept': 'application/json' // Explicitly request JSON response
         }
-    });
+    })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            return response.json(); // Parse JSON response
+        })
+        .then(data => {
+            console.log("Holiday EDA Data:", data);
+            renderHolidayEDAData(data); // Render the data in the UI
+        })
+        .catch(error => {
+            console.error('Error fetching Holiday EDA data:', error);
+        });
 }
 
-function fetchHolidayTrends() {
-    $.ajax({
-        url: `${baseUrl}/api/holiday_trends`,
-        type: 'GET',
-        success: function (response) {
-            if (response && response.data) {
-                const data = response.data;
+// Function to render Holiday EDA data into the HTML
+function renderHolidayEDAData(data) {
+    // Update total holidays and common month
+    document.getElementById('total-holidays').textContent = data.total_holidays || 'N/A';
+    document.getElementById('common-month').textContent = data.common_month || 'N/A';
 
-                // Extract years and total holidays for plotting
-                const years = data.map(d => d.year);
-                const totals = data.map(d => d.total_holidays);
-
-                // Plot line chart using Plotly
-                const trace = {
-                    x: years,
-                    y: totals,
-                    type: 'scatter',
-                    mode: 'lines+markers',
-                    line: { color: '#42A5F5' }
-                };
-                const layout = {
-                    title: 'Holiday Trends Over the Years',
-                    xaxis: { title: 'Year' },
-                    yaxis: { title: 'Total Holidays' }
-                };
-
-                Plotly.newPlot('holiday-trends', [trace], layout);
-            } else {
-                console.error('Invalid response for holiday trends:', response);
-                alert('Failed to fetch holiday trends data.');
-            }
-        },
-        error: function (jqXHR, textStatus, errorThrown) {
-            console.error('Error fetching holiday trends data:', errorThrown);
-            alert('Unable to load holiday trends.');
-        }
+    // Populate holiday trends table
+    const trendsData = document.getElementById('trends-data');
+    trendsData.innerHTML = ''; // Clear existing data
+    data.holiday_trends.forEach(trend => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${trend.year}</td>
+            <td>${trend.total_holidays}</td>
+        `;
+        trendsData.appendChild(row);
     });
-}
-
-function plotHolidayTrends(data) {
-    const years = data.map(d => d.year);
-    const totals = data.map(d => d.total_holidays);
-
-    const trace = {
-        x: years,
-        y: totals,
-        type: 'scatter',
-        mode: 'lines+markers',
-        line: { color: '#42A5F5' }
-    };
-
-    const layout = {
-        title: 'Holiday Trends Over the Years',
-        xaxis: { title: 'Year' },
-        yaxis: { title: 'Total Holidays' }
-    };
-
-    Plotly.newPlot('holiday-trends', [trace], layout);
 }
 
 // 8. END SECTION 8 EDA HOLIDAYS
 
+// 9. START SECTION 9 EDA WEATHER
+
+function fetchWeatherVisualizations() {
+    $.ajax({
+        url: `${baseUrl}/eda/weather`,
+        type: 'GET',
+        success: function (response) {
+            if (response) {
+                console.log("Weather data response received:", response);
+
+                // Visualization 1: Average Temperature by Year
+                if (response.avg_temp_by_year && document.getElementById('avg-temp-by-year')) {
+                    Plotly.newPlot('avg-temp-by-year', [
+                        {
+                            x: response.avg_temp_by_year.map(d => d.year),
+                            y: response.avg_temp_by_year.map(d => d.avg_temp),
+                            type: 'scatter',
+                            mode: 'lines+markers',
+                            line: { color: '#42A5F5' }
+                        }
+                    ], {
+                        title: 'Average Temperature by Year',
+                        xaxis: { title: 'Year' },
+                        yaxis: { title: 'Temperature (°C)' },
+                    });
+                }
+
+                // Visualization 2: Average Humidity by Month
+                if (response.avg_humidity_by_month && document.getElementById('avg-humidity-by-month')) {
+                    Plotly.newPlot('avg-humidity-by-month', [
+                        {
+                            x: response.avg_humidity_by_month.map(d => d.month),
+                            y: response.avg_humidity_by_month.map(d => d.avg_humidity),
+                            type: 'bar',
+                            marker: { color: '#66BB6A' },
+                        }
+                    ], {
+                        title: 'Average Humidity by Month',
+                        xaxis: { title: 'Month' },
+                        yaxis: { title: 'Humidity (%)' },
+                    });
+                }
+
+                // Additional visualizations (Wind Speed, Solar Radiation, Precipitation Type) go here
+            } else {
+                console.error("Invalid weather response", response);
+            }
+        },
+        error: function (error) {
+            console.error("Failed to fetch weather visualizations", error);
+        }
+    });
+}
 
 
+// 9. END SECTION 9 EDA WEATHER
 
-
-
-
-
-// 8. START SECTION 8 EDA DEMAND
 
 // EDA DEMAND
 // Add this to handle demand EDA dynamically

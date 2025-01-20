@@ -57,7 +57,7 @@
     <div class="sidebar-heading">EDA</div>
 
     <!-- Nav Item - Electric Demand EDA -->
-    <li class="nav-item">
+    <li class="nav-item {% if request.path == url_for('electric_demand_eda') %}active{% endif %}">
         <a class="nav-link" href="{{ url_for('electric_demand_eda') }}" aria-label="Electric Demand EDA">
             <i class="fas fa-fw fa-bolt"></i>
             <span>Hourly Demand EDA</span>
@@ -65,7 +65,7 @@
     </li>
 
     <!-- Nav Item - Weather EDA -->
-    <li class="nav-item">
+    <li class="nav-item {% if request.path == url_for('weather_eda') %}active{% endif %}">
         <a class="nav-link" href="{{ url_for('weather_eda') }}" aria-label="Weather EDA">
             <i class="fas fa-fw fa-cloud"></i>
             <span>Hourly Weather EDA</span>
@@ -73,7 +73,7 @@
     </li>
 
     <!-- Nav Item - Holiday EDA -->
-    <li class="nav-item">
+    <li class="nav-item {% if request.path == url_for('holiday_eda') %}active{% endif %}">
         <a class="nav-link" href="{{ url_for('holiday_eda') }}" aria-label="Holiday EDA">
             <i class="fas fa-fw fa-calendar"></i>
             <span>Holiday EDA</span>

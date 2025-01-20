@@ -121,7 +121,21 @@ table th, table td {
     overflow: hidden;
 }
 
-#holiday-trends {
-    height: 400px;
+#holiday-histogram,
+#holiday-pie-chart,
+#holiday-trends,
+#top-holidays-per-year,
+#holiday-cumulative,
+#holiday-heatmap {
+    height: 550px; /* Increased height for better readability */
     width: 100%;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    transition: 0.3s ease;
+}
+
+.card-header {
+    cursor: pointer;
 }
