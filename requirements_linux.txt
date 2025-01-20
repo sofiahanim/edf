@@ -4,7 +4,7 @@ sktime==0.16.1
 dask[complete]>=2023.1.1
 numpy==1.23.5
 statsmodels==0.13.5
-pandas
+pandas==1.4.1
 darts==0.23.1
 torch==1.13.1
 torchvision==0.14.1
