@@ -57,6 +57,7 @@ jobs:
     - name: Upgrade Python Tools
       run: |
         python3 -m pip install --upgrade pip setuptools wheel
+        
     - name: Install Core ML Libraries
       run: |
         echo "🔍 Installing core ML libraries..."
