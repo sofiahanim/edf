@@ -1,4 +1,3 @@
-﻿﻿# Core ML Libraries
 scikit-learn==1.2.2
 pycaret==3.0.0
 sktime==0.16.1
@@ -13,16 +12,12 @@ statsmodels==0.13.5
 scipy
 tqdm
 pandas>=1.3.5,<1.6.0
-
-# Time Series Libraries
 darts==0.23.1
 prophet==1.1.2
 statsforecast[autoarima,ets,croston]==2.0.0
 holidays==0.14.2
 pyod==1.0.8
 cmdstanpy
-
-# Web Development and Deployment
 flask
 flask_caching
 flask_cors
@@ -31,18 +26,12 @@ gunicorn
 werkzeug
 jinja2
 python-dotenv
-
-# AWS and Cloud
 boto3
 botocore
 awscli
-
-# Parallel and Distributed Computing
 dask
 distributed
 dask-expr
-
-# System and Utilities
 setuptools
 wheel
 Cython
@@ -58,8 +47,6 @@ requests
 tabulate
 future
 lockfile
-
-# Visualization
 matplotlib
 plotly
 plotly.express
