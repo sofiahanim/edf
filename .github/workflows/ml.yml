@@ -49,26 +49,40 @@ jobs:
     - name: Upgrade Python Tools
       run: |
         python3 -m pip install --upgrade pip setuptools wheel
-
-    - name: Install Python Dependencies
+    - name: Install Core ML Libraries
       run: |
-        python3 -m pip cache purge
-        pip install pip-tools
-        pip-compile --output-file=requirements_linux.lock.txt requirements_linux.txt
-        python3 -m pip install --no-cache-dir -r requirements_linux.lock.txt --verbose
+        echo "🔍 Installing core ML libraries..."
+        pip install --no-cache-dir --require-hashes -r requirements_linux.lock.txt --verbose
+      
+    - name: Check for Dependency Conflicts
+      run: |
+        python3 -m pip check || exit 1
 
     - name: Install Stan via CmdStanPy
       run: |
-        python3 -m cmdstanpy.install_cmdstan --version latest || exit 1
-        python3 -c "import cmdstanpy; print(f'CmdStanPy Version: {cmdstanpy.__version__}')"
+        n=0
+        until [ "$n" -ge 5 ]
+        do
+          python3 -m cmdstanpy.install_cmdstan --version latest && break
+          n=$((n+1))
+          echo "Retrying in $((2**n)) seconds..."
+          sleep $((2**n))
+        done
+        if [ "$n" -ge 5 ]; then
+          echo "❌ CmdStanPy installation failed after 5 attempts."
+          exit 1
+        fi
 
     - name: Test Dependency Installation
       run: |
         python3 -c "import pandas, pycaret, numpy, sklearn, tensorflow, darts, pyod, prophet, statsforecast"
-
+        
+        
     - name: Debug Installed Packages
       run: |
+        echo "🔍 Listing installed pip packages..."
         python3 -m pip list
+    
 
     - name: Check Dependency Tree
       run: |
