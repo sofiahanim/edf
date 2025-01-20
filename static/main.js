@@ -15,6 +15,7 @@ if (typeof $ === 'undefined') {
         initializeSearchInput(); // Search functionality for input fields
         initializeMenuSearch(); // Sidebar menu search functionality
         fetchHolidayDistribution(); // Fetch and render holiday distribution histogram
+        fetchHolidayTrends();
     });
 }
 
@@ -458,19 +459,18 @@ function initializeTables() {
 
 // 8. START SECTION 8 EDA HOLIDAYS
 
-// Fetch and render holiday histogram
 function fetchHolidayDistribution() {
     $.ajax({
-        url: `${baseUrl}/api/holidays`, // API endpoint
+        url: `${baseUrl}/api/holidays`,
         type: 'GET',
         success: function (response) {
             if (response && response.data) {
                 const holidayData = response.data;
 
-                // Create distribution data for months
+                // Prepare data for monthly distribution
                 const monthCounts = Array(12).fill(0);
                 holidayData.forEach((holiday) => {
-                    const month = new Date(holiday.date).getMonth();
+                    const month = new Date(holiday.date).getMonth();  // Extract month (0-11)
                     if (!isNaN(month)) monthCounts[month]++;
                 });
 
@@ -479,12 +479,12 @@ function fetchHolidayDistribution() {
                     x: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
                     y: monthCounts,
                     type: 'bar',
-                    marker: { color: '#7793e9' },
+                    marker: { color: '#7793e9' }
                 };
                 const layout = {
                     title: 'Holiday Distribution by Month',
                     xaxis: { title: 'Month' },
-                    yaxis: { title: 'Number of Holidays' },
+                    yaxis: { title: 'Number of Holidays' }
                 };
 
                 Plotly.newPlot('holiday-histogram', [trace], layout);
@@ -496,12 +496,71 @@ function fetchHolidayDistribution() {
         error: function (jqXHR, textStatus, errorThrown) {
             console.error('Error fetching holiday distribution data:', errorThrown);
             alert('Unable to load holiday distribution.');
-        },
+        }
     });
 }
 
+function fetchHolidayTrends() {
+    $.ajax({
+        url: `${baseUrl}/api/holiday_trends`,
+        type: 'GET',
+        success: function (response) {
+            if (response && response.data) {
+                const data = response.data;
 
+                // Extract years and total holidays for plotting
+                const years = data.map(d => d.year);
+                const totals = data.map(d => d.total_holidays);
 
+                // Plot line chart using Plotly
+                const trace = {
+                    x: years,
+                    y: totals,
+                    type: 'scatter',
+                    mode: 'lines+markers',
+                    line: { color: '#42A5F5' }
+                };
+                const layout = {
+                    title: 'Holiday Trends Over the Years',
+                    xaxis: { title: 'Year' },
+                    yaxis: { title: 'Total Holidays' }
+                };
+
+                Plotly.newPlot('holiday-trends', [trace], layout);
+            } else {
+                console.error('Invalid response for holiday trends:', response);
+                alert('Failed to fetch holiday trends data.');
+            }
+        },
+        error: function (jqXHR, textStatus, errorThrown) {
+            console.error('Error fetching holiday trends data:', errorThrown);
+            alert('Unable to load holiday trends.');
+        }
+    });
+}
+
+function plotHolidayTrends(data) {
+    const years = data.map(d => d.year);
+    const totals = data.map(d => d.total_holidays);
+
+    const trace = {
+        x: years,
+        y: totals,
+        type: 'scatter',
+        mode: 'lines+markers',
+        line: { color: '#42A5F5' }
+    };
+
+    const layout = {
+        title: 'Holiday Trends Over the Years',
+        xaxis: { title: 'Year' },
+        yaxis: { title: 'Total Holidays' }
+    };
+
+    Plotly.newPlot('holiday-trends', [trace], layout);
+}
+
+// 8. END SECTION 8 EDA HOLIDAYS
 
 
 

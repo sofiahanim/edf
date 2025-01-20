@@ -88,14 +88,6 @@ jobs:
         run: |
           python3 -m pip install pipdeptree
           pipdeptree
-      
-      - name: Run Model Training Script
-        run: |
-          python3 scripts/ml_part_2.py --verbose
-        env:
-          PYTHONUNBUFFERED: 1
-          LOG_LEVEL: DEBUG
-
     
       - name: Set AWS credentials
         run: |
@@ -125,13 +117,19 @@ jobs:
         env:
           PYTHONUNBUFFERED: 1
           LOG_LEVEL: DEBUG
+          
+      - name: Debug Training Script Logs
+        if: failure()
+        run: |
+          echo "⚠️ Command failed. Debugging..."
+          tail -n 50 /var/log/syslog || echo "No syslog available."
 
       - name: Commit and push updated CSV
         run: |
           git config --local user.name "GitHub Actions[bot]"
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git add --force data/demand/2025.csv
-          git commit -m "Update CSV with new data" || echo "Nothing to commit."
+          git commit -m "Update CSV with new data at $(date -u '+%Y-%m-%d %H:%M:%S') UTC" || echo "Nothing to commit."
           git push || echo "No changes pushed."
 
       - name: Notify Completion

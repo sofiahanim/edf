@@ -120,3 +120,8 @@ table th, table td {
     white-space: nowrap;
     overflow: hidden;
 }
+
+#holiday-trends {
+    height: 400px;
+    width: 100%;
+}

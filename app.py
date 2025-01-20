@@ -459,31 +459,116 @@ def fetch_holidays():
 @app.route('/eda/holiday')
 def holiday_eda():
     try:
+        # Define the range of years for holiday data
+        years = range(2019, 2026)
+        holiday_dfs = []
+
+        # Load holiday data for each year
+        for year in years:
+            file_path = os.path.join(DATA_DIR, "holiday", f"{year}.csv")
+            df = load_csv(file_path)
+            if not df.empty and 'date' in df.columns:
+                df['date'] = pd.to_datetime(df['date'], errors='coerce')  # Ensure date parsing
+                holiday_dfs.append(df)
+            else:
+                logger.warning(f"Invalid or missing data in {file_path}")
+
+        # Combine all holiday data
+        holiday_data = pd.concat(holiday_dfs, ignore_index=True) if holiday_dfs else pd.DataFrame()
+
+        if holiday_data.empty or 'date' not in holiday_data.columns:
+            return jsonify({"error": "No holiday data available"}), 404
+
+        # Calculate EDA metrics
+        holiday_data['month'] = holiday_data['date'].dt.month  # Extract month for distribution
+        total_holidays = len(holiday_data)
+        common_month = holiday_data['month'].mode()[0]
+        common_month_name = pd.to_datetime(str(common_month), format='%m').strftime('%B')  # Month name
+
+        # Aggregate trends by year
+        holiday_data['year'] = holiday_data['date'].dt.year
+        holiday_trends = holiday_data.groupby('year')['date'].count().reset_index(name='total_holidays')
+
+        # Render the results to the EDA page
+        return render_template(
+            'holiday_eda.html',
+            total_holidays=total_holidays,
+            common_month=common_month_name,
+            holiday_trends=holiday_trends.to_dict(orient='records')
+        )
+    except Exception as e:
+        logger.error(f"Error in Holiday EDA: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/holiday_trends', methods=['GET'])
+def get_holiday_trends():
+    try:
         years = range(2019, 2026)
         holiday_dfs = []
         for year in years:
             file_path = os.path.join(DATA_DIR, "holiday", f"{year}.csv")
             df = load_csv(file_path)
-            if not df.empty:
+            if not df.empty and 'date' in df.columns:
+                # Ensure 'date' is parsed to datetime
+                df['date'] = pd.to_datetime(df['date'], errors='coerce')
                 holiday_dfs.append(df)
+
+        # Combine all holiday data
         holiday_data = pd.concat(holiday_dfs, ignore_index=True) if holiday_dfs else pd.DataFrame()
 
+        # Check if data is valid
         if holiday_data.empty or 'date' not in holiday_data.columns:
             return jsonify({"error": "Holiday data is missing or invalid"}), 404
 
-        holiday_data['date'] = pd.to_datetime(holiday_data['date'], errors='coerce')
-        total_holidays = len(holiday_data)
-        common_month = holiday_data['date'].dt.month.mode()[0]
+        # Extract year from the date and group by year
+        holiday_data['year'] = holiday_data['date'].dt.year
+        holiday_trends = holiday_data.groupby('year')['date'].count().reset_index(name='total_holidays')
 
-        # Pass data to the template
-        return render_template(
-            'holiday_eda.html',
-            total_holidays=total_holidays,
-            common_month=common_month
-        )
+        # Return trends as JSON
+        return jsonify({"data": holiday_trends.to_dict(orient='records')}), 200
     except Exception as e:
-        logger.error(f"Error in Holiday EDA: {e}", exc_info=True)
+        logger.error(f"Error in get_holiday_trends: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
+
+@app.route('/download/holidays')
+def download_holidays():
+    try:
+        # Define the range of years for holiday data
+        years = range(2019, 2026)
+        holiday_dfs = []
+
+        # Load holiday data for each year
+        for year in years:
+            file_path = os.path.join(DATA_DIR, "holiday", f"{year}.csv")
+            df = load_csv(file_path)
+            if not df.empty:
+                holiday_dfs.append(df)
+
+        # Combine all holiday data
+        holiday_data = pd.concat(holiday_dfs, ignore_index=True) if holiday_dfs else pd.DataFrame()
+
+        if holiday_data.empty:
+            return jsonify({"error": "No holiday data available for download"}), 404
+
+        # Save combined data to a file
+        file_path = os.path.join(DATA_DIR, 'holidays_combined.csv')
+        holiday_data.to_csv(file_path, index=False)
+
+        return send_from_directory(DATA_DIR, 'holidays_combined.csv', as_attachment=True)
+    except Exception as e:
+        logger.error(f"Error in download_holidays: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/invalidate_cache', methods=['POST'])
+def invalidate_cache():
+    try:
+        cache.clear()
+        return jsonify({"message": "Cache invalidated successfully"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 
 
 """5. END SECTION 5 HOLIDAYS"""
