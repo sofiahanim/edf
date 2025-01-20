@@ -16,17 +16,15 @@ jobs:
     runs-on: ubuntu-20.04
 
     steps:
-    # Step 1: Checkout Repository
+
     - name: Checkout Repository
       uses: actions/checkout@v3
 
-    # Step 2: Set Up Python
     - name: Set Up Python
       uses: actions/setup-python@v4
       with:
         python-version: "3.9"
 
-    # Step 3: Install System-Level Dependencies
     - name: Install System-Level Dependencies
       run: |
         sudo apt-get update -y
@@ -49,41 +47,35 @@ jobs:
           libgfortran5 \
           libgomp1
 
-    # Step 4: Upgrade Python Tools
     - name: Upgrade Python Tools
       run: |
         python3 -m pip install --upgrade pip setuptools wheel
 
-    # Step 5: Install Python Dependencies
     - name: Install Python Dependencies
       run: |
         python3 -m pip cache purge
         pip install pip-tools
         pip-compile --output-file=requirements_linux.lock.txt requirements_linux.txt
         python3 -m pip install --no-cache-dir -r requirements_linux.lock.txt --verbose
-    
+
     - name: Install Stan via CmdStanPy
       run: |
-        python3 -m cmdstanpy.install_cmdstan --version latest || echo "CmdStanPy installation failed. Skipping."
+        python3 -m cmdstanpy.install_cmdstan --version latest || exit 1
         python3 -c "import cmdstanpy; print(f'CmdStanPy Version: {cmdstanpy.__version__}')"
 
-    # Step 7: Test Dependency Installation
     - name: Test Dependency Installation
       run: |
-        python3 -c "import pandas, pycaret, numpy, sklearn, tensorflow, darts, pyod, prophet, statsforecast" || exit 1
+        python3 -c "import pandas, pycaret, numpy, sklearn, tensorflow, darts, pyod, prophet, statsforecast"
 
-    # Step 8: Debug Installed Packages
     - name: Debug Installed Packages
       run: |
         python3 -m pip list
 
-    # Step 9: Check Dependency Tree
     - name: Check Dependency Tree
       run: |
         python3 -m pip install pipdeptree
         pipdeptree
 
-    # Step 10: Initialize Required Files and Directories
     - name: Initialize Required Files and Directories
       run: |
         for dir in training validation evaluation; do
@@ -108,7 +100,6 @@ jobs:
         fi
         echo "✅ Dataset allyears.csv is present."
 
-    # Step 11: Verify Metrics Files
     - name: Verify Training Files
       run: |
         if ls training/*.csv 1> /dev/null 2>&1; then
@@ -147,7 +138,6 @@ jobs:
         echo "Reports directory:"
         ls -l reports/
 
-    # Step 12: Run Model Training Script
     - name: Run Model Training Script
       run: |
         python3 scripts/ml_part_3.py --verbose
@@ -165,8 +155,7 @@ jobs:
                 echo "✅ Output exists: $file"
             fi
         done
-      
-    # Step 13: Commit and Push Changes
+
     - name: Commit and Push Changes
       run: |
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -177,7 +166,6 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    # Step 14: Notify Completion
     - name: Notify Completion
       if: success()
       run: echo "🎉 Workflow completed successfully!"
