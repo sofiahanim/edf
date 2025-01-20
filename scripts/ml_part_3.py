@@ -7,6 +7,13 @@ import h2o
 from h2o.automl import H2OAutoML
 from pycaret.regression import *
 from datetime import datetime
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+logger.info("Starting H2O AutoML...")
+
 
 # ===== Initialize H2O ===== #
 h2o.init()
@@ -18,11 +25,39 @@ evaluation_dir = os.path.join(base_dir, 'evaluation')
 training_dir = os.path.join(base_dir, 'training')
 validation_dir = os.path.join(base_dir, 'validation')
 reports_dir = os.path.join(base_dir, 'reports')
-os.makedirs(reports_dir, exist_ok=True)
+
+for dir_path in [training_dir, validation_dir, evaluation_dir, reports_dir]:
+    os.makedirs(dir_path, exist_ok=True)
+    logger.info(f"Checked or created directory: {dir_path}")
+
 
 # Load allyears dataset
 allyears_path = os.path.join(data_dir, 'allyears.csv')
-allyears_data = pd.read_csv(allyears_path)
+
+folders = {
+    "evaluation": {
+        "gbr_predictions": os.path.join(evaluation_dir, "gbr_predictions.csv"),
+        "prophet_predictions": os.path.join(evaluation_dir, "prophet_predictions.csv"),
+        "theta_predictions": os.path.join(evaluation_dir, "theta_predictions.csv"),
+        "summary_report": os.path.join(evaluation_dir, "summary_report.csv"),
+    },
+    "validation": {
+        "consolidated": os.path.join(validation_dir, "consolidated_validation_metrics.csv"),
+    },
+}
+
+
+def validate_file(file_path, required_columns=None):
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"File not found: {file_path}")
+    df = pd.read_csv(file_path)
+    if required_columns and not all(col in df.columns for col in required_columns):
+        raise ValueError(f"Missing required columns in {file_path}. Expected: {required_columns}")
+    return df
+
+# Validate allyears dataset
+allyears_data = validate_file(allyears_path, required_columns=["y", "ds"])
+
 
 # ===== Utility Functions ===== #
 def read_all_csv_in_dir(directory):
@@ -128,7 +163,14 @@ def generate_discussion(metrics_file, output_file):
 # ===== H2O AutoML ===== #
 allyears_data_h2o = h2o.H2OFrame(allyears_data)
 target_column = "y"
+
 feature_columns = [col for col in allyears_data.columns if col not in ["y", "ds", "date", "preciptype"]]
+
+if target_column not in allyears_data.columns:
+    raise ValueError(f"Target column '{target_column}' not found in allyears_data.")
+if not all(col in allyears_data.columns for col in feature_columns):
+    raise ValueError(f"Some feature columns are missing: {feature_columns}")
+
 aml = H2OAutoML(max_models=10, seed=1)
 aml.train(y=target_column, x=feature_columns, training_frame=allyears_data_h2o)
 leaderboard = aml.leaderboard.as_data_frame()
@@ -138,16 +180,26 @@ print(leaderboard)
 # ===== SHAP Analysis ===== #
 gbr_predictions_path = folders["evaluation"]["gbr_predictions"]
 gbr_predictions = pd.read_csv(gbr_predictions_path)
-if "temp" in gbr_predictions.columns:
-    explainer = shap.Explainer(lambda x: x, gbr_predictions[feature_columns])
-    shap_values = explainer(gbr_predictions[feature_columns])
-    shap.summary_plot(shap_values, gbr_predictions[feature_columns])
+if feature_columns:
+    try:
+        explainer = shap.Explainer(lambda x: x, gbr_predictions[feature_columns])
+        shap_values = explainer(gbr_predictions[feature_columns])
+        shap.summary_plot(shap_values, gbr_predictions[feature_columns])
+    except Exception as e:
+        logger.error(f"SHAP analysis failed: {e}")
+
 
 # ===== PyCaret Analysis ===== #
 consolidated_path = folders["validation"]["consolidated"]
 consolidated = pd.read_csv(consolidated_path)
 pycaret_setup = setup(data=consolidated, target="MAE", session_id=123)
-best_model = compare_models()
+
+try:
+    best_model = compare_models()
+except Exception as e:
+    logger.error(f"PyCaret model comparison failed: {e}")
+    raise
+
 print("\nBest model selected by PyCaret:")
 print(best_model)
 evaluate_model(best_model)

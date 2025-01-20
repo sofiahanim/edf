@@ -62,40 +62,55 @@ jobs:
         python3 -m pip install statsforecast[autoarima,ets,croston]==2.0.0 --verbose
         python3 -c "from statsforecast import StatsForecast" || exit 1
 
-    # Step 6: Test Dependency Installation
+    - name: Install Stan via CmdStanPy
+      run: |
+        python3 -m cmdstanpy.install_cmdstan --version latest || echo "CmdStanPy installation failed. Skipping."
+        python3 -c "import cmdstanpy; print(f'CmdStanPy Version: {cmdstanpy.__version__}')"
+    
+
+
+    # Step 7: Test Dependency Installation
     - name: Test Dependency Installation
       run: |
-        python3 -c "import pandas, numpy, sklearn, tensorflow, darts, pyod, prophet, statsforecast" || exit 1
+        python3 -c "import pandas, pycaret, numpy, sklearn, tensorflow, darts, pyod, prophet, statsforecast" || exit 1
 
-    # Step 7: Debug Installed Packages
+    # Step 8: Debug Installed Packages
     - name: Debug Installed Packages
       run: |
         python3 -m pip list
 
-    # Step 8: Check Dependency Tree
+    # Step 9: Check Dependency Tree
     - name: Check Dependency Tree
       run: |
         python3 -m pip install pipdeptree
         pipdeptree
 
-    # Step 9: Initialize Required Files and Directories
+    # Step 10: Initialize Required Files and Directories
     - name: Initialize Required Files and Directories
       run: |
-        for dir in training validation evaluation reports; do
-          if [ ! -d "$dir" ]; then
-            echo "Creating missing directory: $dir"
-            mkdir -p "$dir"
-          fi
-        done
         for dir in training validation evaluation; do
-          placeholder_file="$dir/placeholder.csv"
-          if [ ! -f "$placeholder_file" ]; then
-            echo "ds,y" > "$placeholder_file"
-            echo "Created placeholder file: $placeholder_file"
-          fi
+            if [ ! -d "$dir" ]; then
+                echo "Creating missing directory: $dir"
+                mkdir -p "$dir"
+            fi
+            if ! ls "$dir"/*.csv 1> /dev/null 2>&1; then
+                placeholder_file="$dir/placeholder.csv"
+                echo "ds,y" > "$placeholder_file"
+                echo "Created placeholder file: $placeholder_file"
+            else
+                echo "Directory $dir already contains files. Skipping placeholder creation."
+            fi
         done
 
-    # Step 10: Verify Metrics Files
+    - name: Validate Input Dataset
+      run: |
+        if [ ! -f "data/merge/allyears.csv" ]; then
+        echo "❌ Required dataset allyears.csv is missing. Exiting."
+        exit 1
+        fi
+        echo "✅ Dataset allyears.csv is present."
+
+    # Step 11: Verify Metrics Files
     - name: Verify Training Files
       run: |
         if ls training/*.csv 1> /dev/null 2>&1; then
@@ -134,7 +149,7 @@ jobs:
         echo "Reports directory:"
         ls -l reports/
 
-    # Step 11: Run Model Training Script
+    # Step 12: Run Model Training Script
     - name: Run Model Training Script
       run: |
         python3 scripts/ml_part_3.py --verbose
@@ -142,7 +157,18 @@ jobs:
         PYTHONUNBUFFERED: 1
         LOG_LEVEL: DEBUG
 
-    # Step 12: Commit and Push Changes
+    - name: Verify Script Outputs
+      run: |
+        for file in reports/automl_leaderboard.csv reports/pycaret_predictions.csv; do
+            if [ ! -f "$file" ]; then
+                echo "❌ Missing output: $file"
+                exit 1
+            else
+                echo "✅ Output exists: $file"
+            fi
+        done
+      
+    # Step 13: Commit and Push Changes
     - name: Commit and Push Changes
       run: |
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -153,7 +179,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    # Step 13: Notify Completion
+    # Step 14: Notify Completion
     - name: Notify Completion
       if: success()
       run: echo "🎉 Workflow completed successfully!"
