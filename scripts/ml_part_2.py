@@ -314,11 +314,13 @@ try:
         validation_metrics = calculate_metrics("GradientBoostingRegressor", validation_data['y'], validation_predicted)
 
         # Save metrics to gbr_validation_metrics.csv
+        
+        append_training_details("GradientBoostingRegressor", 1, gbm.get_params(), validation_metrics)
+        append_to_csv(os.path.join(validation_dir, 'gbr_validation_metrics.csv'), pd.DataFrame([validation_metrics]))
+        
         gbr_validation_file = os.path.join(validation_dir, 'gbr_validation_metrics.csv')
         save_metrics("GradientBoostingRegressor", validation_metrics, gbr_validation_file)
         print(f"Validation metrics for GradientBoostingRegressor saved to {gbr_validation_file}.")
-
-        append_training_details("GradientBoostingRegressor", 1, gbm.get_params(), validation_metrics)
 
         if validation_metrics:
             print(f"GradientBoostingRegressor validated successfully. Metrics: {validation_metrics}.")
@@ -344,10 +346,10 @@ try:
                 validation_metrics_theta.update({"Parameters": theta_params})
                 append_training_details("Darts Theta", 1, theta_params, validation_metrics_theta)
                 append_to_csv(os.path.join(validation_dir, 'theta_validation_metrics.csv'), pd.DataFrame([validation_metrics_theta]))
-                
-                if validation_metrics_theta:
-                    print(f"Darts Theta validated successfully with metrics: {validation_metrics_theta}.")
-                    log_hyperparams(f"Darts Theta validated successfully with metrics: {validation_metrics_theta}.")
+                # Save metrics to theta_validation_metrics.csv
+                theta_validation_file = os.path.join(validation_dir, 'theta_validation_metrics.csv')
+                save_metrics("Darts Theta", validation_metrics_theta, theta_validation_file)
+                print(f"Validation metrics for Darts Theta saved to {theta_validation_file}.")
 
             else:
                 log_error("Validation series is empty for Darts Theta.")
@@ -380,9 +382,11 @@ try:
             append_training_details("Prophet", 1, prophet_params, validation_metrics_prophet)
             append_to_csv(os.path.join(validation_dir, 'prophet_validation_metrics.csv'), pd.DataFrame([validation_metrics_prophet]))
 
-            if validation_metrics_prophet:
-                print(f"Prophet validated successfully with validation metrics: {validation_metrics_prophet}.")
-                log_hyperparams(f"Prophet validated successfully with metrics: {validation_metrics_prophet}.")
+            # Save metrics to prophet_validation_metrics.csv
+            prophet_validation_file = os.path.join(validation_dir, 'prophet_validation_metrics.csv')
+            save_metrics("Prophet", validation_metrics_prophet, prophet_validation_file)
+            print(f"Validation metrics for Prophet saved to {prophet_validation_file}.")
+
 
         except Exception as e:
             log_error(f"Error during Prophet validation: {e}\n{traceback.format_exc()}")
@@ -470,7 +474,8 @@ try:
                 # Save predictions to a CSV file
                 gbr_future_file = os.path.join(evaluation_dir, 'gbr_predictions.csv')
                 gbr_predictions_df = future_data[['ds', 'Predicted', 'Actual', 'Generated_At']]
-                gbr_predictions_df.to_csv(gbr_future_file, index=False)
+                append_to_csv(gbr_future_file, gbr_predictions_df, model_name="GradientBoostingRegressor")
+
                 
                 print(f"GradientBoostingRegressor future predictions saved to {gbr_future_file}")
             except Exception as e:
@@ -510,14 +515,15 @@ try:
         consolidated_validation_file = os.path.join(validation_dir, 'consolidated_validation_metrics.csv')
         consolidated_validation_df = pd.concat(all_metrics, ignore_index=True)
         consolidated_validation_df = consolidated_validation_df.drop_duplicates(subset=["Model", "Generated_At"], ignore_index=True)
-        consolidated_validation_df.to_csv(consolidated_validation_file, index=False)
+        #consolidated_validation_df.to_csv(consolidated_validation_file, index=False)
+        append_to_csv(consolidated_validation_file, consolidated_validation_df)
         print(f"Consolidated validation metrics saved to {consolidated_validation_file}")
 
     summary_file = os.path.join(evaluation_dir, 'summary_report.csv')
     if all_metrics:
         summary_df = pd.concat(all_metrics, ignore_index=True)
         summary_df = summary_df.drop_duplicates(subset=["Model", "Generated_At"], ignore_index=True)
-        summary_df.to_csv(summary_file, index=False)
+        append_to_csv(summary_file, summary_df)
         print(f"Summary report saved to {summary_file}")
     else:
         log_error("No metrics found for summary report.")
