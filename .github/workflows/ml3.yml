@@ -16,7 +16,6 @@ jobs:
     runs-on: ubuntu-20.04
 
     steps:
-
     - name: Checkout Repository
       uses: actions/checkout@v3
 
@@ -24,6 +23,14 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: "3.9"
+
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('requirements_linux.lock.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
 
     - name: Install System-Level Dependencies
       run: |
@@ -58,6 +65,10 @@ jobs:
         pip-compile --output-file=requirements_linux.lock.txt requirements_linux.txt
         python3 -m pip install --no-cache-dir -r requirements_linux.lock.txt --verbose
 
+    - name: Check for Dependency Conflicts
+      run: |
+        python3 -m pip check || exit 1
+
     - name: Install Stan via CmdStanPy
       run: |
         python3 -m cmdstanpy.install_cmdstan --version latest || exit 1
@@ -79,18 +90,13 @@ jobs:
     - name: Initialize Required Files and Directories
       run: |
         for dir in training validation evaluation; do
-            if [ ! -d "$dir" ]; then
-                echo "Creating missing directory: $dir"
-                mkdir -p "$dir"
-            fi
-            if ! ls "$dir"/*.csv 1> /dev/null 2>&1; then
-                placeholder_file="$dir/placeholder.csv"
-                echo "ds,y" > "$placeholder_file"
-                echo "Created placeholder file: $placeholder_file"
-            else
-                echo "Directory $dir already contains files. Skipping placeholder creation."
-            fi
+          mkdir -p "$dir"
+          [ ! -f "$dir/placeholder.csv" ] && echo "ds,y" > "$dir/placeholder.csv"
         done
+
+    - name: Ensure Reports Directory Exists
+      run: |
+        mkdir -p reports
 
     - name: Validate Input Dataset
       run: |
@@ -102,29 +108,20 @@ jobs:
 
     - name: Verify Training Files
       run: |
-        if ls training/*.csv 1> /dev/null 2>&1; then
-          echo "✅ All training files are present."
-        else
-          echo "❌ Training files are missing."
-          exit 1
+        if ! ls training/*.csv 1> /dev/null 2>&1; then
+          echo "❌ Training files are missing." && exit 1
         fi
 
     - name: Verify Validation Files
       run: |
-        if ls validation/*.csv 1> /dev/null 2>&1; then
-          echo "✅ All validation files are present."
-        else
-          echo "❌ Validation files are missing."
-          exit 1
+        if ! ls validation/*.csv 1> /dev/null 2>&1; then
+          echo "❌ Validation files are missing." && exit 1
         fi
 
     - name: Verify Evaluation Files
       run: |
-        if ls evaluation/*.csv 1> /dev/null 2>&1; then
-          echo "✅ All evaluation files are present."
-        else
-          echo "❌ Evaluation files are missing."
-          exit 1
+        if ! ls evaluation/*.csv 1> /dev/null 2>&1; then
+          echo "❌ Evaluation files are missing." && exit 1
         fi
 
     - name: Debug File Existence
