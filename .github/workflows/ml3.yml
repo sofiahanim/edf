@@ -57,14 +57,14 @@ jobs:
     - name: Upgrade Python Tools
       run: |
         python3 -m pip install --upgrade pip setuptools wheel
-        
+  
     - name: Install Core ML Libraries
       run: |
-        echo "🔍 Installing core ML libraries..."
-        pip cache purge
-        pip install torch==1.13.1+cpu torchvision==0.14.1+cpu torchaudio==0.13.1+cpu -f https://download.pytorch.org/whl/cpu/torch_stable.html
-        pip install --use-feature=fast-deps --no-cache-dir -r requirements_linux.txt --verbose
-      
+          echo "🔍 Installing core ML libraries..."
+          pip cache purge
+          pip install torch==1.13.1+cpu torchvision==0.14.1+cpu torchaudio==0.13.1+cpu -f https://download.pytorch.org/whl/cpu/torch_stable.html
+          pip install --use-feature=fast-deps --no-cache-dir -r requirements_linux.txt --verbose
+  
     - name: Check for Dependency Conflicts
       run: |
         python3 -m pip check || exit 1
