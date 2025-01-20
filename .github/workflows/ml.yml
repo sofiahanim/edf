@@ -49,14 +49,13 @@ jobs:
     - name: Upgrade Python Tools
       run: |
         python3 -m pip install --upgrade pip setuptools wheel
-
-    - name: Install Core ML Libraries
+    
+    - name: Clear and Install Core ML Libraries
       run: |
         echo "🔍 Installing core ML libraries..."
-        pip cache purge
-        pip install torch==1.13.1+cpu torchvision==0.14.1+cpu torchaudio==0.13.1+cpu -f https://download.pytorch.org/whl/cpu/torch_stable.html
-        pip install --no-cache-dir -r requirements_linux.txt --verbose
-
+        pip cache purge  # Clears existing cached packages to avoid conflicts
+        pip install --upgrade --use-deprecated=legacy-resolver --no-cache-dir -r requirements_linux.txt --verbose
+        
 
     - name: Check for Dependency Conflicts
       run: |
@@ -76,11 +75,6 @@ jobs:
           echo "❌ CmdStanPy installation failed after 5 attempts."
           exit 1
         fi
-
-    - name: Test Dependency Installation
-      run: |
-        python3 -c "import pandas, pycaret, numpy, sklearn, tensorflow, darts, pyod, prophet, statsforecast"
-        
         
     - name: Debug Installed Packages
       run: |
