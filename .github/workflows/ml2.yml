@@ -58,12 +58,6 @@ jobs:
     - name: Install Python Dependencies
       run: |
         python3 -m pip cache purge
-        python3 -m pip install --force-reinstall \
-          "scikit-learn==1.2.2" \
-          "darts==0.23.1" \
-          "prophet==1.1.2" \
-          "holidays==0.14.2" \
-          "pyod==1.0.7"
         python3 -m pip install --no-cache-dir -r requirements_linux.txt --verbose
 
     # Step 6: Test Dependency Installation
