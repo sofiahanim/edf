@@ -149,7 +149,15 @@ try:
     data = pd.read_csv(input_file).drop_duplicates(subset=['ds'], keep='first')
     data['ds'] = pd.to_datetime(data['ds'])
     data['y'] = pd.to_numeric(data['y'], errors='coerce')
-    data.fillna(data.mean(), inplace=True)
+    # Ensure numeric columns are correctly handled
+    for column in data.select_dtypes(include=[np.number]).columns:
+        if data[column].isnull().any():
+            data[column].fillna(data[column].mean(), inplace=True)
+
+    # Handle non-numeric columns
+    for column in data.select_dtypes(include=[object]).columns:
+        data[column].fillna("Unknown", inplace=True)
+
     """    
     # Fill missing numeric values with column means
     numeric_columns = data.select_dtypes(include=[np.number]).fillna(data.mean())
