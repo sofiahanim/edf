@@ -183,6 +183,7 @@ history_end = current_date - timedelta(days=1)
 past_14_days_start = current_date - timedelta(days=14)
 
 # Historical Data
+data.sort_values(by='ds', inplace=True)
 history_data = data.copy()
 train_cutoff = int(0.9 * len(history_data))
 train_data = history_data[:train_cutoff]
@@ -210,11 +211,26 @@ if future_data.empty or train_features.empty:
     raise ValueError("Future data or training features are empty. Cannot proceed with predictions.")
 
 # Add placeholder features for future data to match train_features
-expected_features = [f"feature_{i + 1}" for i in range(train_features.shape[1])]
-for feature in expected_features:
-    if feature not in future_data.columns:
-        future_data[feature] = 0
+# Ensure future_features matches the training feature names
+trained_feature_names = train_features.columns.tolist()  # Save feature names from training
 
+# Add placeholder values for missing data
+for feature in trained_feature_names:
+    if feature not in future_data.columns:
+        future_data[feature] = 0  # Fill missing features with zeros
+
+# Select only the trained feature columns for future_features
+future_features = future_data[trained_feature_names].fillna(0)
+
+# Validate future features
+if list(future_features.columns) != trained_feature_names:
+    missing_in_future = set(trained_feature_names) - set(future_features.columns)
+    extra_in_future = set(future_features.columns) - set(trained_feature_names)
+    log_error(
+        f"Feature mismatch detected for GradientBoostingRegressor: "
+        f"Missing in future features: {missing_in_future}, Extra in future features: {extra_in_future}."
+    )
+    raise ValueError("Feature names in future_features do not match training features.")
 
 future_features = future_data.drop(columns=['ds', 'y'], errors='ignore').select_dtypes(include=[np.number]).fillna(0)
 
@@ -499,27 +515,37 @@ try:
             log_error(f"Error during Prophet future predictions: {e}")
             raise
 
-        
-
         # 2.c. GradientBoostingRegressor Future Predictions
+        # GradientBoostingRegressor Future Predictions
         if 'gbm' in globals() and gbm is not None:
             try:
-                # Generate prediction
+                # Validate feature alignment
+                if list(future_features.columns) != trained_feature_names:
+                    missing_in_future = set(trained_feature_names) - set(future_features.columns)
+                    extra_in_future = set(future_features.columns) - set(trained_feature_names)
+                    log_error(
+                        f"Feature mismatch detected for GradientBoostingRegressor: "
+                        f"Missing in future features: {missing_in_future}, Extra in future features: {extra_in_future}."
+                    )
+                    raise ValueError("Feature names in future_features do not match training features.")
+
+                # Generate predictions
                 future_predictions = gbm.predict(future_features)
+
+                # Update future_data with predictions
                 future_data['Predicted'] = future_predictions
                 future_data['Actual'] = None  # Placeholder for actual values
                 future_data['Generated_At'] = datetime.now().isoformat()  # Timestamp for predictions
-                
+
                 # Save predictions to a CSV file
                 gbr_future_file = os.path.join(evaluation_dir, 'gbr_predictions.csv')
                 gbr_predictions_df = future_data[['ds', 'Predicted', 'Actual', 'Generated_At']]
                 append_to_csv(gbr_future_file, gbr_predictions_df, model_name="GradientBoostingRegressor")
 
-                
                 print(f"GradientBoostingRegressor future predictions saved to {gbr_future_file}")
-            except Exception as e:
+
+            except ValueError as e:
                 log_error(f"Error during GradientBoostingRegressor future predictions: {e}")
-                print(f"Error: {e}")
                 raise
         else:
             log_error("GradientBoostingRegressor model is not initialized. Skipping future predictions.")
