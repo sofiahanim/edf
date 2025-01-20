@@ -76,7 +76,24 @@ jobs:
         python3 -m pip install pipdeptree
         pipdeptree
 
-    # Step 10: Verify Metrics Files (Wildcard Check)
+    # Step 9: Initialize Required Files and Directories
+    - name: Initialize Required Files and Directories
+      run: |
+        for dir in training validation evaluation; do
+          if [ ! -d "$dir" ]; then
+            echo "Creating missing directory: $dir"
+            mkdir -p "$dir"
+          fi
+        done
+        for dir in training validation evaluation; do
+          placeholder_file="$dir/placeholder.csv"
+          if [ ! -f "$placeholder_file" ]; then
+            echo "ds,y" > "$placeholder_file"
+            echo "Created placeholder file: $placeholder_file"
+          fi
+        done
+
+    # Step 10: Verify Metrics Files
     - name: Verify Training Files
       run: |
         if ls training/*.csv 1> /dev/null 2>&1; then
@@ -103,6 +120,7 @@ jobs:
           echo "❌ Evaluation files are missing."
           exit 1
         fi
+
     - name: Debug File Existence
       run: |
         echo "Training files:"
@@ -111,8 +129,8 @@ jobs:
         ls -l validation/
         echo "Evaluation files:"
         ls -l evaluation/
-    
-    # Step 9: Run Model Training Script
+
+    # Step 11: Run Model Training Script
     - name: Run Model Training Script
       run: |
         python3 scripts/ml_part_2.py --verbose
@@ -120,6 +138,7 @@ jobs:
         PYTHONUNBUFFERED: 1
         LOG_LEVEL: DEBUG
 
+    # Step 12: Commit and Push Changes
     - name: Commit and Push Changes
       run: |
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
@@ -129,7 +148,8 @@ jobs:
         git push
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    
+
+    # Step 13: Notify Completion
     - name: Notify Completion
       if: always()
       run: |
@@ -138,4 +158,3 @@ jobs:
           else
             echo "❌ Workflow failed. Check logs for details."
           fi
-      
