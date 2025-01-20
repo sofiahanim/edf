@@ -85,8 +85,12 @@ def validate_dataset(df):
     Raises:
         ValueError: If validation fails for columns, missing values, or duplicate timestamps.
     """
-    if 'y' not in df.columns or 'ds' not in df.columns:
-        raise ValueError("Dataset must contain 'ds' and 'y' columns.")
+    required_columns = ['ds', 'y']
+    for column in required_columns:
+        if column not in df.columns:
+            raise ValueError(f"Missing required column: {column}")
+    if df.empty:
+        raise ValueError("Dataset is empty.")
     if df.isnull().any().any():
         missing_cols = df.columns[df.isnull().any()].tolist()
         raise ValueError(f"Dataset contains missing values in columns: {missing_cols}")
@@ -190,19 +194,41 @@ if train_data.empty or validation_data.empty:
     raise ValueError("Training or validation data is empty. Check historical data.")
 
 # Past and Future Data
+
+train_features = train_data.drop(columns=['ds', 'y'], errors='ignore').select_dtypes(include=[np.number])
+train_target = train_data['y']
+validation_features = validation_data.drop(columns=['ds', 'y'], errors='ignore').select_dtypes(include=[np.number])
+validation_target = validation_data['y']
+
 past_14_days_data = data[data['ds'] >= past_14_days_start]
 future_data = pd.DataFrame({
     "ds": pd.date_range(start=history_end + timedelta(days=1), periods=14, freq="D"),
     "y": np.nan
 })
 
-# Preprocess numeric features
-train_features = train_data.drop(columns=['ds', 'y'], errors='ignore').select_dtypes(include=[np.number]).fillna(0)
-train_target = train_data['y']
-validation_features = validation_data.drop(columns=['ds', 'y'], errors='ignore').select_dtypes(include=[np.number]).fillna(0)
-validation_target = validation_data['y']
-past_14_features = past_14_days_data.drop(columns=['ds', 'y'], errors='ignore').select_dtypes(include=[np.number]).fillna(0)
+if future_data.empty or train_features.empty:
+    raise ValueError("Future data or training features are empty. Cannot proceed with predictions.")
+
+# Add placeholder features for future data to match train_features
+expected_features = [f"feature_{i + 1}" for i in range(train_features.shape[1])]
+for feature in expected_features:
+    if feature not in future_data.columns:
+        future_data[feature] = 0
+
+
 future_features = future_data.drop(columns=['ds', 'y'], errors='ignore').select_dtypes(include=[np.number]).fillna(0)
+
+if future_features.empty:
+    log_error("Future features are empty. Check if placeholder features were added correctly.")
+    raise ValueError("Cannot proceed without valid future features.")
+elif future_features.shape[1] != train_features.shape[1]:
+    log_error(
+        f"Future features mismatch. Expected {train_features.shape[1]} features, "
+        f"but got {future_features.shape[1]}."
+    )
+    raise ValueError("Future features are improperly structured.")
+
+past_14_features = past_14_days_data.drop(columns=['ds', 'y'], errors='ignore').select_dtypes(include=[np.number]).fillna(0)
 
 ############################################################################################################
 
@@ -459,22 +485,27 @@ try:
                 daily_seasonality=False,
                 changepoint_prior_scale=0.05
             )
-            model_prophet.fit(train_data)
+            model_prophet.fit(train_data)     
+        try:
+            prophet_forecast = model_prophet.predict(future_data[['ds']])
+            prophet_future_file = os.path.join(evaluation_dir, 'prophet_predictions.csv')
+            prophet_predictions_df = prophet_forecast[['ds', 'yhat']].rename(columns={"yhat": "Predicted"})
+            prophet_predictions_df["Model"] = "Prophet"
+            prophet_predictions_df["Generated_At"] = datetime.now().isoformat()
+            append_to_csv(prophet_future_file, prophet_predictions_df, model_name="Prophet")
+            print(f"Prophet future predictions saved to {prophet_future_file}")
 
-        prophet_forecast = model_prophet.predict(future_data[['ds']])
-        prophet_future_file = os.path.join(evaluation_dir, 'prophet_predictions.csv')
-        prophet_predictions_df = prophet_forecast[['ds', 'yhat']].rename(columns={"yhat": "Predicted"})
-        prophet_predictions_df["Model"] = "Prophet"
-        prophet_predictions_df["Generated_At"] = datetime.now().isoformat()
-        append_to_csv(prophet_future_file, prophet_predictions_df, model_name="Prophet")
-        print(f"Prophet future predictions saved to {prophet_future_file}")
+        except ValueError as e:
+            log_error(f"Error during Prophet future predictions: {e}")
+            raise
+
+        
 
         # 2.c. GradientBoostingRegressor Future Predictions
         if 'gbm' in globals() and gbm is not None:
             try:
-                # Generate predictions
+                # Generate prediction
                 future_predictions = gbm.predict(future_features)
-                # Update future_data with predictions
                 future_data['Predicted'] = future_predictions
                 future_data['Actual'] = None  # Placeholder for actual values
                 future_data['Generated_At'] = datetime.now().isoformat()  # Timestamp for predictions
@@ -489,6 +520,7 @@ try:
             except Exception as e:
                 log_error(f"Error during GradientBoostingRegressor future predictions: {e}")
                 print(f"Error: {e}")
+                raise
         else:
             log_error("GradientBoostingRegressor model is not initialized. Skipping future predictions.")
             print("GradientBoostingRegressor model is not initialized. Skipping future predictions.")
@@ -505,24 +537,22 @@ try:
         if os.path.exists(file_path):
             try:
                 df = pd.read_csv(file_path)
-                if not df.empty:
-                    all_metrics.append(df)
-                else:
-                    log_error(f"Validation file {file_path} is empty.")
+                if df.empty:
+                    log_error(f"Validation file {file_path} is empty. Skipping.")
+                    continue
+                all_metrics.append(df)
             except Exception as e:
                 log_error(f"Error reading validation file {file_path}: {e}")
-        else:
-            log_error(f"Validation file {file_path} does not exist.")
 
-    # Consolidation: Skip if No Metrics Available
+
     if not all_metrics:
         log_error("No metrics available for consolidation or summary generation.")
-        print("Skipping consolidation due to missing metrics.")
     else:
-        # Perform consolidation and summary report generation
-        consolidated_validation_file = os.path.join(validation_dir, 'consolidated_validation_metrics.csv')
         consolidated_validation_df = pd.concat(all_metrics, ignore_index=True)
         consolidated_validation_df = consolidated_validation_df.drop_duplicates(subset=["Model", "Generated_At"], ignore_index=True)
+
+        consolidated_validation_file = os.path.join(validation_dir, 'consolidated_validation_metrics.csv')
+        
         #consolidated_validation_df.to_csv(consolidated_validation_file, index=False)
         append_to_csv(consolidated_validation_file, consolidated_validation_df)
         print(f"Consolidated validation metrics saved to {consolidated_validation_file}")
