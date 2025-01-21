@@ -118,10 +118,17 @@ jobs:
 
     - name: Run Model Training Script
       run: |
-        python3 scripts/ml_part_3.py --verbose
+          python3 scripts/ml_part_3.py --verbose > train.log 2>&1
       env:
         PYTHONUNBUFFERED: 1
         LOG_LEVEL: DEBUG
+  
+    - name: Debug Training Script Logs
+      if: failure()
+      run: |
+          echo "⚠️ Training failed. Last 50 lines of the log:"
+          tail -n 50 train.log
+  
 
     - name: Debug Training Script Logs
       if: failure()

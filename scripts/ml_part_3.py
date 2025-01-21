@@ -16,6 +16,7 @@ logger.info("Starting H2O AutoML...")
 # ===== Initialize H2O ===== #
 h2o.init()
 
+
 # ===== Define Directories ===== #
 base_dir = os.path.abspath('.')
 data_dir = os.path.join(base_dir, 'data', 'merge')
@@ -27,6 +28,32 @@ reports_dir = os.path.join(base_dir, 'reports')
 for dir_path in [training_dir, validation_dir, evaluation_dir, reports_dir]:
     os.makedirs(dir_path, exist_ok=True)
     logger.info(f"Checked or created directory: {dir_path}")
+
+# ===== Helper Function for Safe CSV Writing ===== #
+def save_or_append_csv(dataframe, file_path):
+    """
+    Saves the dataframe to a CSV file, creating it if not available, or appending to it if it exists and is non-empty.
+    """
+    if os.path.exists(file_path):
+        # Check if the file is non-empty
+        if os.stat(file_path).st_size > 0:  # Check if file size > 0
+            try:
+                existing_data = pd.read_csv(file_path)
+                combined_data = pd.concat([existing_data, dataframe], ignore_index=True)
+                combined_data.to_csv(file_path, index=False)
+                logger.info(f"Appended data to existing file: {file_path}")
+            except pd.errors.EmptyDataError:
+                # File exists but is empty
+                dataframe.to_csv(file_path, index=False)
+                logger.warning(f"File {file_path} was empty. Overwriting with new data.")
+        else:
+            # File exists but is empty
+            dataframe.to_csv(file_path, index=False)
+            logger.warning(f"File {file_path} was empty. Overwriting with new data.")
+    else:
+        # Create new file
+        dataframe.to_csv(file_path, index=False)
+        logger.info(f"Created new file: {file_path}")
 
 # ===== Load Dataset ===== #
 allyears_path = os.path.join(data_dir, 'allyears.csv')
@@ -63,35 +90,36 @@ else:
     aml.train(y=target_column, x=feature_columns, training_frame=allyears_data_h2o)
     leaderboard = aml.leaderboard.as_data_frame()
     leaderboard_file = os.path.join(reports_dir, "automl_leaderboard.csv")
-    leaderboard.to_csv(leaderboard_file, index=False)
-    logger.info(f"AutoML leaderboard saved to {leaderboard_file}")
+    save_or_append_csv(leaderboard, leaderboard_file)
 
 # ===== SHAP Analysis ===== #
 try:
     required_shap_columns = feature_columns + ["Predicted"]
-    if all(col in gbr_predictions_merged.columns for col in required_shap_columns):
-        # Ensure numeric columns for SHAP
+    missing_columns = [col for col in required_shap_columns if col not in gbr_predictions_merged.columns]
+    if missing_columns:
+        logger.warning(f"Missing columns for SHAP analysis: {missing_columns}. Skipping SHAP analysis.")
+    else:
         shap_data = gbr_predictions_merged[feature_columns].select_dtypes(include=['float64', 'int64'])
         if shap_data.empty:
-            raise ValueError("No numeric features found for SHAP analysis.")
+            raise ValueError("No numeric data available for SHAP analysis.")
 
         shap_explainer = shap.Explainer(lambda x: x, shap_data)
         shap_values = shap_explainer(shap_data)
         shap.summary_plot(shap_values, shap_data, show=False)
         plt.savefig(os.path.join(reports_dir, "shap_summary_plot.png"))
         plt.close()
-    else:
-        raise ValueError(f"Missing required columns for SHAP analysis: {required_shap_columns}")
 except Exception as e:
     logger.error(f"Error during SHAP analysis: {e}")
 
 # ===== PyCaret Analysis ===== #
 try:
-    pycaret_setup = setup(data=allyears_data, target="y", session_id=123, silent=True, verbose=False)
+    #data=allyears_data, target="y", session_id=123, silent=True, verbose=False)
+    setup(data=allyears_data, target="y", session_id=123, log_experiment=False, verbose=False)
     best_model = compare_models()
     evaluate_model(best_model)
     predictions = predict_model(best_model)
-    predictions.to_csv(os.path.join(reports_dir, "pycaret_predictions.csv"), index=False)
+    predictions_file = os.path.join(reports_dir, "pycaret_predictions.csv")
+    save_or_append_csv(predictions, predictions_file)
 except Exception as e:
     logger.error(f"Error during PyCaret analysis: {e}")
 
@@ -103,10 +131,31 @@ for _, row in validation_metrics.iterrows():
     model = row["Model"]
     mae, mape, rmse, r2, mbe = row["MAE"], row["MAPE"], row["RMSE"], row["R²"], row["MBE"]
     discussions.append(f"Model {model} has MAE: {mae}, RMSE: {rmse}, R²: {r2}.")
-with open(os.path.join(reports_dir, "validation_discussions.txt"), "w") as f:
-    f.write("\n".join(discussions))
+
+discussions_file = os.path.join(reports_dir, "validation_discussions.csv")
+save_or_append_csv(pd.DataFrame({"Discussion": discussions}), discussions_file)
 
 logger.info("Process completed successfully!")
+
+# ===== Visualization Example ===== #
+import seaborn as sns
+
+# Example: Plot forecasted demand trends
+forecasted_data_file = os.path.join(reports_dir, "forecasted_data.csv")
+all_results = pd.read_csv(forecasted_data_file) if os.path.exists(forecasted_data_file) else pd.DataFrame()
+
+if not all_results.empty:
+    plt.figure(figsize=(10, 6))
+    sns.lineplot(data=all_results, x="ds", y="y", label="Forecasted Demand")
+    plt.title("Electricity Demand Forecast")
+    plt.xlabel("Date")
+    plt.ylabel("Demand (MWh)")
+    plt.legend()
+    plt.savefig(os.path.join(reports_dir, "demand_forecast_trend.png"))
+    plt.close()
+
+
+
 
 
 """

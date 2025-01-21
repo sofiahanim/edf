@@ -140,13 +140,26 @@ jobs:
       
     - name: Commit and Push Changes
       run: |
-        git config --global user.email "github-actions[bot]@users.noreply.github.com"
-        git config --global user.name "GitHub Actions"
-        git add training/*.csv validation/*.csv evaluation/*.csv
-        git commit -m "Update ML 2 results: $(date -u '+%Y-%m-%d %H:%M:%S') UTC"
-        git push
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "GitHub Actions"
+          
+          # Add changes
+          git add training/*.csv validation/*.csv evaluation/*.csv
+          
+          # Commit changes
+          git commit -m "Update ML 2 results: $(date -u '+%Y-%m-%d %H:%M:%S') UTC" || echo "No changes to commit"
+          
+          # Fetch latest changes from remote
+          git fetch origin main
+          
+          # Rebase on top of the latest remote changes
+          git rebase origin/main
+          
+          # Push changes
+          git push origin main
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 
     - name: Notify Completion
       if: success()
