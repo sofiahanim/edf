@@ -1,22 +1,82 @@
 {% extends 'base.html' %}
 {% block title %}Holiday EDA{% endblock %}
-
 {% block content %}
-<h1>Holiday EDA</h1>
-        <p>Total Holidays: <span id="total-holidays">Loading...</span></p>
-        <p>Most Common Month: <span id="common-month">Loading...</span></p>
-        <table id="holiday-trends">
-            <thead>
-                <tr>
-                    <th>Year</th>
-                    <th>Total Holidays</th>
-                </tr>
-            </thead>
-            <tbody id="trends-data">
-                <!-- Data inserted dynamically -->
-            </tbody>
-        </table>
-        
+<div class="container-fluid">
+    <h1 class="h3 mb-4 text-gray-800">Holiday EDA</h1>
 
+    <!-- Total Holidays and Most Common Month -->
+    <div class="row mb-4">
+        <div class="col-lg-6">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total Holidays</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800" id="total-holidays"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Most Common Month</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800" id="common-month"></div>
+                </div>
+            </div>
+        </div>
+    </div>
 
+    <div class="row">
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Holiday Trends Over the Years</h6>
+                </div>
+                <div class="card-body">
+                    <div id="holiday-trends" style="height: 380px;"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Holiday Count by Day of the Week</h6>
+                </div>
+                <div class="card-body">
+                    <div id="holidays-by-day" style="height: 380px;"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Holiday Distribution by Month (Pie Chart)</h6>
+                </div>
+                <div class="card-body">
+                    <div id="holiday-pie-chart" style="height: 380px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Top Holidays per Year</h6>
+                </div>
+                <div class="card-body">
+                    <div id="top-holidays" style="height: 530px;"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Holiday Heatmap by Year and Month</h6>
+                </div>
+                <div class="card-body">
+                    <div id="holiday-heatmap" style="height: 530px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

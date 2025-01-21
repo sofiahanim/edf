@@ -8,14 +8,48 @@ if (typeof $ === 'undefined') {
 } else {
     console.log('jQuery loaded successfully.');
 
-    // Initialize functions when the document is ready
     $(document).ready(function () {
+        const currentPath = window.location.pathname;
+        console.log("Current Path:", currentPath);
+
+        if (currentPath === '/eda/holiday') {
+            console.log('Initializing Holiday EDA...');
+            fetchAndRenderHolidayData(); // Fetch and render EDA Holiday data
+            
+        }
+    
+        if (currentPath === '/eda/weather') {
+            console.log('Initializing Weather EDA...');
+            fetchAndRenderWeatherData(); // Fetch and render EDA Weather data
+        }
+    
+        if (currentPath === '/hourlydemand') {
+            console.log('Initializing Hourly Demand Table...');
+            initializeHourlyDemandTable(); // Initialize Hourly Demand Table
+        }
+    
+        if (currentPath === '/hourlyweather') {
+            console.log('Initializing Hourly Weather Table...');
+            initializeHourlyWeatherTable(); // Initialize Hourly Weather Table
+        }
+    
+        if (currentPath === '/holidays') {
+            console.log('Initializing Holidays Page...');
+            initializeHolidaysTable(); // Initialize Holidays Table
+        }
+    
+        if (currentPath === '/') {
+            console.log('Initializing Dashboard...');
+            fetchAndRenderDashboard(); // Fetch and render Dashboard data
+        }
+    
+        // Common initialization
+        console.log('Initializing Global Functions...');
         initializeAutoUpdate(); // Auto-update the "Last Updated" section
-        initializeTables(); // Initialize all DataTables (demand, weather, holidays)
         initializeSearchInput(); // Search functionality for input fields
         initializeMenuSearch(); // Sidebar menu search functionality
-        fetchHolidayEDAData(); // Fetch and render EDA holiday data
     });
+    
 }
 
 // 1. START SECTION 1 MENU AND SEARCH
@@ -350,7 +384,7 @@ function initializeHolidaysTable() {
         });
     }
 }
-/*
+
 // Render Holidays Page
 function renderHolidaysPage() {
     fetch(`${baseUrl}/holidays`)
@@ -383,7 +417,7 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 });
-*/
+
 // 5. END SECTION 5 HOLIDAYS
 
 // 6. START SECTION 6 LAST UPDATED
@@ -457,105 +491,219 @@ function initializeTables() {
 // 7. END SECTION 7 INITIALIZE TABLES
 
 // 8. START SECTION 8 EDA HOLIDAYS
-// Function to fetch and process Holiday EDA data
-function fetchHolidayEDAData() {
-    fetch('/eda/holiday', {
-        headers: {
-            'Accept': 'application/json' // Explicitly request JSON response
-        }
-    })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
-            }
-            return response.json(); // Parse JSON response
-        })
-        .then(data => {
-            console.log("Holiday EDA Data:", data);
-            renderHolidayEDAData(data); // Render the data in the UI
-        })
-        .catch(error => {
-            console.error('Error fetching Holiday EDA data:', error);
-        });
-}
 
-// Function to render Holiday EDA data into the HTML
-function renderHolidayEDAData(data) {
-    // Update total holidays and common month
-    document.getElementById('total-holidays').textContent = data.total_holidays || 'N/A';
-    document.getElementById('common-month').textContent = data.common_month || 'N/A';
+function fetchAndRenderHolidayData() {
+    $.ajax({
+        url:  `${baseUrl}/eda/holiday`,
+        type: 'GET',
+        dataType: 'json',
+        success: function (response) {
+            // Update HTML elements
+            $('#total-holidays').text(response.total_holidays || 'N/A');
+            $('#common-month').text(response.common_month || 'N/A');
 
-    // Populate holiday trends table
-    const trendsData = document.getElementById('trends-data');
-    trendsData.innerHTML = ''; // Clear existing data
-    data.holiday_trends.forEach(trend => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${trend.year}</td>
-            <td>${trend.total_holidays}</td>
-        `;
-        trendsData.appendChild(row);
+            // 1. Line Chart: Holiday Trends Over the Years
+            renderPlotlyChart('holiday-trends', response.holiday_trends, {
+                xaxis: { title: 'Year', showgrid: true, zeroline: false },
+                yaxis: { title: 'Total Holidays', showgrid: true, zeroline: false }
+            }, (data) => ({
+                x: data.map(d => d.year),
+                y: data.map(d => d.total_holidays),
+                type: 'scatter',
+                mode: 'lines+markers',
+                line: { shape: 'spline', color: '#007bff', width: 3 },
+                marker: { size: 8, color: '#007bff' },
+            }));
+
+            // 2. Treemap: Holiday Count by Day of the Week
+            renderPlotlyChart('holidays-by-day', response.holidays_by_day, {}, (data) => ({
+                labels: data.map(d => d.day),
+                parents: Array(data.length).fill(''),
+                values: data.map(d => d.count),
+                type: 'treemap',
+            }));
+
+            // 3. Stacked Bar Chart: Top Holidays Per Year
+            const years = [...new Set(response.top_holidays_per_year.map(d => d.year))];
+            const traces = years.map(year => {
+                const filteredData = response.top_holidays_per_year.filter(d => d.year === year);
+                return {
+                    x: filteredData.map(d => d.name),
+                    y: filteredData.map(d => d.count),
+                    name: `Year ${year}`,
+                    type: 'bar',
+                };
+            });
+            Plotly.newPlot('top-holidays', traces, {
+                barmode: 'stack',
+                yaxis: { title: 'Count' },
+            });
+
+            // 4. Heatmap: Holiday Frequency
+            renderPlotlyChart('holiday-heatmap', response.heatmap_data, {
+                xaxis: { title: 'Month' },
+                yaxis: { title: 'Year' },
+            }, (data) => ({
+                z: data,
+                x: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+                y: years.map(String),
+                type: 'heatmap',
+            }));
+
+            // 5. Pie Chart: Holiday Distribution by Month
+            renderPlotlyChart('holiday-pie-chart', response.monthly_distribution, {}, (data) => ({
+                labels: data.map(d => getMonthName(d.month)),
+                values: data.map(d => d.percentage),
+                type: 'pie',
+            }));
+        },
+        error: function (error) {
+            console.error("Failed to fetch holiday data:", error);
+        },
     });
 }
+
+function renderPlotlyChart(containerId, data, layout, processData) {
+    const chartData = processData(data);
+    Plotly.newPlot(containerId, Array.isArray(chartData) ? chartData : [chartData], layout);
+}
+
+function getMonthName(monthNumber) {
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    return monthNames[monthNumber - 1];
+}
+
+
+
 
 // 8. END SECTION 8 EDA HOLIDAYS
 
-// 9. START SECTION 9 EDA WEATHER
 
-function fetchWeatherVisualizations() {
+
+// 9. START SECTION 9 EDA WEATHER
+function fetchAndRenderWeatherData() {
     $.ajax({
         url: `${baseUrl}/eda/weather`,
         type: 'GET',
+        dataType: 'json',
         success: function (response) {
-            if (response) {
-                console.log("Weather data response received:", response);
+            // Update Overview Cards
+            $('#highest-temp').text(`${response.highest_temp || 'N/A'} °C`);
+            $('#lowest-temp').text(`${response.lowest_temp || 'N/A'} °C`);
+            $('#highest-wind-speed').text(`${response.highest_wind_speed || 'N/A'} m/s`);
+            $('#total-precipitation').text(`${response.total_precipitation || 'N/A'} mm`);
+            $('#avg-solar-radiation').text(`${response.avg_solar_radiation.toFixed(2) || 'N/A'} W/m²`);
+            $('#most-frequent-precip').text(response.most_frequent_precip_type || 'N/A');
 
-                // Visualization 1: Average Temperature by Year
-                if (response.avg_temp_by_year && document.getElementById('avg-temp-by-year')) {
-                    Plotly.newPlot('avg-temp-by-year', [
-                        {
-                            x: response.avg_temp_by_year.map(d => d.year),
-                            y: response.avg_temp_by_year.map(d => d.avg_temp),
-                            type: 'scatter',
-                            mode: 'lines+markers',
-                            line: { color: '#42A5F5' }
-                        }
-                    ], {
-                        title: 'Average Temperature by Year',
-                        xaxis: { title: 'Year' },
-                        yaxis: { title: 'Temperature (°C)' },
-                    });
-                }
 
-                // Visualization 2: Average Humidity by Month
-                if (response.avg_humidity_by_month && document.getElementById('avg-humidity-by-month')) {
-                    Plotly.newPlot('avg-humidity-by-month', [
-                        {
-                            x: response.avg_humidity_by_month.map(d => d.month),
-                            y: response.avg_humidity_by_month.map(d => d.avg_humidity),
-                            type: 'bar',
-                            marker: { color: '#66BB6A' },
-                        }
-                    ], {
-                        title: 'Average Humidity by Month',
-                        xaxis: { title: 'Month' },
-                        yaxis: { title: 'Humidity (%)' },
-                    });
-                }
+            // 1. Line Chart: Average Temperature by Year
+            renderPlotlyChart('avg-temp-by-year', response.avg_temp_by_year, {
+                xaxis: { title: 'Year', showgrid: true, zeroline: false },
+                yaxis: { title: 'Temperature (°C)', showgrid: true, zeroline: false },
+            }, (data) => ({
+                x: data.map(d => d.year),
+                y: data.map(d => d.avg_temp),
+                type: 'scatter',
+                mode: 'lines+markers',
+                line: { shape: 'spline', color: '#007bff', width: 3 },
+                marker: { size: 8, color: '#007bff' },
+            }));
 
-                // Additional visualizations (Wind Speed, Solar Radiation, Precipitation Type) go here
-            } else {
-                console.error("Invalid weather response", response);
-            }
+            // 2. Bar Chart: Average Humidity by Month
+            renderPlotlyChart('avg-humidity-by-month', response.avg_humidity_by_month, {
+                xaxis: { title: 'Month', showgrid: true, zeroline: false },
+                yaxis: { title: 'Humidity (%)', showgrid: true, zeroline: false },
+            }, (data) => ({
+                x: data.map(d => d.month),
+                y: data.map(d => d.avg_humidity),
+                type: 'bar',
+                marker: { color: '#66BB6A' },
+            }));
+
+            // 3. Bar Chart: Wind Speed Distribution
+            renderPlotlyChart('wind-speed-distribution', response.wind_speed_distribution, {
+                xaxis: { title: 'Wind Speed (m/s)', showgrid: true, zeroline: false },
+                yaxis: { title: 'Frequency', showgrid: true, zeroline: false },
+            }, (data) => ({
+                x: data.map(d => d.windspeed),
+                y: data.map(d => d.count),
+                type: 'bar',
+                marker: { color: '#FF7043' },
+            }));
+
+            // 4. Line Chart: Solar Radiation by Hour
+            renderPlotlyChart('solar-radiation-by-hour', response.solar_radiation_by_hour, {
+                xaxis: { title: 'Hour of Day', showgrid: true, zeroline: false },
+                yaxis: { title: 'Solar Radiation (W/m²)', showgrid: true, zeroline: false },
+            }, (data) => ({
+                x: data.map(d => d.hour),
+                y: data.map(d => d.avg_radiation),
+                type: 'scatter',
+                mode: 'lines+markers',
+                line: { shape: 'spline', color: '#FFA726', width: 3 },
+                marker: { size: 8, color: '#FFA726' },
+            }));
+
+            // 5. Pie Chart: Precipitation Type Distribution
+            renderPlotlyChart('precip-type-distribution', response.precip_type_distribution, {
+            }, (data) => ({
+                labels: data.map(d => d.type),
+                values: data.map(d => d.percentage),
+                type: 'pie',
+            }));
+
+            // New Insights
+            // 6. Heatmap: Monthly Average Temperature (Seasonal Trends)
+            renderPlotlyChart('monthly-avg-temp', response.monthly_avg_temp, {
+                xaxis: { title: 'Month', showgrid: true },
+                yaxis: { title: 'Year', showgrid: true },
+                coloraxis: { colorscale: 'Blues' },
+            }, (data) => ({
+                z: data.map(d => d.temp),
+                x: data.map(d => d.month),
+                y: data.map(d => d.year),
+                type: 'heatmap',
+            }));
+
+            // 7. Box Plot: Daily Humidity Distribution
+            renderPlotlyChart('daily-avg-humidity', response.daily_avg_humidity, {
+               
+                yaxis: { title: 'Humidity (%)', showgrid: true, zeroline: false },
+            }, (data) => ({
+                x: data.map(d => d.day),
+                y: data.map(d => d.avg_humidity),
+                type: 'box',
+                boxpoints: 'all',
+            }));
+
+            // 8. Scatter Plot: Hourly Wind Speed Variations
+            renderPlotlyChart('hourly-avg-windspeed', response.hourly_avg_windspeed, {
+                xaxis: { title: 'Hour', showgrid: true, zeroline: false },
+                yaxis: { title: 'Wind Speed (m/s)', showgrid: true, zeroline: false },
+            }, (data) => ({
+                x: data.map(d => d.hour),
+                y: data.map(d => d.avg_windspeed),
+                mode: 'markers',
+                type: 'scatter',
+                marker: { size: 8, color: '#FF5722' },
+            }));
         },
         error: function (error) {
-            console.error("Failed to fetch weather visualizations", error);
-        }
+            console.error("Failed to fetch weather data:", error);
+        },
     });
 }
 
 
+
+
+
+
+
 // 9. END SECTION 9 EDA WEATHER
+
+
+
 
 
 // EDA DEMAND

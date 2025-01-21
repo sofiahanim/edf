@@ -379,68 +379,92 @@ def fetch_hourly_weather():
         logger.error(f"Error fetching hourly weather data: {e}", exc_info=True)
         return jsonify({'error': 'Failed to fetch hourly weather data'}), 500
 
+
 @app.route('/eda/weather', methods=['GET'])
 def weather_eda():
     try:
-        # Load weather data from 2019 to 2025
         years = range(2019, 2026)
         weather_dfs = []
 
         for year in years:
             file_path = os.path.join(DATA_DIR, "weather", f"{year}.csv")
-            print(file_path)
             if os.path.exists(file_path):
                 df = pd.read_csv(file_path)
-                if 'datetime' in df.columns:
+                df.columns = [col.strip().lower().replace(" ", "_") for col in df.columns]
+
+                required_columns = {'datetime', 'temp', 'humidity', 'windspeed', 'solaradiation', 'preciptype'}
+                if required_columns.issubset(df.columns):
                     df['datetime'] = pd.to_datetime(df['datetime'], errors='coerce')
-                    df = df.dropna(subset=['datetime'])
+                    df.dropna(subset=['datetime'], inplace=True)
                     df['year'] = df['datetime'].dt.year
                     df['month'] = df['datetime'].dt.month
                     df['hour'] = df['datetime'].dt.hour
+                    df['day'] = df['datetime'].dt.date
                     weather_dfs.append(df)
+                else:
+                    logger.warning(f"Missing columns in {file_path}. Skipping.")
+            else:
+                logger.warning(f"File not found: {file_path}")
 
-        # Combine all data
         weather_data = pd.concat(weather_dfs, ignore_index=True) if weather_dfs else pd.DataFrame()
 
         if weather_data.empty:
             return jsonify({"error": "No weather data available"}), 404
 
-        # Calculate metrics
+        # Existing Visualizations
         avg_temp_by_year = weather_data.groupby('year')['temp'].mean().reset_index(name='avg_temp')
         avg_humidity_by_month = weather_data.groupby('month')['humidity'].mean().reset_index(name='avg_humidity')
         wind_speed_distribution = weather_data['windspeed'].value_counts().reset_index(name='count')
         wind_speed_distribution.rename(columns={'index': 'windspeed'}, inplace=True)
         solar_radiation_by_hour = weather_data.groupby('hour')['solaradiation'].mean().reset_index(name='avg_radiation')
-        precip_type_distribution = (
-            weather_data['preciptype']
-            .value_counts(normalize=True)
-            .reset_index(name='percentage')
-        )
+        precip_type_distribution = weather_data['preciptype'].value_counts(normalize=True).reset_index(name='percentage')
         precip_type_distribution.rename(columns={'index': 'type'}, inplace=True)
 
-        # If the request is for API data, return JSON
-        accept_header = request.headers.get('Accept', '')
-        if 'application/json' in accept_header:
-            return jsonify({
-                'avg_temp_by_year': avg_temp_by_year.to_dict(orient='records'),
-                'avg_humidity_by_month': avg_humidity_by_month.to_dict(orient='records'),
-                'wind_speed_distribution': wind_speed_distribution.to_dict(orient='records'),
-                'solar_radiation_by_hour': solar_radiation_by_hour.to_dict(orient='records'),
-                'precip_type_distribution': precip_type_distribution.to_dict(orient='records'),
-            })
+        # New Visualizations
+        # 1. Monthly Average Temperature (Seasonal Trends)
+        monthly_avg_temp = weather_data.groupby(['year', 'month'])['temp'].mean().reset_index()
 
-        # Render HTML template for visualization
-        return render_template(
-            'weather_eda.html',
-            avg_temp_by_year=avg_temp_by_year.to_dict(orient='records'),
-            avg_humidity_by_month=avg_humidity_by_month.to_dict(orient='records'),
-            wind_speed_distribution=wind_speed_distribution.to_dict(orient='records'),
-            solar_radiation_by_hour=solar_radiation_by_hour.to_dict(orient='records'),
-            precip_type_distribution=precip_type_distribution.to_dict(orient='records'),
-        )
+        # 2. Daily Average Humidity
+        daily_avg_humidity = weather_data.groupby('day')['humidity'].mean().reset_index(name='avg_humidity')
+
+        # 3. Hourly Average Wind Speed
+        hourly_avg_windspeed = weather_data.groupby('hour')['windspeed'].mean().reset_index(name='avg_windspeed')
+
+        highest_temp = weather_data['temp'].max()
+        lowest_temp = weather_data['temp'].min()
+        highest_wind_speed = weather_data['windspeed'].max()
+        total_precipitation = weather_data['precip'].sum()
+        avg_solar_radiation = weather_data['solaradiation'].mean()
+        most_frequent_precip_type = weather_data['preciptype'].mode()[0]
+
+        # Preparing Response Data
+        response_data = {
+            'highest_temp': highest_temp,
+            'lowest_temp': lowest_temp,
+            'highest_wind_speed': highest_wind_speed,
+            'total_precipitation': total_precipitation,
+            'avg_solar_radiation': avg_solar_radiation,
+            'most_frequent_precip_type': most_frequent_precip_type,
+            'avg_temp_by_year': avg_temp_by_year.to_dict(orient='records'),
+            'avg_humidity_by_month': avg_humidity_by_month.to_dict(orient='records'),
+            'wind_speed_distribution': wind_speed_distribution.to_dict(orient='records'),
+            'solar_radiation_by_hour': solar_radiation_by_hour.to_dict(orient='records'),
+            'precip_type_distribution': precip_type_distribution.to_dict(orient='records'),
+            'monthly_avg_temp': monthly_avg_temp.to_dict(orient='records'),
+            'daily_avg_humidity': daily_avg_humidity.to_dict(orient='records'),
+            'hourly_avg_windspeed': hourly_avg_windspeed.to_dict(orient='records'),
+        }
+
+        # Respond as JSON or render template
+        if 'application/json' in request.headers.get('Accept', ''):
+            return jsonify(response_data)
+
+        return render_template("weather_eda.html", **response_data)
+
     except Exception as e:
         logger.error(f"Error processing weather EDA: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
+
 
 """4. END SECTION 4 HOURLYWEATHER"""
 
@@ -499,11 +523,91 @@ def fetch_holidays():
         logger.error(f"Error fetching holidays data: {e}", exc_info=True)
         return jsonify({"error": "Failed to fetch holidays data"}), 500
 
+
 @app.route('/eda/holiday', methods=['GET'])
 def holiday_eda():
-    """
-    Render the Holiday EDA template for browsers or return JSON data for API calls.
-    """
+    try:
+        # Define the range of years to process
+        years = range(2019, 2026)
+        holiday_dfs = []
+
+        # Load CSV files for each year and preprocess
+        for year in years:
+            file_path = os.path.join(DATA_DIR, "holiday", f"{year}.csv")
+            if os.path.exists(file_path):
+                df = pd.read_csv(file_path)
+                if not df.empty and 'date' in df.columns:
+                    df['date'] = pd.to_datetime(df['date'], errors='coerce')
+                    df.dropna(subset=['date'], inplace=True)
+                    df['year'] = df['date'].dt.year
+                    df['month'] = df['date'].dt.month
+                    holiday_dfs.append(df)
+
+        # Combine data from all years
+        holiday_data = pd.concat(holiday_dfs, ignore_index=True) if holiday_dfs else pd.DataFrame()
+
+        if holiday_data.empty:
+            return jsonify({"error": "No holiday data available"}), 404
+
+        # Compute metrics for the response
+        total_holidays = len(holiday_data)
+        common_month = holiday_data['month'].mode()[0]
+        common_month_name = pd.to_datetime(str(common_month), format='%m').strftime('%B')
+        holiday_trends = holiday_data.groupby('year')['date'].count().reset_index(name='total_holidays')
+        monthly_distribution = (
+            holiday_data['month']
+            .value_counts(normalize=True)
+            .reset_index()
+            .rename(columns={'index': 'month', 'month': 'percentage'})
+            .sort_values('month')
+        )
+        top_holidays_per_year = holiday_data.groupby(['year', 'name']).size().reset_index(name='count')
+        heatmap_data = []
+        for year in holiday_data['year'].unique():
+            year_data = holiday_data[holiday_data['year'] == year]
+            monthly_counts = year_data.groupby('month').size().reindex(range(1, 13), fill_value=0).tolist()
+            heatmap_data.append(monthly_counts)
+
+        holiday_data['day_of_week'] = holiday_data['date'].dt.day_name()
+        holidays_by_day = (
+            holiday_data['day_of_week']
+            .value_counts()
+            .reindex(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'], fill_value=0)
+            .reset_index()
+            .rename(columns={'index': 'day', 'day_of_week': 'count'})
+            .to_dict(orient='records')
+        )
+
+        # Prepare the response data
+        response_data = {
+            "total_holidays": total_holidays,
+            "common_month": common_month_name,
+            "holiday_trends": holiday_trends.to_dict(orient='records'),
+            "holidays_by_day": holidays_by_day,
+            "monthly_distribution": monthly_distribution.to_dict(orient='records'),
+            "top_holidays_per_year": top_holidays_per_year.to_dict(orient='records'),
+            "heatmap_data": heatmap_data,
+        }
+
+        # Determine response format based on 'Accept' header
+        accept_header = request.headers.get('Accept', '')
+        if 'application/json' in accept_header:
+            return jsonify(response_data)  # Return JSON response
+
+        # Render HTML response for browser requests
+        return render_template("holiday_eda.html", **response_data)
+
+    except Exception as e:
+        logger.error(f"Error in Holiday EDA: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
+
+"""
+#####refer below how to render html
+
+@app.route('/eda/holiday', methods=['GET'])
+def holiday_eda():
     try:
         # Example data
         holiday_data = {
@@ -530,7 +634,7 @@ def holiday_eda():
     except Exception as e:
         logger.error(f"Error in Holiday EDA: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
-
+"""
 
 @app.route('/invalidate_cache', methods=['POST'])
 def invalidate_cache():

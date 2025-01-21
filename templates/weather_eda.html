@@ -1,69 +1,181 @@
 {% extends 'base.html' %}
 {% block title %}Weather EDA{% endblock %}
-
 {% block content %}
 <div class="container-fluid">
     <h1 class="h3 mb-4 text-gray-800">Weather EDA</h1>
 
-    <div class="row">
-        <div class="col-md-6">
+    <div class="row mb-4">
+        <div class="col-lg-2">
+            <div class="card border-left-danger shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Highest Temperature</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800" id="highest-temp">
+                        <span class="text-muted"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-2">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Lowest Temperature</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800" id="lowest-temp">
+                        <span class="text-muted"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-2">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Highest Wind Speed</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800" id="highest-wind-speed">
+                        <span class="text-muted"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-2">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total Precipitation</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800" id="total-precipitation">
+                        <span class="text-muted"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-2">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Avg Solar Radiation</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800" id="avg-solar-radiation">
+                        <span class="text-muted"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-2">
+            <div class="card border-left-dark shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="text-xs font-weight-bold text-dark text-uppercase mb-1">Frequent Precip Type</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800" id="most-frequent-precip">
+                        <span class="text-muted"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+
+    <!-- Combined Visualizations Row -->
+    <div class="row mb-4">
+        <div class="col-lg-3 mb-4">
             <div class="card shadow">
-                <div class="card-header">
+                <div class="card-header py-3">
                     <h6 class="m-0 font-weight-bold text-primary">Average Temperature by Year</h6>
                 </div>
                 <div class="card-body">
-                    <div id="avg-temp-by-year">{{ avg_temp_by_year }}</div>
-
+                    <div id="avg-temp-by-year" style="height: 300px;">
+                        <p class="text-center text-muted"></p>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-6">
+        <div class="col-lg-3 mb-4">
             <div class="card shadow">
-                <div class="card-header">
+                <div class="card-header py-3">
                     <h6 class="m-0 font-weight-bold text-primary">Average Humidity by Month</h6>
                 </div>
                 <div class="card-body">
-                    <div id="avg-humidity-by-month"></div> <!-- Correct ID -->
+                    <div id="avg-humidity-by-month" style="height: 300px;">
+                        <p class="text-center text-muted"></p>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
-
-    <div class="row">
-        <div class="col-md-6">
+        <div class="col-lg-3 mb-4">
             <div class="card shadow">
-                <div class="card-header">
-                    <h6 class="m-0 font-weight-bold text-primary">Wind Speed Distribution</h6>
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Hourly Wind Speed Variations</h6>
                 </div>
                 <div class="card-body">
-                    <div id="wind-speed-distribution"></div> <!-- Correct ID -->
+                    <div id="hourly-avg-windspeed" style="height: 300px;">
+                        <p class="text-center text-muted"></p>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-6">
+        <div class="col-lg-3 mb-4">
             <div class="card shadow">
-                <div class="card-header">
-                    <h6 class="m-0 font-weight-bold text-primary">Solar Radiation by Hour</h6>
-                </div>
-                <div class="card-body">
-                    <div id="solar-radiation-by-hour"></div> <!-- Correct ID -->
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="row">
-        <div class="col-md-12">
-            <div class="card shadow">
-                <div class="card-header">
+                <div class="card-header py-3">
                     <h6 class="m-0 font-weight-bold text-primary">Precipitation Type Distribution</h6>
                 </div>
                 <div class="card-body">
-                    <div id="precip-type-distribution"></div> <!-- Correct ID -->
+                    <div id="precip-type-distribution" style="height: 300px;">
+                        <p class="text-center text-muted"></p>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
 
+    <div class="card shadow">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Daily Humidity Distribution</h6>
+        </div>
+        <div class="card-body">
+            <div id="daily-avg-humidity" style="height: 550px;">
+                <p class="text-center text-muted"></p>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="row">
+        <!-- Wind Speed Distribution -->
+        <div class="col-lg-4">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Wind Speed Distribution</h6>
+                </div>
+                <div class="card-body">
+                    <div id="wind-speed-distribution" style="height: 380px;">
+                        <p class="text-center text-muted"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    
+        <!-- Monthly Average Temperature -->
+        <div class="col-lg-4">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Monthly Average Temperature</h6>
+                </div>
+                <div class="card-body">
+                    <div id="monthly-avg-temp" style="height: 380px;">
+                        <p class="text-center text-muted"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    
+        <!-- Solar Radiation by Hour -->
+        <div class="col-lg-4">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Average Solar Radiation by Hour</h6>
+                </div>
+                <div class="card-body">
+                    <div id="solar-radiation-by-hour" style="height: 380px;">
+                        <p class="text-center text-muted"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    
+</div>
 {% endblock %}
