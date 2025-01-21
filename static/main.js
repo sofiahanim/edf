@@ -20,7 +20,11 @@ if (typeof $ === 'undefined') {
                 $(this).removeClass('active');
             }
         });
-
+        if (currentPath === '/mlops_preprocessing') {
+            initializeDatasetPreviewRefresh();   
+            initializeDatasetPreviewTable();
+        }
+       
         if (currentPath === '/eda/holiday') {
             console.log('Initializing Holiday EDA...');
             fetchAndRenderHolidayData(); // Fetch and render EDA Holiday data
@@ -839,4 +843,69 @@ function fetchAndRenderDemandData() {
 // 10. END SECTION 10 EDA DEMAND
 
 
-// 10. END SECTION 10 EDA DEMAND
+// 11. START SECTION 11 MLOPS DATA PREPROCESSING
+
+function initializeDatasetPreviewTable() {
+    const $table = $("#datasetPreviewTable");
+
+    if ($table.length) {
+        $table.DataTable({
+            ajax: {
+                url: `${baseUrl}/mlops_preprocessing/data`,
+                dataSrc: "data",
+                error: function (xhr, error, thrown) {
+                    console.error("Error fetching dataset preview:", error);
+                    alert("Failed to load dataset preview. Please try again later.");
+                },
+            },
+            columns: [
+                { data: "ds", title: "Date (DS)" },
+                { data: "y", title: "Demand (Y)" },
+                { data: "temp", title: "Temperature (°C)" },
+                { data: "feelslike", title: "Feels Like (°C)" },
+                { data: "humidity", title: "Humidity (%)" },
+                { data: "windspeed", title: "Wind Speed (km/h)" },
+                { data: "cloudcover", title: "Cloud Cover (%)" },
+                { data: "solaradiation", title: "Solar Radiation (W/m²)" },
+                { data: "precip", title: "Precipitation (mm)" },
+                { data: "preciptype", title: "Precipitation Type" },
+                { data: "date", title: "Date" },
+                { data: "is_holiday", title: "Is Holiday" }
+            ],
+            ordering: false, // Prevent frontend reordering
+            pageLength: 10,
+            responsive: true,
+            autoWidth: false,
+            dom: "Bfrtip",
+            buttons: ["copy", "csv", "excel", "pdf", "print"],
+            language: {
+                emptyTable: "No data available in the preview",
+                loadingRecords: "Loading data...",
+                zeroRecords: "No matching records found"
+            },
+        });
+        console.log("Dataset preview table initialized successfully.");
+    } else {
+        console.warn("Dataset preview table element not found.");
+    }
+}
+
+
+// Function to refresh dataset preview
+function initializeDatasetPreviewRefresh() {
+    const $refreshButton = $("#refreshPreview");
+
+    if ($refreshButton.length) {
+        $refreshButton.on("click", function () {
+            const table = $("#datasetPreviewTable").DataTable();
+            table.ajax.reload(null, false); // Reload without resetting pagination
+        });
+    } else {
+        console.warn("Refresh button not found.");
+    }
+}
+
+
+
+// 11. END SECTION 11 MLOPS DATA PREPROCESSING
+

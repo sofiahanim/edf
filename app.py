@@ -771,20 +771,150 @@ def health_check():
 
 """7. END SECTION 7 HEALTHCHECK ENDPOINT"""
 
-"""8. START SECTION 8 MACHINE LEARNING"""
+##############################################################################################################
+
+"""8. START SECTION 8 MLOPS"""
+
+@app.route("/mlops_preprocessing", methods=["GET"])
+def mlops_preprocessing():
+    """
+    Render the Data Preprocessing page with dynamic content for SB Admin 2.
+    """
+    try:
+        # Path to dataset
+        allyears_path = os.path.join(DATA_DIR, "merge", "allyears.csv")
+
+        # Define preprocessing steps
+        processes = [
+            "Step 1: Fetch demand data from AWS Redshift (`pipe_data.py`).",
+            "Step 2: Fetch weather data from AWS Redshift (`pipe_data_2.py`).",
+            "Step 3: Merge demand, weather, and holiday data (`ml_part_1.py`).",
+            "Step 4: Handle missing values with forward fill (`ml_part_1.py`).",
+            "Step 5: Add binary holiday indicators (`ml_part_1.py`)."
+        ]
+
+        # Load dataset for summary metrics
+        if os.path.exists(allyears_path):
+            df = pd.read_csv(allyears_path)
+
+            # Compute summary metrics
+            missing_values = int(df.isnull().sum().sum())
+            total_rows = len(df)
+            total_columns = len(df.columns)
+            column_names = df.columns.tolist()
+        else:
+            # Handle the case where the dataset is missing
+            df = pd.DataFrame()
+            missing_values = total_rows = total_columns = 0
+            column_names = []
+
+        # Log summary metrics for debugging
+        app.logger.info(f"Summary Metrics: Rows={total_rows}, Columns={total_columns}, Missing Values={missing_values}")
+
+        # Pass summary metrics to the frontend
+        summary = {
+            "missing_values": missing_values,
+            "total_rows": total_rows,
+            "total_columns": total_columns,
+            "columns": column_names,
+        }
+
+        return render_template(
+            "mlops_preprocessing.html",
+            title="Data Preprocessing",
+            summary=summary,
+            processes=processes,
+        )
+    except Exception as e:
+        app.logger.error(f"Error rendering Data Preprocessing page: {e}", exc_info=True)
+        return jsonify({"error": "Failed to load Data Preprocessing page"}), 500
+
+@app.route("/mlops_preprocessing/data", methods=["GET"])
+def mlops_preprocessing_data():
+    """
+    Provide all data from allyears.csv for DataTables in JSON format.
+    """
+    try:
+        # Path to the dataset
+        allyears_path = os.path.join(DATA_DIR, "merge", "allyears.csv")
+        if not os.path.exists(allyears_path):
+            app.logger.warning("Dataset file not found.")
+            return jsonify({"error": "Dataset file not found."}), 404
+
+        # Load the dataset
+        df = pd.read_csv(allyears_path)
+
+        # Validate required columns
+        required_columns = {
+            "ds", "y", "temp", "feelslike", "humidity", "windspeed", "cloudcover",
+            "solaradiation", "precip", "preciptype", "date", "is_holiday"
+        }
+        if not required_columns.issubset(df.columns):
+            missing_cols = required_columns - set(df.columns)
+            app.logger.error(f"Dataset is missing required columns: {missing_cols}")
+            return jsonify({"error": f"Dataset missing required columns: {list(missing_cols)}"}), 400
+
+        # Convert `ds` to datetime and ensure proper datetime64[ns] type
+        df["ds"] = pd.to_datetime(df["ds"], errors="coerce")
+        if df["ds"].isnull().any():
+            app.logger.error("Invalid datetime values found in 'ds' column.")
+            return jsonify({"error": "Invalid datetime values in 'ds' column."}), 400
+
+        # Sort the dataset by `ds` in descending order
+        df = df.sort_values(by="ds", ascending=False).reset_index(drop=True)
+
+        # Debug log to verify sorted data
+        app.logger.info(f"First 5 rows after sorting: {df.head(5).to_dict(orient='records')}")
+
+        # Convert to JSON format
+        response_data = {"data": df.to_dict(orient="records")}
+        return jsonify(response_data), 200
+
+    except Exception as e:
+        app.logger.error(f"Error in /mlops_preprocessing/data: {e}", exc_info=True)
+        return jsonify({"error": "Internal Server Error."}), 500
 
 
+##############################################################################################################
+@app.route("/mlops_trainingvalidation")
+def mlops_trainingvalidation():
+    """
+    Route for the Model Training & Validation page.
+    """
+    try:
+        # Example: Render training and validation details
+        return render_template("mlops_trainingvalidation.html", title="Model Training & Validation")
+    except Exception as e:
+        app.logger.error(f"Error rendering Model Training & Validation page: {e}", exc_info=True)
+        return jsonify({"error": "Failed to load Model Training & Validation page"}), 500
 
 
+@app.route("/mlops_predictionevaluation")
+def mlops_predictionevaluation():
+    """
+    Route for the Prediction & Evaluation page.
+    """
+    try:
+        # Example: Render prediction and evaluation details
+        return render_template("mlops_predictionevaluation.html", title="Prediction & Evaluation")
+    except Exception as e:
+        app.logger.error(f"Error rendering Prediction & Evaluation page: {e}", exc_info=True)
+        return jsonify({"error": "Failed to load Prediction & Evaluation page"}), 500
 
 
+@app.route("/mlops_discussion")
+def mlops_discussion():
+    """
+    Route for the Discussion page.
+    """
+    try:
+        # Example: Render discussion details
+        return render_template("mlops_discussion.html", title="Discussion")
+    except Exception as e:
+        app.logger.error(f"Error rendering Discussion page: {e}", exc_info=True)
+        return jsonify({"error": "Failed to load Discussion page"}), 500
 
-
-
-
-"""8. END SECTION 8 MACHINE LEARNING"""
-
-
+"""8. END SECTION 8 MLOPS"""
 
 
 if __name__ == '__main__':

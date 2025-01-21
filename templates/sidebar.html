@@ -16,7 +16,7 @@
     <li class="nav-item {% if request.path == url_for('dashboard') %}active{% endif %}">
         <a class="nav-link" href="{{ url_for('dashboard') }}" aria-label="Dashboard">
             <i class="fas fa-fw fa-tachometer-alt"></i>
-            <span>Dashboard</span>
+            <span>Home</span>
         </a>
     </li>
 
@@ -58,7 +58,7 @@
     <!-- Nav Item - Electric Demand EDA -->
     <li class="nav-item {% if request.path == url_for('demand_eda') %}active{% endif %}">
         <a class="nav-link" href="{{ url_for('demand_eda') }}" aria-label="Electric Demand EDA">
-            <i class="fas fa-fw fa-bolt"></i>
+            <i class="fas fa-fw fa-clock"></i>
             <span>Hourly Demand EDA</span>
         </a>
     </li>
@@ -76,6 +76,37 @@
         <a class="nav-link" href="{{ url_for('holiday_eda') }}" aria-label="Holiday EDA">
             <i class="fas fa-fw fa-calendar"></i>
             <span>Holiday EDA</span>
+        </a>
+    </li>
+
+    <!-- Divider -->
+    <hr class="sidebar-divider">
+
+    <!-- Heading -->
+    <div class="sidebar-heading">MLOps</div>
+
+    <li class="nav-item {% if request.path == url_for('mlops_preprocessing') %}active{% endif %}">
+        <a class="nav-link" href="{{ url_for('mlops_preprocessing') }}" aria-label="Data Preprocessing">
+            <i class="fas fa-fw fa-database"></i>
+            <span>Data Preprocessing</span>
+        </a>
+    </li>
+    <li class="nav-item {% if request.path == url_for('mlops_trainingvalidation') %}active{% endif %}">
+        <a class="nav-link" href="{{ url_for('mlops_trainingvalidation') }}" aria-label="Model Training & Validation">
+            <i class="fas fa-fw fa-laptop-code"></i>
+            <span>Model Training & Validation</span>
+        </a>
+    </li>
+    <li class="nav-item {% if request.path == url_for('mlops_predictionevaluation') %}active{% endif %}">
+        <a class="nav-link" href="{{ url_for('mlops_predictionevaluation') }}" aria-label="Prediction & Evaluation">
+            <i class="fas fa-fw fa-check-double"></i>
+            <span>Prediction & Evaluation</span>
+        </a>
+    </li>
+    <li class="nav-item {% if request.path == url_for('mlops_discussion') %}active{% endif %}">
+        <a class="nav-link" href="{{ url_for('mlops_discussion') }}" aria-label="Discussion">
+            <i class="fas fa-fw fa-file-signature"></i>
+            <span>Discussion</span>
         </a>
     </li>
 </ul>
