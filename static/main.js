@@ -31,6 +31,11 @@ if (typeof $ === 'undefined') {
             console.log('Initializing Weather EDA...');
             fetchAndRenderWeatherData(); // Fetch and render EDA Weather data
         }
+
+        if (currentPath === '/eda/demand') {
+            console.log('Initializing Demand EDA...');
+            fetchAndRenderDemandData();
+        }
     
         if (currentPath === '/hourlydemand') {
             console.log('Initializing Hourly Demand Table...');
@@ -703,16 +708,135 @@ function fetchAndRenderWeatherData() {
     });
 }
 
-
-
-
-
-
-
 // 9. END SECTION 9 EDA WEATHER
 
+// 10. START SECTION 10 EDA DEMAND
+
+function fetchAndRenderDemandData() {
+    // Show a loading indicator while fetching data
+    $('#loading-spinner').show();
+
+    $.ajax({
+        url: `${baseUrl}/eda/demand`, // Backend API endpoint
+        method: 'GET',               // HTTP method
+        dataType: 'json',            // Expected data format
+        success: function (response) {
+            console.log("Demand data fetched successfully:", response);
+
+            try {
+                // Validate response structure
+                if (!response || !response.total_demand_per_year || !response.avg_daily_demand) {
+                    throw new Error('Invalid response format');
+                }
+
+                // Hide error messages
+                $('#error-message').hide();
+
+                // Update Overview Cards
+                $('#total-demand').text(response.total_demand_per_year.reduce((sum, d) => sum + d.total_demand, 0).toFixed(2));
+                $('#average-daily-demand').text(response.avg_daily_demand.toFixed(2));
+                $('#max-demand').text(response.max_demand.toFixed(2));
+                $('#min-demand').text(response.min_demand.toFixed(2));
+
+                // Render Yearly Total Demand (Bar Chart)
+                Plotly.newPlot('yearly-demand-trend', [{
+                    x: response.total_demand_per_year.map(d => d.year),
+                    y: response.total_demand_per_year.map(d => d.total_demand),
+                    type: 'bar',
+                    marker: { color: 'steelblue' },
+                }], {
+                    xaxis: { title: 'Year' },
+                    yaxis: { title: 'Total Demand (kWh)' },
+                });
+
+                // Render Monthly Average Demand (Line Chart)
+                const monthlyData = response.monthly_demand.reduce((acc, d) => {
+                    if (!acc[d.year]) acc[d.year] = { x: [], y: [], mode: 'lines+markers', name: `${d.year}` };
+                    acc[d.year].x.push(d.month);
+                    acc[d.year].y.push(d.value);
+                    return acc;
+                }, {});
+                Plotly.newPlot('monthly-demand', Object.values(monthlyData), {
+                    xaxis: { title: 'Month', dtick: 1 },
+                    yaxis: { title: 'Average Demand (kWh)' },
+                });
+
+                // Render Day-of-Week Demand (Pie Chart)
+                Plotly.newPlot('daily-demand', [{
+                    labels: response.daily_demand.map(d => d.day_of_week),
+                    values: response.daily_demand.map(d => d.value),
+                    type: 'pie'
+                }]);
+
+                // Render Hourly Average Demand (Line Chart)
+                Plotly.newPlot('hourly-demand', [{
+                    x: response.hourly_demand.map(d => d.hour),
+                    y: response.hourly_demand.map(d => d.avg_demand),
+                    type: 'scatter',
+                    mode: 'lines+markers',
+                    marker: { color: 'orange' },
+                }], {
+                    xaxis: { title: 'Hour of the Day', dtick: 1 },
+                    yaxis: { title: 'Average Demand (kWh)' },
+                });
+
+                // Render Monthly Demand Variation (Box Plot)
+                Plotly.newPlot('monthly-demand-variation', [{
+                    x: response.monthly_demand.map(d => d.month),
+                    y: response.monthly_demand.map(d => d.value),
+                    type: 'box',
+                    boxpoints: 'all',
+                    jitter: 0.3
+                }], {
+                    xaxis: { title: 'Month', dtick: 1 },
+                    yaxis: { title: 'Demand (kWh)' },
+                });
+
+                
+                // Render Peak Demand Hours Analysis (Bar Chart)
+                Plotly.newPlot('peak-demand-hours', [{
+                    x: response.peak_demand_hours.map(d => d.hour),
+                    y: response.peak_demand_hours.map(d => d.total_demand),
+                    type: 'bar',
+                    marker: { color: 'purple' },
+                }], {
+                    xaxis: { title: 'Hour of the Day', dtick: 1 },
+                    yaxis: { title: 'Total Demand (kWh)' },
+                });
+
+                // Render Heatmap (Hourly vs. Day-of-Week)
+                Plotly.newPlot('heatmap-hourly-day', [{
+                    z: response.heatmap_hourly_day,
+                    x: Array.from({ length: 24 }, (_, i) => i),
+                    y: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+                    type: 'heatmap',
+                    colorscale: 'Viridis',
+                }], {
+                    xaxis: { title: 'Hour of the Day' },
+                    yaxis: { title: 'Day of the Week' },
+                });
 
 
+            } catch (error) {
+                console.error("Data processing error:", error);
+                $('#error-message').text('Error processing demand data. Please try again later.').show();
+            }
+        },
+        error: function (xhr, status, error) {
+            console.error("AJAX Error:", error);
+            $('#error-message').text('Failed to fetch demand data. Please try again later.').show();
+            setTimeout(() => {
+                $('#error-message').fadeOut();
+            }, 5000);
+        },
+        complete: function () {
+            $('#loading-spinner').hide();
+        },
+    });
+}
 
 
-// 8. END SECTION 8 EDA DEMAND
+// 10. END SECTION 10 EDA DEMAND
+
+
+// 10. END SECTION 10 EDA DEMAND

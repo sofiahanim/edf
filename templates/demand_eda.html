@@ -1,0 +1,138 @@
+{% extends 'base.html' %}
+
+{% block title %}Electricity Demand EDA{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Heading -->
+    <h1 class="h3 mb-4 text-gray-800">Electricity Demand EDA</h1>
+
+    <!-- Overview Cards -->
+    <div class="row">
+        <div class="col-lg-3 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Total Demand</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800" id="total-demand">N/A</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 mb-4">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Average Daily Demand</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800" id="average-daily-demand">N/A</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Max Demand</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800" id="max-demand">N/A</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 mb-4">
+            <div class="card border-left-danger shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Min Demand</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800" id="min-demand">N/A</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div class="row">
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Yearly Total Demand</h6>
+                </div>
+                <div class="card-body">
+                    <div id="yearly-demand-trend" style="height: 400px;"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-info">Monthly Average Demand</h6>
+                </div>
+                <div class="card-body">
+                    <div id="monthly-demand" style="height: 400px;"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-success">Average Demand by Day of the Week</h6>
+                </div>
+                <div class="card-body">
+                    <div id="daily-demand" style="height: 400px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-12 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-danger">Monthly Demand Variation</h6>
+                </div>
+                <div class="card-body">
+                    <div id="monthly-demand-variation" style="height: 400px;"></div>
+                </div>
+            </div>
+        </div> 
+    </div>
+    <div class="row">
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-warning">Hourly Average Demand</h6>
+                </div>
+                <div class="card-body">
+                    <div id="hourly-demand" style="height: 500px;"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-purple">Peak Demand Hours</h6>
+                </div>
+                <div class="card-body">
+                    <div id="peak-demand-hours" style="height: 500px;"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-secondary">Demand Heatmap (Hourly vs. Day-of-Week)</h6>
+                </div>
+                <div class="card-body">
+                    <div id="heatmap-hourly-day" style="height: 500px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+
+    <!-- Loading Spinner -->
+    <div id="loading-spinner" style="display: none;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="sr-only">Loading...</span>
+        </div>
+    </div>
+
+    <!-- Error Message -->
+    <div id="error-message" class="alert alert-danger mt-3" style="display: none;">
+        Error fetching or processing demand data.
+    </div>
+</div>
+{% endblock %}

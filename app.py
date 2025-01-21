@@ -299,26 +299,115 @@ def fetch_hourly_demand():
         logger.error(f"Error fetching hourly demand data: {e}", exc_info=True)
         return jsonify({"error": "Failed to fetch hourly demand data"}), 500
 
-# Route for Electric Demand EDA
-@app.route('/eda/electric_demand')
-def electric_demand_eda():
+@app.route("/eda/demand", methods=["GET"])
+def demand_eda():
     try:
-        # Load and process demand data
+        # Step 1: Define the range of years and initialize demand data list
         years = range(2019, 2026)
-        demand_data = pd.concat([load_csv(f"demand/{year}.csv") for year in years], ignore_index=True)
+        demand_dfs = []
 
-        # Summary statistics
-        mean_demand = demand_data['value'].mean()
-        median_demand = demand_data['value'].median()
-        std_demand = demand_data['value'].std()
+        # Step 2: Load and preprocess CSV files for each year
+        for year in years:
+            file_path = os.path.join(DATA_DIR, "demand", f"{year}.csv")
+            if os.path.exists(file_path):
+                df = pd.read_csv(file_path)
+                df['time'] = pd.to_datetime(df['time'], errors='coerce')
+                df.dropna(subset=['time'], inplace=True)
+                df['year'] = df['time'].dt.year
+                df['month'] = df['time'].dt.month
+                df['day_of_week'] = df['time'].dt.day_name()
+                df['hour'] = df['time'].dt.hour
+                demand_dfs.append(df)
 
-        return render_template('electric_demand_eda.html', 
-                               mean_demand=mean_demand, 
-                               median_demand=median_demand, 
-                               std_demand=std_demand)
+        # Step 3: Combine all yearly DataFrames
+        demand_data = pd.concat(demand_dfs, ignore_index=True) if demand_dfs else pd.DataFrame()
+
+        # Step 4: Handle empty data
+        if demand_data.empty:
+            return jsonify({"error": "No demand data available"}), 404
+
+        # Step 5: Compute summary metrics
+        total_demand_per_year = demand_data.groupby('year')['value'].sum().reset_index(name='total_demand')
+        avg_daily_demand = demand_data.groupby(demand_data['time'].dt.date)['value'].mean().mean()
+        max_demand = demand_data['value'].max()
+        min_demand = demand_data['value'].min()
+
+        # Step 6: Aggregations for visualizations
+        monthly_demand = demand_data.groupby(['year', 'month'])['value'].mean().reset_index()
+        daily_demand = (
+            demand_data.groupby('day_of_week')['value']
+            .mean()
+            .reindex(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"])
+            .reset_index()
+        )
+        hourly_demand = demand_data.groupby('hour')['value'].mean().reset_index(name='avg_demand')
+
+        # Step 7: Compute Peak Demand Hours Analysis
+        peak_demand_hours = (
+            demand_data.groupby(['hour'])['value']
+            .sum()
+            .reset_index(name='total_demand')
+            .sort_values(by='total_demand', ascending=False)
+        )
+
+        # Step 8: Compute Demand Heatmap (Hourly vs. Day-of-Week)
+        heatmap_hourly_day = (
+            demand_data.groupby(['day_of_week', 'hour'])['value']
+            .mean()
+            .unstack(fill_value=0)
+            .reindex(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"])
+        )
+
+        # Prepare heatmap data
+        heatmap_data = [
+            demand_data[demand_data['year'] == year].groupby('month')['value']
+            .mean()
+            .reindex(range(1, 13), fill_value=0)
+            .tolist()
+            for year in demand_data['year'].unique()
+        ]
+
+        # Demand Distribution Data
+        demand_distribution = demand_data['value'].tolist()
+
+        # Step 9: Convert to Python-native types for JSON serialization
+        response_data = {
+            "total_demand_per_year": total_demand_per_year.astype(object).to_dict(orient='records'),
+            "avg_daily_demand": float(avg_daily_demand),
+            "max_demand": float(max_demand),
+            "min_demand": float(min_demand),
+            "monthly_demand": monthly_demand.astype(object).to_dict(orient='records'),
+            "daily_demand": daily_demand.astype(object).to_dict(orient='records'),
+            "hourly_demand": hourly_demand.astype(object).to_dict(orient='records'),
+            "peak_demand_hours": peak_demand_hours.astype(object).to_dict(orient='records'),
+            "heatmap_hourly_day": heatmap_hourly_day.values.tolist(),
+            "heatmap_data": heatmap_data,
+            "demand_distribution": list(map(float, demand_distribution)),
+        }
+
+
+        # Check 'Accept' header to decide JSON or HTML response
+        accept_header = request.headers.get('Accept', '')
+        if 'application/json' in accept_header:
+            return jsonify(response_data)
+
+        # Render HTML template
+        return render_template(
+            "demand_eda.html",
+            total_demand_per_year=total_demand_per_year.to_dict(orient='records'),
+            avg_daily_demand=avg_daily_demand,
+            max_demand=max_demand,
+            min_demand=min_demand,
+            monthly_demand=monthly_demand.to_dict(orient='records'),
+            daily_demand=daily_demand.to_dict(orient='records'),
+            hourly_demand=hourly_demand.to_dict(orient='records'),
+            peak_demand_hours=peak_demand_hours.to_dict(orient='records'),
+            heatmap_hourly_day=heatmap_hourly_day.values.tolist(),
+        )
+
     except Exception as e:
+        app.logger.error(f"Error in Demand EDA: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
-
 
 """3. END SECTION 3 HOURLY DEMAND"""
 

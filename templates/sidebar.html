@@ -48,9 +48,7 @@
             <span>Holidays Data</span>
         </a>
     </li>
-    
-    
-    
+
     <!-- Divider -->
     <hr class="sidebar-divider">
 
@@ -58,8 +56,8 @@
     <div class="sidebar-heading">EDA</div>
 
     <!-- Nav Item - Electric Demand EDA -->
-    <li class="nav-item {% if request.path == url_for('electric_demand_eda') %}active{% endif %}">
-        <a class="nav-link" href="{{ url_for('electric_demand_eda') }}" aria-label="Electric Demand EDA">
+    <li class="nav-item {% if request.path == url_for('demand_eda') %}active{% endif %}">
+        <a class="nav-link" href="{{ url_for('demand_eda') }}" aria-label="Electric Demand EDA">
             <i class="fas fa-fw fa-bolt"></i>
             <span>Hourly Demand EDA</span>
         </a>
