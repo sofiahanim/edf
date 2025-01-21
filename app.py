@@ -20,6 +20,7 @@ import joblib
 import numpy as np
 
 
+
 # Initialize app and API
 app = Flask(__name__, static_folder='static', template_folder='templates')
 app.config['CACHE_TYPE'] = 'simple' 
@@ -31,6 +32,7 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 # Logging setup
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
 
 # Directory paths
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -601,40 +603,6 @@ def holiday_eda():
         logger.error(f"Error in Holiday EDA: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
-
-
-"""
-#####refer below how to render html
-
-@app.route('/eda/holiday', methods=['GET'])
-def holiday_eda():
-    try:
-        # Example data
-        holiday_data = {
-            "total_holidays": 89,
-            "common_month": "November",
-            "holiday_trends": [
-                {"year": 2019, "total_holidays": 12},
-                {"year": 2020, "total_holidays": 12},
-                {"year": 2021, "total_holidays": 13},
-                {"year": 2022, "total_holidays": 13},
-                {"year": 2023, "total_holidays": 13},
-                {"year": 2024, "total_holidays": 13},
-                {"year": 2025, "total_holidays": 13},
-            ],
-        }
-
-        # Check the 'Accept' header to determine response type
-        accept_header = request.headers.get('Accept', '')
-        if 'application/json' in accept_header:
-            return jsonify(holiday_data)  # Return JSON for API requests
-
-        # Render the HTML template for browser requests
-        return render_template("holiday_eda.html")
-    except Exception as e:
-        logger.error(f"Error in Holiday EDA: {e}", exc_info=True)
-        return jsonify({"error": str(e)}), 500
-"""
 
 @app.route('/invalidate_cache', methods=['POST'])
 def invalidate_cache():

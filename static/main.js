@@ -11,6 +11,15 @@ if (typeof $ === 'undefined') {
     $(document).ready(function () {
         const currentPath = window.location.pathname;
         console.log("Current Path:", currentPath);
+        
+        $('.sidebar .nav-item').each(function () {
+            const link = $(this).find('a.nav-link').attr('href');
+            if (link === currentPath) {
+                $(this).addClass('active');
+            } else {
+                $(this).removeClass('active');
+            }
+        });
 
         if (currentPath === '/eda/holiday') {
             console.log('Initializing Holiday EDA...');
@@ -56,19 +65,18 @@ if (typeof $ === 'undefined') {
 
 // Initialize Sidebar Menu Search
 function initializeMenuSearch() {
-    const menuSearchId = '#menuSearch'; // Input element for menu search
-
+    const menuSearchId = '#menuSearch';
     if ($(menuSearchId).length) {
         $(menuSearchId).on('input', function () {
             const query = $(this).val().toLowerCase().trim();
-
             $('.sidebar .nav-item').each(function () {
                 const text = $(this).text().toLowerCase();
-                $(this).toggle(text.includes(query)); // Toggle visibility based on query match
+                $(this).toggle(text.includes(query));
             });
         });
     }
 }
+
 
 // Initialize Global Search Input for Tables
 function initializeSearchInput() {
@@ -385,6 +393,7 @@ function initializeHolidaysTable() {
     }
 }
 
+/*
 // Render Holidays Page
 function renderHolidaysPage() {
     fetch(`${baseUrl}/holidays`)
@@ -416,7 +425,7 @@ document.addEventListener("DOMContentLoaded", function () {
             renderHolidaysPage();
         });
     }
-});
+});*/
 
 // 5. END SECTION 5 HOLIDAYS
 
@@ -704,62 +713,6 @@ function fetchAndRenderWeatherData() {
 
 
 
-
-
-// EDA DEMAND
-// Add this to handle demand EDA dynamically
-/*document.addEventListener("DOMContentLoaded", function () {
-
-    // Event Listener for EDA Demand Navigation
-    const edaDemandNav = document.querySelector("a[href='/eda/demand']");
-
-    if (edaDemandNav) {
-        edaDemandNav.addEventListener("click", function (e) {
-            e.preventDefault(); // Prevent default navigation behavior
-            fetch('/eda/demand')
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! Status: ${response.status}`);
-                    }
-                    return response.text(); // Return the HTML content
-                })
-                .then(html => {
-                    // Dynamically replace the content in the "#content-wrapper"
-                    const contentWrapper = document.querySelector("#content-wrapper");
-                    if (contentWrapper) {
-                        contentWrapper.innerHTML = html;
-
-                        // After content loads, initialize Plotly charts
-                        const monthlyAvgDataElement = document.getElementById("monthly-avg-data");
-                        const hourlyAvgDataElement = document.getElementById("hourly-avg-data");
-                        const heatmapDataElement = document.getElementById("heatmap-data");
-
-                        // Check for each chart's data and render it dynamically
-                        if (monthlyAvgDataElement) {
-                            const monthlyAvgData = JSON.parse(monthlyAvgDataElement.textContent);
-                            Plotly.newPlot('monthly-avg-chart', monthlyAvgData.data, monthlyAvgData.layout);
-                        }
-
-                        if (hourlyAvgDataElement) {
-                            const hourlyAvgData = JSON.parse(hourlyAvgDataElement.textContent);
-                            Plotly.newPlot('hourly-avg-chart', hourlyAvgData.data, hourlyAvgData.layout);
-                        }
-
-                        if (heatmapDataElement) {
-                            const heatmapData = JSON.parse(heatmapDataElement.textContent);
-                            Plotly.newPlot('heatmap-chart', heatmapData.data, heatmapData.layout);
-                        }
-                    } else {
-                        console.error("Error: '#content-wrapper' not found.");
-                    }
-                })
-                .catch(error => {
-                    console.error('Error loading Demand EDA page:', error);
-                    alert('Failed to load the Demand EDA page. Please try again later.');
-                });
-        });
-    }
-});*/
 
 
 // 8. END SECTION 8 EDA DEMAND

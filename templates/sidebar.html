@@ -10,7 +10,7 @@
     </li>
     
     <!-- Divider -->
-    <hr class="sidebar-divider my-0">
+    <hr class="sidebar-divider">
 
     <!-- Nav Item - Dashboard -->
     <li class="nav-item {% if request.path == url_for('dashboard') %}active{% endif %}">
@@ -42,14 +42,15 @@
         </a>
     </li>
 
-    <!-- Nav Item - Holidays -->
     <li class="nav-item {% if request.path == url_for('holidays_page') %}active{% endif %}">
-        <a class="nav-link" href="{{ url_for('holidays_page') }}" aria-label="Holidays">
+        <a class="nav-link" href="{{ url_for('holidays_page') }}" aria-label="Holidays Data">
             <i class="fas fa-fw fa-calendar-alt"></i>
             <span>Holidays Data</span>
         </a>
     </li>
-
+    
+    
+    
     <!-- Divider -->
     <hr class="sidebar-divider">
 
@@ -79,8 +80,4 @@
             <span>Holiday EDA</span>
         </a>
     </li>
-
-</ul>
-
-
 </ul>
