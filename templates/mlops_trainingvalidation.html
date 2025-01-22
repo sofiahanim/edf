@@ -93,23 +93,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-lg-4 mb-4">
-            <div class="card border-left-success shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Validated Models</div>
-                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ validation_summary.total_rows }}</div>
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-4 mb-4">
-            <div class="card border-left-info shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Consolidated Metrics</div>
-                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ validation_summary.columns | length }}</div>
-                </div>
-            </div>
-        </div>
-    </div>
+      
 
 
     <!-- Dataset Preview -->
@@ -127,32 +111,6 @@
                         <tr>
                             <th>Model</th>
                             <th>Iteration</th>
-                            <th>Parameters</th>
-                            <th>MAE</th>
-                            <th>MAPE</th>
-                            <th>RMSE</th>
-                            <th>R²</th>
-                            <th>Generated At</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-    <div class="card shadow mb-4">
-        <div class="card-header py-3 d-flex justify-content-between">
-            <h6 class="m-0 font-weight-bold text-primary">Validation Logs</h6>
-            <button id="refreshValidationLogs" class="btn btn-sm btn-primary">
-                <i class="fas fa-sync-alt"></i> Refresh
-            </button>
-        </div>
-        <div class="card-body">
-            <div class="table-responsive">
-                <table id="validation-logs-table" class="table table-bordered" width="100%" cellspacing="0">
-                    <thead>
-                        <tr>
-                            <th>Model</th>
                             <th>Parameters</th>
                             <th>MAE</th>
                             <th>MAPE</th>

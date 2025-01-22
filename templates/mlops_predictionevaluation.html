@@ -7,14 +7,6 @@
 <div class="container-fluid">
     <h1 class="h3 mb-4 text-gray-800">Prediction & Evaluation</h1>
 
-    <!-- Flow Diagram -->
-    <div class="card mb-4">
-        <div class="card-header">Prediction Workflow</div>
-        <div class="card-body">
-            <img src="/static/images/flow_diagram.png" alt="Workflow Diagram" class="img-fluid">
-        </div>
-    </div>
-
     <!-- Radar Chart -->
     <div class="card mb-4">
         <div class="card-header">Metrics Overview (Radar Chart)</div>
@@ -23,26 +15,13 @@
         </div>
     </div>
 
-    <!-- Metrics Summary Table -->
     <div class="card shadow mb-4">
         <div class="card-header py-3">
             <h6 class="m-0 font-weight-bold text-primary">Metrics Summary</h6>
         </div>
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-bordered" id="metrics-summary" width="100%" cellspacing="0">
-                    <thead>
-                        <tr>
-                            <th>Model</th>
-                            <th>MAE</th>
-                            <th>MAPE</th>
-                            <th>RMSE</th>
-                            <th>R²</th>
-                            <th>MBE</th>
-                            <th>Parameters</th>
-                        </tr>
-                    </thead>
-                </table>
+                <table class="table table-bordered" id="metrics-summary" width="100%" cellspacing="0"></table>
             </div>
         </div>
     </div>
@@ -57,7 +36,7 @@
         </div>
     </div>
 
-    <!-- Prediction Trends Chart -->
+    
     <div class="card shadow mb-4">
         <div class="card-header py-3">
             <h6 class="m-0 font-weight-bold text-info">Prediction Trends</h6>
@@ -67,26 +46,6 @@
         </div>
     </div>
 
-    <!-- Prediction Comparison Table -->
-    <div class="card shadow mb-4">
-        <div class="card-header py-3">
-            <h6 class="m-0 font-weight-bold text-primary">Future Prediction Comparison</h6>
-        </div>
-        <div class="card-body">
-            <div id="predictionComparisonChart" class="mb-4"></div>
-            <div class="table-responsive">
-                <table class="table table-bordered" id="prediction-comparison" width="100%" cellspacing="0">
-                    <thead>
-                        <tr>
-                            <th>Date</th>
-                            <th>Prediction</th>
-                            <th>Model</th>
-                        </tr>
-                    </thead>
-                </table>
-            </div>
-        </div>
-    </div>
 </div>
 
 {% endblock %}

@@ -892,32 +892,16 @@ def clean_parameters(dataframe, column_name):
 
     dataframe[column_name] = dataframe[column_name].apply(stringify)
 
-@app.route("/api/mlops/validation/logs", methods=["GET"])
-def fetch_validation_logs():
-    """
-    Provide validation logs in JSON format.
-    """
-    try:
-        validation_logs_path = os.path.join(BASE_DIR, "validation", "consolidated_validation_metrics.csv")
-        if not os.path.exists(validation_logs_path):
-            return jsonify({"error": "Validation logs file not found."}), 404
-
-        validation_logs_df = pd.read_csv(validation_logs_path)
-        clean_parameters(validation_logs_df, "Parameters")  # Clean Parameters column
-        response_data = {"data": validation_logs_df.to_dict(orient="records")}
-        return jsonify(response_data), 200
-    except Exception as e:
-        app.logger.error(f"Error fetching validation logs: {e}", exc_info=True)
-        return jsonify({"error": "Failed to fetch validation logs."}), 500
-    
 @app.route("/mlops_trainingvalidation", methods=["GET"])
 def mlops_trainingvalidation():
     try:
-        # Training Logs
+        # Define the training logs path
         training_logs_path = os.path.join(BASE_DIR, "training", "training_info.csv")
+        
+        # Check if the file exists and process it
         if os.path.exists(training_logs_path):
             training_logs_df = pd.read_csv(training_logs_path)
-            clean_parameters(training_logs_df, "Parameters")
+            clean_parameters(training_logs_df, "Parameters")  # Clean parameters column
             training_summary = {
                 "total_rows": len(training_logs_df),
                 "total_columns": len(training_logs_df.columns),
@@ -927,49 +911,34 @@ def mlops_trainingvalidation():
             training_logs_df = pd.DataFrame()
             training_summary = {"total_rows": 0, "total_columns": 0, "columns": []}
 
-        # Validation Logs
-        validation_logs_path = os.path.join(BASE_DIR, "validation", "consolidated_validation_metrics.csv")
-        if os.path.exists(validation_logs_path):
-            validation_logs_df = pd.read_csv(validation_logs_path)
-            clean_parameters(validation_logs_df, "Parameters")
-            validation_summary = {
-                "total_rows": len(validation_logs_df),
-                "total_columns": len(validation_logs_df.columns),
-                "columns": validation_logs_df.columns.tolist(),
-            }
-        else:
-            validation_logs_df = pd.DataFrame()
-            validation_summary = {"total_rows": 0, "total_columns": 0, "columns": []}
-
+        # Render the training logs page
         return render_template(
             "mlops_trainingvalidation.html",
-            title="Model Training & Validation",
-            training_summary=training_summary,
-            validation_summary=validation_summary,
+            title="Model Training Logs",
+            training_summary=training_summary
         )
     except Exception as e:
-        app.logger.error(f"Error rendering Model Training & Validation page: {e}", exc_info=True)
-        return jsonify({"error": "Failed to load Model Training & Validation page"}), 500
-
-
+        app.logger.error(f"Error rendering training logs page: {e}", exc_info=True)
+        return jsonify({"error": "Failed to load Model Training Logs page"}), 500
+    
 @app.route("/api/mlops/training/logs", methods=["GET"])
 def fetch_training_logs():
-    """
-    Provide training logs in JSON format.
-    """
     try:
         training_logs_path = os.path.join(BASE_DIR, "training", "training_info.csv")
         if not os.path.exists(training_logs_path):
             return jsonify({"error": "Training logs file not found."}), 404
 
         training_logs_df = pd.read_csv(training_logs_path)
-        # No cleaning applied to Parameters column
+
+        # Replace NaN or invalid values with "N/A"
+        training_logs_df.fillna("N/A", inplace=True)
+        training_logs_df.replace("NaN", "N/A", inplace=True)
+
         response_data = {"data": training_logs_df.to_dict(orient="records")}
         return jsonify(response_data), 200
     except Exception as e:
         app.logger.error(f"Error fetching training logs: {e}", exc_info=True)
         return jsonify({"error": "Failed to fetch training logs."}), 500
-
 
 
 ##############################################################################################################
@@ -984,10 +953,10 @@ def prediction_evaluation_page():
     Render the prediction evaluation page.
     """
     try:
-        # Fetch data directly from the API function
+        # Fetch data directly from the API endpoint
         evaluation_data = get_prediction_evaluation_data()
 
-        # Handle errors from the API
+        # Handle errors from the API response
         if "error" in evaluation_data:
             raise ValueError(evaluation_data["error"])
 
@@ -998,11 +967,11 @@ def prediction_evaluation_page():
 
         # Process metrics summary to rank models
         metrics_summary_df = pd.DataFrame(metrics_summary)
+        metrics_summary_df["r_squared"] = pd.to_numeric(metrics_summary_df["r_squared"], errors="coerce")
         metrics_summary_df["rank_mae"] = metrics_summary_df["mae"].rank()
         metrics_summary_df["rank_r2"] = metrics_summary_df["r_squared"].rank(ascending=False)
         metrics_summary_df["average_rank"] = metrics_summary_df[["rank_mae", "rank_r2"]].mean(axis=1)
         best_model = metrics_summary_df.sort_values("average_rank").iloc[0].to_dict()
-
 
         # Render the HTML page with the best model and data for visualization
         return render_template(
@@ -1016,6 +985,7 @@ def prediction_evaluation_page():
     except Exception as e:
         logger.error(f"Error rendering prediction evaluation page: {e}", exc_info=True)
         return jsonify({"error": "Failed to load prediction evaluation page."}), 500
+
 
 @app.route('/api/mlops_predictionevaluation', methods=['GET'])
 def get_prediction_evaluation_data():
@@ -1046,53 +1016,23 @@ def get_prediction_evaluation_data():
         gbr_df["model"] = "GBR"
 
         # Combine prediction dataframes
-        combined_predictions = pd.concat([prophet_df, theta_df, gbr_df], ignore_index=True).fillna("NaN")
+        combined_predictions = pd.concat([prophet_df, theta_df, gbr_df], ignore_index=True).fillna(0)
 
         # Standardize column names
         summary_df.columns = summary_df.columns.str.strip().str.lower()
         summary_df.rename(columns={"r²": "r_squared"}, inplace=True)
 
-        # Fill missing values with "NaN" for rendering purposes
-        summary_df.fillna("NaN", inplace=True)
+        # Fill missing values with 0 for rendering purposes
+        summary_df.fillna(0, inplace=True)
 
         # Prepare metrics summary
         metrics_summary = summary_df[[
             "model", "mae", "mape", "rmse", "r_squared", "mbe", "parameters"
         ]].to_dict(orient="records")
 
-        # Filter rows with valid numeric values for charts
-        chart_ready_df = summary_df.dropna(subset=["mae", "mape", "rmse", "r_squared", "mbe"]).copy()
-        chart_ready_df.fillna(0, inplace=True)  # Replace NaN with 0 for numeric operations
-
         # Prepare chart data
-        chart_data = chart_ready_df[[
-            "model", "mae", "mape", "rmse", "r_squared", "mbe"
-        ]].to_dict(orient="records")
-
-        # Ensure missing values are handled before sending data to the frontend
-        summary_df.fillna(value={"r_squared": 0, "mae": 0, "mape": 0, "rmse": 0, "mbe": 0}, inplace=True)
-        summary_df["r_squared"] = summary_df["r_squared"].replace("NaN", 0).astype(float)
-        metrics_summary = summary_df[[
-            "model", "mae", "mape", "rmse", "r_squared", "mbe", "parameters"
-        ]].to_dict(orient="records")
-
-        # Handle NaN in predictions
-        # Replace NaN in prediction data with 0 for trends
-        combined_predictions = pd.concat([prophet_df, theta_df, gbr_df], ignore_index=True)
-        combined_predictions.fillna(0, inplace=True)  # Replace NaN with 0
-
-
-        # Drop rows with NaN in specific columns for chart visualization
         chart_ready_df = summary_df.dropna(subset=["mae", "mape", "rmse", "r_squared", "mbe"])
-
-        # Replace NaN values with 0 for chart visualization
-        chart_ready_df = chart_ready_df.fillna(0)
-
-        # Prepare chart data and metrics summary
-        metrics_summary = summary_df[[
-            "model", "mae", "mape", "rmse", "r_squared", "mbe", "parameters"
-        ]].to_dict(orient="records")
-
+        chart_ready_df.fillna(0, inplace=True)
         chart_data = chart_ready_df[[
             "model", "mae", "mape", "rmse", "r_squared", "mbe"
         ]].to_dict(orient="records")

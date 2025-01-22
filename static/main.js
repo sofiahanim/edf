@@ -40,7 +40,6 @@ if (typeof $ === 'undefined') {
         
         if (currentPath === '/mlops_trainingvalidation') {
             initializeTrainingLogs();
-            initializeValidationLogs();
             initializeRefreshButtons();
         }
         
@@ -943,66 +942,6 @@ function renderParameters(data) {
 
 
 
-function initializeValidationLogs() {
-    const tableId = "#validation-logs-table";
-
-    if ($(tableId).length) {
-        $(tableId).DataTable({
-            processing: true,
-            serverSide: false,
-            ajax: {
-                url: `${baseUrl}/api/mlops/validation/logs`,
-                type: "GET",
-                dataSrc: function (json) {
-                    console.log("Raw Validation Logs Data:", json.data); // Debugging the response
-                    if (json && json.data) {
-                        return json.data;
-                    } else {
-                        console.error("Invalid response format for validation logs:", json);
-                        return [];
-                    }
-                },
-                
-                error: function (jqXHR, textStatus, errorThrown) {
-                    console.error("Error fetching validation logs:", errorThrown);
-                    console.log("jqXHR", jqXHR);
-                    console.log("textStatus", textStatus);
-
-                    let message = "Unexpected error occurred.";
-                    if (jqXHR.status === 404) {
-                        message = "Validation logs not found (404).";
-                    } else if (jqXHR.status === 400) {
-                        console.log("jqXHR.responseJSON", jqXHR.responseJSON);
-                        message = "Failed to load validation logs. Invalid data format.";
-                    } else if (textStatus === "parsererror") {
-                        console.log("jqXHR.responseText", jqXHR.responseText);
-                        message = "Response data type error.";
-                    } else if (textStatus === "timeout") {
-                        message = "Connection timed out.";
-                    }
-                    alert(message);
-                },
-            },
-            columns: [
-                { data: "Model", title: "Model" },
-                {
-                    data: "Parameters",
-                    title: "Parameters",
-                    render: function (data) {
-                        return `<pre style="white-space: pre-wrap;">${data}</pre>`;
-                    },
-                },
-                { data: "MAE", title: "MAE" },
-                { data: "MAPE", title: "MAPE" },
-                { data: "RMSE", title: "RMSE" },
-                { data: "R²", title: "R²" },
-                { data: "Generated_At", title: "Generated At" },
-            ],
-            order: [[6, "desc"]],
-        });
-    }
-}
-
 function parseJSON(response) {
     try {
         return typeof response === "string" ? JSON.parse(response) : response;
@@ -1013,7 +952,6 @@ function parseJSON(response) {
 }
 
 
-// Initialize Training Logs similarly
 function initializeTrainingLogs() {
     const tableId = "#training-logs-table";
 
@@ -1025,32 +963,24 @@ function initializeTrainingLogs() {
                 url: `${baseUrl}/api/mlops/training/logs`,
                 type: "GET",
                 dataSrc: function (json) {
-                    let parsedData = parseJSON(json); // Use the utility function here
-                    if (parsedData && parsedData.data) {
-                        return parsedData.data;
+                    if (json && json.data) {
+                        // Handle NaN or undefined values in the response
+                        return json.data.map(row => {
+                            for (const key in row) {
+                                if (row[key] === null || row[key] === "NaN" || row[key] === undefined) {
+                                    row[key] = "N/A"; // Replace invalid values with "N/A"
+                                }
+                            }
+                            return row;
+                        });
                     } else {
-                        console.error("Invalid response format for training logs:", json);
+                        console.error("Invalid training logs response format:", json);
                         return [];
                     }
                 },
                 error: function (jqXHR, textStatus, errorThrown) {
                     console.error("Error fetching training logs:", errorThrown);
-                    console.log("jqXHR", jqXHR);
-                    console.log("textStatus", textStatus);
-
-                    let message = "Unexpected error occurred.";
-                    if (jqXHR.status === 404) {
-                        message = "Training logs not found (404).";
-                    } else if (jqXHR.status === 400) {
-                        console.log("jqXHR.responseJSON", jqXHR.responseJSON);
-                        message = "Failed to load training logs. Invalid data format.";
-                    } else if (textStatus === "parsererror") {
-                        console.log("jqXHR.responseText", jqXHR.responseText);
-                        message = "Response data type error.";
-                    } else if (textStatus === "timeout") {
-                        message = "Connection timed out.";
-                    }
-                    alert(message);
+                    alert("Failed to load training logs.");
                 },
             },
             columns: [
@@ -1060,130 +990,139 @@ function initializeTrainingLogs() {
                     data: "Parameters",
                     title: "Parameters",
                     render: function (data) {
-                        return `<pre style="white-space: pre-wrap;">${data}</pre>`;
+                        return `<pre style="white-space: pre-wrap;">${data || "N/A"}</pre>`;
                     },
                 },
-                { data: "MAE", title: "MAE" },
-                { data: "MAPE", title: "MAPE" },
-                { data: "RMSE", title: "RMSE" },
-                { data: "R²", title: "R²" },
-                { data: "Generated_At", title: "Generated At" },
+                { data: "MAE", title: "MAE", render: data => data || "N/A" },
+                { data: "MAPE", title: "MAPE", render: data => data || "N/A" },
+                { data: "RMSE", title: "RMSE", render: data => data || "N/A" },
+                { data: "R²", title: "R²", render: data => data || "N/A" },
+                { data: "Generated_At", title: "Generated At", render: data => data || "N/A" },
             ],
             order: [[7, "desc"]], // Sort by "Generated At"
+            pageLength: 10,
+            responsive: true,
         });
     }
 }
 
 
-function initializeRefreshButtons() {
-    // Refresh Training Logs
-    const $refreshTraining = $("#refreshTrainingLogs");
-    if ($refreshTraining.length) {
-        $refreshTraining.on("click", function () {
-            const table = $("#training-logs-table").DataTable();
-            if (table) {
-                table.ajax.reload(null, false);
-                alert("Training logs have been refreshed.");
-            }
-        });
-    }
+function initializeRefreshTrainingLogsButton() {
+    const refreshButtonId = "#refreshTrainingLogs";
 
-    // Refresh Validation Logs
-    const $refreshValidation = $("#refreshValidationLogs");
-    if ($refreshValidation.length) {
-        $refreshValidation.on("click", function () {
-            const table = $("#validation-logs-table").DataTable();
-            if (table) {
-                table.ajax.reload(null, false);
-                alert("Validation logs have been refreshed.");
-            }
-        });
-    }
+    $(refreshButtonId).on("click", function () {
+        const table = $("#training-logs-table").DataTable();
+        if (table) {
+            table.ajax.reload(null, false);
+            alert("Training logs refreshed.");
+        }
+    });
 }
+
 
 // 12. END SECTION 12 MLOPS MODEL TRAINING
 // START SECTION 13 MLOPS MODEL EVALUATION
 
-/**
- * Initialize Metrics Summary Table
- */
+
 function initializeMetricsSummaryTable() {
     const tableId = '#metrics-summary';
 
     if ($(tableId).length) {
         $(tableId).DataTable({
-            processing: true,
-            serverSide: false,
             ajax: {
                 url: `${baseUrl}/api/mlops_predictionevaluation`,
                 type: 'GET',
                 dataSrc: response => {
-                    console.log('Metrics Summary Response:', response.metrics_summary);
-
                     if (!response || !response.metrics_summary) {
-                        console.warn('No metrics summary data available.');
                         alert('No metrics summary data available.');
                         return [];
                     }
                     return response.metrics_summary;
                 },
-                error: function (jqXHR, textStatus, errorThrown) {
-                    console.error(`AJAX Error: ${textStatus}`, errorThrown);
-                    alert(`Error: ${jqXHR.statusText} (${jqXHR.status})`);
+                error: function () {
+                    alert('Error fetching metrics summary data.');
                 },
             },
             columns: [
                 { data: 'model', title: 'Model' },
-                {
-                    data: 'mae',
-                    title: 'MAE',
-                    render: data =>
-                        isNaN(data) || data === undefined ? '--' : parseFloat(data).toFixed(2),
-                },
-                {
-                    data: 'mape',
-                    title: 'MAPE',
-                    render: data =>
-                        isNaN(data) || data === undefined ? '--' : parseFloat(data).toFixed(2),
-                },
-                {
-                    data: 'rmse',
-                    title: 'RMSE',
-                    render: data =>
-                        isNaN(data) || data === undefined ? '--' : parseFloat(data).toFixed(2),
-                },
-                {
-                    data: 'r_squared',
-                    title: 'R²',
-                    render: data =>
-                        isNaN(data) || data === undefined ? '--' : parseFloat(data).toFixed(2),
-                },
-                {
-                    data: 'mbe',
-                    title: 'MBE',
-                    render: data =>
-                        isNaN(data) || data === undefined ? '--' : parseFloat(data).toFixed(2),
-                },
-                { data: 'parameters', title: 'Parameters' },
+                { data: 'mae', title: 'MAE', render: data => parseFloat(data).toFixed(2) },
+                { data: 'mape', title: 'MAPE', render: data => parseFloat(data).toFixed(2) },
+                { data: 'rmse', title: 'RMSE', render: data => parseFloat(data).toFixed(2) },
+                { data: 'r_squared', title: 'R²', render: data => parseFloat(data).toFixed(2) },
+                { data: 'mbe', title: 'MBE', render: data => parseFloat(data).toFixed(2) },
+                { data: 'parameters', title: 'Parameters' }
             ],
             pageLength: 10,
             responsive: true,
-            order: [[0, 'asc']], // Sort by Model alphabetically by default
-            language: {
-                emptyTable: 'No metrics data available',
-                loadingRecords: 'Loading metrics...',
-                zeroRecords: 'No matching records found',
-            },
         });
-    } else {
-        console.warn('Metrics Summary table element not found.');
     }
 }
 
-
 /**
- * Initialize Prediction Comparison Table
+ * Initialize Prediction Trends Chart
  */
+function initializePredictionTrendsChart() {
+    $.ajax({
+        url: `${baseUrl}/api/mlops_predictionevaluation`,
+        type: 'GET',
+        success: function (response) {
+            const data = response.prediction_comparison || [];
+            const traces = {};
+
+            data.forEach(item => {
+                if (!traces[item.model]) traces[item.model] = { x: [], y: [] };
+                traces[item.model].x.push(item.ds);
+                traces[item.model].y.push(item.prophet_predicted || 0);
+            });
+
+            const plotlyTraces = Object.keys(traces).map(model => ({
+                x: traces[model].x,
+                y: traces[model].y,
+                mode: 'lines',
+                name: model,
+            }));
+
+            Plotly.newPlot('predictionTrendsChart', plotlyTraces, {
+                title: 'Prediction Trends',
+                xaxis: { title: 'Date' },
+                yaxis: { title: 'Predicted Values' },
+            });
+        },
+        error: function () {
+            alert('Failed to fetch prediction trends data.');
+        }
+    });
+}
+
+
+function renderPredictionComparisonChart(data) {
+    const chartContainer = document.getElementById('predictionComparisonChart');
+    if (!chartContainer) {
+        console.error(`Chart container with ID predictionComparisonChart not found.`);
+        return;
+    }
+
+    const groupedData = data.reduce((acc, curr) => {
+        if (!acc[curr.model]) acc[curr.model] = { x: [], y: [] };
+        acc[curr.model].x.push(curr.ds);
+        acc[curr.model].y.push(curr.y || 0); // Replace null/undefined with 0
+        return acc;
+    }, {});
+
+    const traces = Object.keys(groupedData).map(model => ({
+        x: groupedData[model].x,
+        y: groupedData[model].y,
+        mode: 'lines',
+        name: model,
+    }));
+
+    Plotly.newPlot(chartContainer, traces, {
+        title: 'Future Prediction Comparison',
+        xaxis: { title: 'Date', type: 'date' },
+        yaxis: { title: 'Predictions' },
+    });
+}
+
 
 function initializePredictionComparisonTable() {
     const tableId = '#prediction-comparison';
@@ -1196,50 +1135,37 @@ function initializePredictionComparisonTable() {
             ajax: {
                 url: `${baseUrl}/api/mlops_predictionevaluation`,
                 type: 'GET',
-                dataSrc: function (response) {
+                dataSrc: response => {
+                    console.log('API Response Data:', response.prediction_comparison);
+
+                    // Debug the API response to ensure 'prediction_comparison' exists
                     if (!response || !response.prediction_comparison) {
-                        console.warn("No prediction comparison data available.");
+                        console.warn('No prediction comparison data available.');
+                        alert('No prediction comparison data available.');
                         return [];
                     }
-
-                    // Render the chart alongside the table
+                    // Log the response for debugging
+                    console.log('Prediction Comparison Data:', response.prediction_comparison);
                     renderPredictionComparisonChart(response.prediction_comparison);
                     return response.prediction_comparison;
                 },
-                error: function (error) {
-                    console.error("Failed to fetch prediction comparison data:", error);
+                error: function () {
+                    alert('Failed to fetch prediction comparison data.');
                 },
             },
             columns: [
-                { data: 'ds', title: 'Date' },
-                { data: 'y', title: 'Prediction', render: data => data?.toFixed(2) || '0' },
-                { data: 'model', title: 'Model' },
+                { data: 'ds', title: 'Date' }, // Maps the 'ds' field to the Date column
+                {
+                    data: 'y', 
+                    title: 'Prediction', 
+                    render: data => (data !== null && !isNaN(data)) ? parseFloat(data).toFixed(2) : '0' // Render 'y' correctly
+                },
+                { data: 'model', title: 'Model' }, // Maps the 'model' field to the Model column
             ],
         });
     }
-
-    function renderPredictionComparisonChart(data) {
-        const groupedData = data.reduce((acc, curr) => {
-            if (!acc[curr.model]) acc[curr.model] = { x: [], y: [] };
-            acc[curr.model].x.push(curr.ds);
-            acc[curr.model].y.push(curr.y || 0); // Replace NaN with 0
-            return acc;
-        }, {});
-
-        const traces = Object.keys(groupedData).map(model => ({
-            x: groupedData[model].x,
-            y: groupedData[model].y,
-            mode: 'lines',
-            name: model,
-        }));
-
-        Plotly.newPlot(chartId, traces, {
-            title: 'Future Prediction Comparison',
-            xaxis: { title: 'Date', type: 'date' },
-            yaxis: { title: 'Predictions' },
-        });
-    }
 }
+
 
 
 function initializeMetricsOverviewChart() {
@@ -1298,71 +1224,6 @@ function fetchAndUpdateBestModelUI() {
 }
 
 
-/*
-function fetchAndUpdateBestModelUI() {
-    $.ajax({
-        url: `${baseUrl}/api/mlops_predictionevaluation`,
-        type: 'GET',
-        success: function (response) {
-            if (response && response.metrics_summary) {
-                const bestModel = response.metrics_summary.reduce((best, model) => {
-                    const avgRank = (model.mae + (1 - model['r_squared'])) / 2;
-                    return avgRank < best.avgRank ? { ...model, avgRank } : best;
-                }, { avgRank: Infinity });
-
-                // Update the card UI
-                $('#best-model-name').text(bestModel.model || "--");
-                $('#best-model-mae').text(bestModel.mae.toFixed(2) || "--");
-                $('#best-model-mape').text(bestModel.mape.toFixed(2) || "--");
-                $('#best-model-rmse').text(bestModel.rmse.toFixed(2) || "--");
-                $('#best-model-r2').text(bestModel['r_squared'].toFixed(2) || "--");
-            } else {
-                console.warn('No metrics summary data found.');
-            }
-        },
-        error: function () {
-            console.error('Failed to fetch best model data.');
-        }
-    });
-}*/
-
-
-function initializePredictionTrendsChart() {
-    $.ajax({
-        url: `${baseUrl}/api/mlops_predictionevaluation`,
-        type: 'GET',
-        success: function (response) {
-            if (response && response.prediction_comparison) {
-                const groupedData = response.prediction_comparison.reduce((acc, curr) => {
-                    if (!acc[curr.model]) acc[curr.model] = { x: [], y: [] };
-                    acc[curr.model].x.push(curr.ds);
-                    acc[curr.model].y.push(curr.y || 0); // Replace NaN with 0
-                    return acc;
-                }, {});
-
-                const traces = Object.keys(groupedData).map(model => ({
-                    x: groupedData[model].x,
-                    y: groupedData[model].y,
-                    mode: 'lines',
-                    name: model,
-                }));
-
-                Plotly.newPlot('predictionTrendsChart', traces, {
-                    title: 'Prediction Trends by Model',
-                    xaxis: { title: 'Date', type: 'date' },
-                    yaxis: { title: 'Predictions', zeroline: true },
-                });
-            } else {
-                console.warn("No prediction trends data available.");
-            }
-        },
-        error: function (error) {
-            console.error("Failed to fetch prediction trends data:", error);
-        },
-    });
-}
-
-
 function initializeModelComparisonChart() {
     $.ajax({
         url: `${baseUrl}/api/mlops_predictionevaluation`,
@@ -1392,108 +1253,69 @@ function initializeModelComparisonChart() {
         }
     });
 }
-
-/*
-function initializePredictionTrendsChart() {
-    const chartId = 'predictionTrendsChart';
-    const chartContainer = document.getElementById(chartId);
-
-    if (!chartContainer) {
-        console.warn(`Chart container with ID ${chartId} not found.`);
-        return;
-    }
-
-    $.ajax({
-        url: `${baseUrl}/api/mlops_predictionevaluation`,
-        type: 'GET',
-        success: function (response) {
-            if (response && response.prediction_comparison) {
-                const groupedData = response.prediction_comparison.reduce((acc, curr) => {
-                    if (!acc[curr.model]) acc[curr.model] = { x: [], y: [] };
-                    acc[curr.model].x.push(curr.ds);
-                    acc[curr.model].y.push(curr.y);
-                    return acc;
-                }, {});
-                
-                console.log('Grouped Data for Plotly:', groupedData);
-                
-
-                const traces = Object.keys(groupedData).map(model => ({
-                    x: groupedData[model].x,
-                    y: groupedData[model].y,
-                    mode: 'lines+markers',
-                    name: model,
-                }));
-                console.log('Plotly Traces:', traces);
-                
-
-                const layout = {
-                    title: 'Prediction Trends Over Time',
-                    xaxis: { title: 'Date', type: 'date', tickformat: '%b %d', showgrid: true },
-                    yaxis: { title: 'Predictions', showgrid: true, zeroline: false },
-                    legend: { orientation: 'h', x: 0.5, y: -0.2, xanchor: 'center' },
-                    margin: { l: 50, r: 50, t: 50, b: 100 },
-                    plot_bgcolor: "#f9f9f9",
-                    paper_bgcolor: "#f9f9f9",
-                };
-                
-                Plotly.newPlot(chartContainer, traces, layout);
-            } else {
-                alert('No prediction data available.');
-            }
-        },
-        error: function () {
-            alert('Failed to load prediction trends data.');
-        },
-    });
-}
-*/
 function renderRadarChart(metrics) {
     const chartContainer = document.getElementById('metricsRadarChart');
 
-    if (!chartContainer) {
-        console.warn("Radar chart container not found.");
-        return;
-    }
+    // Filter for only three specific models
+    const modelsToInclude = ['Darts Theta', 'Prophet', 'GradientBoostingRegressor'];
+    const filteredMetrics = metrics
+        .filter(metric => modelsToInclude.includes(metric.model))
+        .reduce((unique, item) => {
+            // Remove duplicates by checking for unique models
+            if (!unique.some(metric => metric.model === item.model)) {
+                unique.push(item);
+            }
+            return unique;
+        }, []);
 
-    // Prepare labels and datasets for the radar chart
+    // Prepare labels and datasets
     const labels = ['MAE', 'MAPE', 'RMSE', 'R²', 'MBE'];
-    const datasets = metrics.map(metric => ({
+    const datasets = filteredMetrics.map(metric => ({
         label: metric.model,
         data: [
             parseFloat(metric.mae) || 0,
             parseFloat(metric.mape) || 0,
             parseFloat(metric.rmse) || 0,
             parseFloat(metric.r_squared) || 0,
-            parseFloat(metric.mbe) || 0,
+            parseFloat(metric.mbe) || 0
         ],
         fill: true,
-        borderColor: '#36b9cc',
-        backgroundColor: 'rgba(54, 185, 204, 0.2)',
+        backgroundColor: getRandomColorWithAlpha(0.4),
+        borderColor: getRandomColorWithAlpha(1),
+        borderWidth: 2
     }));
 
-    // Initialize the radar chart
+    // Render the Radar Chart
     new Chart(chartContainer, {
         type: 'radar',
         data: {
-            labels: labels,
-            datasets: datasets,
+            labels,
+            datasets,
         },
         options: {
             responsive: true,
             plugins: {
-                legend: {
-                    position: 'top',
-                },
+                legend: { position: 'top' },
             },
             scales: {
                 r: {
                     suggestedMin: 0,
-                    suggestedMax: Math.max(...datasets.flatMap(dataset => dataset.data)) || 1,
+                    suggestedMax: 7000, // Adjust based on expected range
+                    angleLines: { color: '#ddd' }, // Styling
+                    grid: { color: '#ccc' },
                 },
             },
         },
     });
+}
+
+
+// Utility function for generating random colors with transparency
+function getRandomColorWithAlpha(alpha) {
+    const r = Math.floor(Math.random() * 255);
+    const g = Math.floor(Math.random() * 255);
+    const b = Math.floor(Math.random() * 255);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
 // Fetch and render radar chart
@@ -1531,216 +1353,3 @@ function renderHeatmap(metrics) {
     ]);
 }
 
-
-// END SECTION 13 MLOPS MODEL EVALUATION
-
-
-
-
-/*
-function fetchAndDisplayEvaluation() {
-    $.ajax({
-        url: `${baseUrl}/api/evaluate_metrics`,
-        type: 'GET',
-        success: function (data) {
-            const bestModel = data.best_model;
-            const predictionAnalysis = data.prediction_analysis;
-
-            // Update UI elements for best model
-            $('#best-model').text(`Best Model: ${bestModel.model}`);
-            $('#best-mae').text(`MAE: ${bestModel.mae}`);
-            $('#best-r2').text(`R²: ${bestModel["r²"]}`);
-
-            // Visualize prediction analysis
-            createBarChart('#prediction-analysis-chart', predictionAnalysis);
-        },
-        error: function (jqXHR, textStatus, errorThrown) {
-            console.error('Error:', textStatus, errorThrown);
-            if (jqXHR.status === 0) {
-                alert('Network error: Please check your connection.');
-            } else {
-                alert('Failed to load data. Please try again.');
-            }
-        }
-        
-    });
-}
-
-const SB_ADMIN_COLORS = {
-    primary: '#4e73df',
-    success: '#1cc88a',
-    info: '#36b9cc',
-    warning: '#f6c23e',
-    danger: '#e74a3b',
-    secondary: '#858796',
-    light: '#f8f9fc',
-    dark: '#5a5c69',
-};
-
-// Helper function to generate random colors
-function getRandomColor() {
-    const colors = Object.values(SB_ADMIN_COLORS);
-    return colors[Math.floor(Math.random() * colors.length)];
-}
-
-// Fetch and Update Best Performing Model UI
-function fetchAndUpdateBestModelUI() {
-    $.ajax({
-        url: `${baseUrl}/api/mlops_predictionevaluation`,
-        type: 'GET',
-        success: function (response) {
-            if (response && response.metrics_summary) {
-                // Identify the best model based on average rank
-                const metricsSummary = response.metrics_summary.map(item => ({
-                    ...item,
-                    rank_mae: item.mae,
-                    rank_r2: -item['r²'], // R² is ranked in descending order
-                }));
-                const sortedMetrics = metricsSummary.sort((a, b) =>
-                    (a.rank_mae + a.rank_r2) / 2 - (b.rank_mae + b.rank_r2) / 2
-                );
-                const bestModel = sortedMetrics[0];
-
-                // Update the UI
-                document.getElementById('best-model-name').textContent = bestModel.model || "--";
-                document.getElementById('best-model-mae').textContent = bestModel.mae || "--";
-                document.getElementById('best-model-mape').textContent = bestModel.mape || "--";
-                document.getElementById('best-model-rmse').textContent = bestModel.rmse || "--";
-                document.getElementById('best-model-r2').textContent = bestModel['r²'] || "--";
-            } else {
-                console.error('Metrics summary data is missing.');
-            }
-        },
-        error: function (jqXHR, textStatus, errorThrown) {
-            console.error('Error:', textStatus, errorThrown);
-            if (jqXHR.status === 0) {
-                alert('Network error: Please check your connection.');
-            } else {
-                alert('Failed to load data. Please try again.');
-            }
-        },        
-    });
-}
-/*
-function initializeMetricsOverviewChart() {
-    const chartId = 'metricsSummaryChart';
-
-    $.ajax({
-        url: `${baseUrl}/api/mlops_predictionevaluation`,
-        type: 'GET',
-        success: function (response) {
-            if (response && response.metrics_summary) {
-                // Aggregate data for Darts Theta, Prophet, and GBR
-                // Aggregate metrics for key models
-                const models = ['Darts Theta', 'Prophet', 'GBR'];
-                const aggregatedMetrics = models.map(model => {
-                    const filteredData = response.metrics_summary.filter(item => item.model.includes(model));
-                    return {
-                        model,
-                        mae: calculateAverage(filteredData, 'mae'),
-                        rmse: calculateAverage(filteredData, 'rmse'),
-                        r2: calculateAverage(filteredData, 'r²'),
-                    };
-                });
-
-
-                // Prepare traces for Plotly grouped bar chart
-                const traceMAE = {
-                    x: aggregatedMetrics.map(item => item.model),
-                    y: aggregatedMetrics.map(item => item.mae),
-                    name: 'MAE',
-                    type: 'bar',
-                    marker: { color: '#4e73df' }, // Primary color
-                };
-                const traceRMSE = {
-                    x: aggregatedMetrics.map(item => item.model),
-                    y: aggregatedMetrics.map(item => item.rmse),
-                    name: 'RMSE',
-                    type: 'bar',
-                    marker: { color: '#858796' }, // Secondary color
-                };
-                const traceR2 = {
-                    x: aggregatedMetrics.map(item => item.model),
-                    y: aggregatedMetrics.map(item => item.r2),
-                    name: 'R²',
-                    type: 'bar',
-                    marker: { color: '#1cc88a' }, // Success color
-                };
-
-                // Create grouped bar chart
-                Plotly.newPlot(chartId, [traceMAE, traceRMSE, traceR2], {
-                    title: 'Model Metrics Overview',
-                    barmode: 'group',
-                    xaxis: { title: 'Models' },
-                    yaxis: { title: 'Metrics' },
-                });
-            }
-        },
-        error: function (jqXHR, textStatus, errorThrown) {
-            console.error('Error:', textStatus, errorThrown);
-            if (jqXHR.status === 0) {
-                alert('Network error: Please check your connection.');
-            } else {
-                alert('Failed to load data. Please try again.');
-            }
-        }        
-    });
-}*/
-
-
-/*
-function initializePredictionTrendsChart() {
-    const chartElement = document.getElementById('predictionTrendsChart');
-    if (chartElement) {
-        $.ajax({
-            url: `${baseUrl}/api/mlops_predictionevaluation`,
-            type: 'GET',
-            success: function (response) {
-                if (response && response.prediction_comparison) {
-                    const predictionData = response.prediction_comparison.reduce((acc, curr) => {
-                        if (!acc[curr.model]) acc[curr.model] = { dates: [], predictions: [] };
-                        acc[curr.model].dates.push(curr.ds);
-                        acc[curr.model].predictions.push(curr.y);
-                        return acc;
-                    }, {});
-
-                    const datasets = Object.keys(predictionData).map(model => ({
-                        label: model,
-                        data: predictionData[model].predictions,
-                        borderColor: getRandomColor(),
-                        borderWidth: 2,
-                        fill: false,
-                    }));
-
-                    new Chart(chartElement, {
-                        type: 'line',
-                        data: {
-                            labels: predictionData[Object.keys(predictionData)[0]].dates,
-                            datasets: datasets,
-                        },
-                        options: {
-                            responsive: true,
-                            plugins: { legend: { position: 'top' } },
-                            scales: {
-                                x: { type: 'time', time: { unit: 'day' } },
-                                y: { beginAtZero: true },
-                            },
-                        },
-                    });
-                }
-            },
-            error: function (jqXHR, textStatus, errorThrown) {
-                console.error('Error:', textStatus, errorThrown);
-                if (jqXHR.status === 0) {
-                    alert('Network error: Please check your connection.');
-                } else {
-                    alert('Failed to load data. Please try again.');
-                }
-            }
-            
-        });
-    }
-}*/
-
-
-// 13. END SECTION 13 MLOPS MODEL EVALUATION
