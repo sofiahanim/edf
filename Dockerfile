@@ -38,10 +38,11 @@ RUN wget http://ftp.gnu.org/gnu/libc/glibc-2.28.tar.gz && \
     mkdir build && \
     cd build && \
     ../configure --prefix=/opt/glibc-2.28 && \
-    make -j$(nproc) && \
+    make && \  # Removed -j$(nproc) to prevent jobserver issues
     make install && \
     cd ../../ && \
     rm -rf glibc-2.28 glibc-2.28.tar.gz
+
 
 # Add updated glibc to the library path
 ENV LD_LIBRARY_PATH=/opt/glibc-2.28/lib:$LD_LIBRARY_PATH
