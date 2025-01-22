@@ -1,13 +1,9 @@
 name: ML Part 2
 
-on:
-  push:
-    branches:
-      - main
-  schedule:
-    - cron: "0 19 * * *"   # 3:00 AM MALAYSIA TIME  
-  workflow_dispatch:
 
+on:
+  workflow_dispatch:
+  
 permissions:
   contents: write
 

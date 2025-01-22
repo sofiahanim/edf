@@ -977,36 +977,45 @@ def fetch_training_logs():
 
 
 ##############################################################################################################
+
 @app.route('/mlops_predictionevaluation', methods=['GET'])
 def prediction_evaluation_page():
+    """
+    Render the prediction evaluation page.
+    """
     try:
-        # Fetch data directly from the evaluation function
+        # Fetch data directly from the API function
         evaluation_data = get_prediction_evaluation_data()
 
-        # Check if an error is present in the evaluation data
+        # Handle errors from the API
         if "error" in evaluation_data:
             raise ValueError(evaluation_data["error"])
 
-        metrics_summary = evaluation_data.get('metrics_summary', [])
-        prediction_comparison = evaluation_data.get('prediction_comparison', [])
+        # Extract metrics summary and chart data
+        metrics_summary = evaluation_data.get("metrics_summary", [])
+        chart_data = evaluation_data.get("chart_data", [])
+        prediction_comparison = evaluation_data.get("prediction_comparison", [])
 
-        # Process metrics summary for ranking
+        # Process metrics summary to rank models
         metrics_summary_df = pd.DataFrame(metrics_summary)
-        metrics_summary_df['rank_mae'] = metrics_summary_df['mae'].rank()
-        metrics_summary_df['rank_r2'] = metrics_summary_df['r²'].rank(ascending=False)
-        metrics_summary_df['average_rank'] = metrics_summary_df[['rank_mae', 'rank_r2']].mean(axis=1)
-        best_model = metrics_summary_df.sort_values('average_rank').iloc[0].to_dict()
+        metrics_summary_df["rank_mae"] = metrics_summary_df["mae"].rank()
+        metrics_summary_df["rank_r2"] = metrics_summary_df["r_squared"].rank(ascending=False)
+        metrics_summary_df["average_rank"] = metrics_summary_df[["rank_mae", "rank_r2"]].mean(axis=1)
+        best_model = metrics_summary_df.sort_values("average_rank").iloc[0].to_dict()
 
-        # Render the template with best_model
+
+        # Render the HTML page with the best model and data for visualization
         return render_template(
-            'mlops_predictionevaluation.html',
+            "mlops_predictionevaluation.html",
             title="Prediction & Evaluation",
-            best_model=best_model  # Pass the best model data to the template
+            best_model=best_model,
+            chart_data=chart_data,
+            metrics_summary=metrics_summary,
+            prediction_comparison=prediction_comparison
         )
     except Exception as e:
         logger.error(f"Error rendering prediction evaluation page: {e}", exc_info=True)
         return jsonify({"error": "Failed to load prediction evaluation page."}), 500
-
 
 @app.route('/api/mlops_predictionevaluation', methods=['GET'])
 def get_prediction_evaluation_data():
@@ -1015,9 +1024,9 @@ def get_prediction_evaluation_data():
     """
     try:
         # Define paths for CSV files
-        prophet_csv_path = os.path.join(BASE_DIR, "evaluation", "prophet_predictions.csv")
-        theta_csv_path = os.path.join(BASE_DIR, "evaluation", "theta_predictions.csv")
-        gbr_csv_path = os.path.join(BASE_DIR, "evaluation", "gbr_predictions.csv")
+        prophet_csv_path = os.path.join(BASE_DIR, "evaluation", "prophet_future_predictions.csv")
+        theta_csv_path = os.path.join(BASE_DIR, "evaluation", "theta_future_predictions.csv")
+        gbr_csv_path = os.path.join(BASE_DIR, "evaluation", "gbr_future_predictions.csv")
         summary_csv_path = os.path.join(BASE_DIR, "evaluation", "summary_report.csv")
 
         # Load CSV files
@@ -1026,41 +1035,77 @@ def get_prediction_evaluation_data():
         gbr_df = load_csv(gbr_csv_path)
         summary_df = load_csv(summary_csv_path)
 
-        # Rename 'predicted' to 'y' for consistency
-        for df in [prophet_df, theta_df, gbr_df]:
-            df.rename(columns={"predicted": "y"}, inplace=True)
+        # Rename prediction columns for consistency
+        prophet_df.rename(columns={"Prophet_Predicted": "y"}, inplace=True)
+        theta_df.rename(columns={"Theta_Predicted": "y"}, inplace=True)
+        gbr_df.rename(columns={"Predicted": "y"}, inplace=True)
 
         # Add model identifiers
         prophet_df["model"] = "Prophet"
         theta_df["model"] = "Theta"
         gbr_df["model"] = "GBR"
 
-        # Add 'type' column based on 'actual' (if present)
-        for df in [prophet_df, theta_df, gbr_df]:
-            if "actual" in df:
-                df["type"] = df["actual"].apply(lambda x: "historical" if pd.notnull(x) else "future")
-                df["actual"] = df["actual"].fillna("")  # Replace NaN in 'actual'
-            else:
-                df["type"] = "future"
-                df["actual"] = ""  # Ensure column exists
+        # Combine prediction dataframes
+        combined_predictions = pd.concat([prophet_df, theta_df, gbr_df], ignore_index=True).fillna("NaN")
 
-        # Combine predictions
-        combined_predictions = pd.concat([prophet_df, theta_df, gbr_df], ignore_index=True).fillna("")
+        # Standardize column names
+        summary_df.columns = summary_df.columns.str.strip().str.lower()
+        summary_df.rename(columns={"r²": "r_squared"}, inplace=True)
 
-        # Prepare metrics summary and ensure all values are JSON serializable
-        metrics_summary = summary_df[["model", "mae", "mape", "rmse", "r²"]].fillna("").to_dict(orient="records")
+        # Fill missing values with "NaN" for rendering purposes
+        summary_df.fillna("NaN", inplace=True)
 
-        # Convert combined predictions to JSON serializable format
-        prediction_comparison = combined_predictions.to_dict(orient="records")
+        # Prepare metrics summary
+        metrics_summary = summary_df[[
+            "model", "mae", "mape", "rmse", "r_squared", "mbe", "parameters"
+        ]].to_dict(orient="records")
 
+        # Filter rows with valid numeric values for charts
+        chart_ready_df = summary_df.dropna(subset=["mae", "mape", "rmse", "r_squared", "mbe"]).copy()
+        chart_ready_df.fillna(0, inplace=True)  # Replace NaN with 0 for numeric operations
+
+        # Prepare chart data
+        chart_data = chart_ready_df[[
+            "model", "mae", "mape", "rmse", "r_squared", "mbe"
+        ]].to_dict(orient="records")
+
+        # Ensure missing values are handled before sending data to the frontend
+        summary_df.fillna(value={"r_squared": 0, "mae": 0, "mape": 0, "rmse": 0, "mbe": 0}, inplace=True)
+        summary_df["r_squared"] = summary_df["r_squared"].replace("NaN", 0).astype(float)
+        metrics_summary = summary_df[[
+            "model", "mae", "mape", "rmse", "r_squared", "mbe", "parameters"
+        ]].to_dict(orient="records")
+
+        # Handle NaN in predictions
+        # Replace NaN in prediction data with 0 for trends
+        combined_predictions = pd.concat([prophet_df, theta_df, gbr_df], ignore_index=True)
+        combined_predictions.fillna(0, inplace=True)  # Replace NaN with 0
+
+
+        # Drop rows with NaN in specific columns for chart visualization
+        chart_ready_df = summary_df.dropna(subset=["mae", "mape", "rmse", "r_squared", "mbe"])
+
+        # Replace NaN values with 0 for chart visualization
+        chart_ready_df = chart_ready_df.fillna(0)
+
+        # Prepare chart data and metrics summary
+        metrics_summary = summary_df[[
+            "model", "mae", "mape", "rmse", "r_squared", "mbe", "parameters"
+        ]].to_dict(orient="records")
+
+        chart_data = chart_ready_df[[
+            "model", "mae", "mape", "rmse", "r_squared", "mbe"
+        ]].to_dict(orient="records")
+
+        # Return the combined results
         return {
             "metrics_summary": metrics_summary,
-            "prediction_comparison": prediction_comparison
+            "prediction_comparison": combined_predictions.to_dict(orient="records"),
+            "chart_data": chart_data
         }
     except Exception as e:
         logger.error(f"Error in get_prediction_evaluation_data: {e}", exc_info=True)
         return {"error": "Failed to load prediction evaluation data."}
-
 
 ##############################################################################################################
 

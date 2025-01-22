@@ -58,21 +58,37 @@ validation_files = [
 def append_to_csv(file_path, df, model_name=None):
     """
     Appends data to a CSV file, adding timestamp and model name if not already present,
-    and ensures no duplicate rows are added.
+    and ensures no duplicate rows are added. If the file is empty or lacks columns, it creates them.
     """
     try:
+        # Add required columns if missing in the dataframe
         if "Generated_At" not in df.columns:
             df["Generated_At"] = datetime.now().isoformat()
         if model_name and "Model" not in df.columns:
             df["Model"] = model_name
 
+        # Check if file exists
         if os.path.exists(file_path):
-            existing_data = pd.read_csv(file_path)
-            df = pd.concat([existing_data, df]).drop_duplicates(subset=["Model", "Generated_At"], ignore_index=True)
-        df.to_csv(file_path, index=False)
+            try:
+                existing_data = pd.read_csv(file_path)
+
+                # If no columns exist, initialize with the current DataFrame's columns
+                if existing_data.empty or existing_data.shape[1] == 0:
+                    df.to_csv(file_path, index=False)  # Write initial columns
+                else:
+                    # Append new data and remove duplicates
+                    df = pd.concat([existing_data, df]).drop_duplicates(ignore_index=True)
+                    df.to_csv(file_path, index=False)
+            except (pd.errors.EmptyDataError, pd.errors.ParserError):
+                # If file exists but cannot be parsed, reinitialize it with columns from df
+                df.to_csv(file_path, index=False)
+        else:
+            # If file does not exist, create it with the current DataFrame's columns
+            df.to_csv(file_path, index=False)
 
     except Exception as e:
         log_error(f"Error appending to file {file_path}: {e}")
+
 
 # Validate Dataset with Specific Error Messages
 def validate_dataset(df):
@@ -137,10 +153,64 @@ def append_training_details(model_name, iteration, params, metrics):
     append_to_csv(training_file, training_df, model_name=model_name)
 
 # Save metrics to validation CSV files
+# Save metrics to validation CSV files
 def save_metrics(model_name, metrics, file_path):
-    metrics_df = pd.DataFrame([metrics])
-    append_to_csv(file_path, metrics_df, model_name=model_name)
+    """
+    Save metrics to a CSV file, ensuring no duplicates and handling unhashable parameters.
+    """
+    try:
+        # Convert unhashable types (e.g., enums) to strings
+        if "Parameters" in metrics and isinstance(metrics["Parameters"], dict):
+            metrics["Parameters"] = str(metrics["Parameters"])
 
+        metrics_df = pd.DataFrame([metrics])
+
+        # Append to file, ensuring no duplicates
+        if os.path.exists(file_path):
+            existing_data = pd.read_csv(file_path)
+            # Combine and drop duplicates based on all columns
+            combined_data = pd.concat([existing_data, metrics_df]).drop_duplicates(ignore_index=True)
+            combined_data.to_csv(file_path, index=False)
+        else:
+            # Save directly if file doesn't exist
+            metrics_df.to_csv(file_path, index=False)
+    except Exception as e:
+        log_error(f"Error appending to file {file_path}: {e}")
+
+# Consolidate Validation Metrics and Generate Summary Report
+try:
+    consolidated_validation_file = os.path.join(validation_dir, 'consolidated_validation_metrics.csv')
+    all_metrics = []
+
+    for file_path in validation_files:
+        if os.path.exists(file_path):
+            try:
+                df = pd.read_csv(file_path)
+                if not df.empty:
+                    all_metrics.append(df)
+            except Exception as e:
+                log_error(f"Error reading validation file {file_path}: {e}")
+
+    if all_metrics:
+        # Consolidate metrics, remove duplicates
+        consolidated_validation_df = pd.concat(all_metrics, ignore_index=True).drop_duplicates()
+        append_to_csv(consolidated_validation_file, consolidated_validation_df)
+        print(f"Consolidated validation metrics saved to {consolidated_validation_file}")
+    else:
+        log_error("No metrics found for summary report.")
+        print("No metrics available for summary report.")
+
+    # Generate summary report
+    summary_file = os.path.join(evaluation_dir, 'summary_report.csv')
+    if all_metrics:
+        summary_df = pd.concat(all_metrics, ignore_index=True).drop_duplicates()
+        append_to_csv(summary_file, summary_df)
+        print(f"Summary report saved to {summary_file}")
+    else:
+        log_error("No metrics found for summary report.")
+except Exception as e:
+    log_error(f"Error during consolidation or summary generation: {e}")
+    print(f"Error during consolidation or summary generation: {e}")
 
 ############################################################################################################
 
@@ -202,10 +272,40 @@ validation_features = validation_data.drop(columns=['ds', 'y'], errors='ignore')
 validation_target = validation_data['y']
 
 past_14_days_data = data[data['ds'] >= past_14_days_start]
+
+# Ensure 'ds' matches historical hourly timestamps
+def truncate_to_hour(timestamp):
+    """Truncate a datetime object to the nearest hour."""
+    return timestamp.replace(minute=0, second=0, microsecond=0)
+
+past_14_days_data['ds'] = past_14_days_data['ds'].apply(lambda x: truncate_to_hour(x))  # Align to hourly grid
+
+# Add Generated_At column for past predictions
+past_14_days_data['Generated_At'] = datetime.now().isoformat()  # When the prediction was generated
+
+# Generate a range of future timestamps for the next 14 days (hourly)
+future_index = pd.date_range(
+    start=history_end + timedelta(days=1),
+    periods=14 * 24,  # Next 14 days, hourly
+    freq='H'
+)
+
+# Create the future DataFrame with proper index
 future_data = pd.DataFrame({
-    "ds": pd.date_range(start=history_end + timedelta(days=1), periods=14, freq="D"),
     "y": np.nan
-})
+}, index=future_index)
+
+# Reset the index to move the date range into the 'ds' column
+future_data.reset_index(inplace=True)
+future_data.rename(columns={"index": "ds"}, inplace=True)
+
+# Ensure 'ds' matches hourly timestamps (truncate to hour)
+future_data['ds'] = future_data['ds'].apply(lambda x: truncate_to_hour(x))
+
+
+# Add Generated_At column for future predictions
+future_data['Generated_At'] = datetime.now().isoformat()
+
 
 if future_data.empty or train_features.empty:
     raise ValueError("Future data or training features are empty. Cannot proceed with predictions.")
@@ -330,7 +430,7 @@ def calculate_metrics(model, y_true, y_pred, is_future=False):
         is_future (bool): If true, metrics are placeholders (used for future predictions).
 
     Returns:
-        dict: Metrics including MAE, MAPE, RMSE, MSE, R², and MBE.
+        dict: Metrics including MAE, MAPE, RMSE, MSE, r_squared, and MBE.
     """
     if is_future:
         return {
@@ -340,7 +440,7 @@ def calculate_metrics(model, y_true, y_pred, is_future=False):
             "MAPE": None,
             "RMSE": None,
             "MSE": None,
-            "R²": None,
+            "r_squared": None,
             "MBE": None
         }
     return {
@@ -350,7 +450,7 @@ def calculate_metrics(model, y_true, y_pred, is_future=False):
         "MAPE": mean_absolute_percentage_error(y_true, y_pred),
         "RMSE": np.sqrt(mean_squared_error(y_true, y_pred)),
         "MSE": mean_squared_error(y_true, y_pred),
-        "R²": r2_score(y_true, y_pred),
+        "r_squared": r2_score(y_true, y_pred),
         "MBE": np.mean(y_pred - y_true),
     }
 
@@ -393,7 +493,7 @@ try:
                     validation_prediction.values().flatten()
                 )
                 theta_params = {"Theta Value": model_theta.theta, "Seasonality Mode": model_theta.season_mode}
-                validation_metrics_theta.update({"Parameters": theta_params})
+                validation_metrics_theta.update({"Parameters":str(theta_params)})
                 append_training_details("Darts Theta", 1, theta_params, validation_metrics_theta)
                 append_to_csv(os.path.join(validation_dir, 'theta_validation_metrics.csv'), pd.DataFrame([validation_metrics_theta]))
                 # Save metrics to theta_validation_metrics.csv
@@ -428,7 +528,7 @@ try:
 
             validation_metrics_prophet = calculate_metrics("Prophet", validation_data['y'], validation_forecast['yhat'].values)
             prophet_params = {"Changepoint Prior Scale": changepoint_prior_scale, "Seasonality Mode": "multiplicative"}
-            validation_metrics_prophet.update({"Parameters": prophet_params})
+            validation_metrics_prophet.update({"Parameters": str(prophet_params)})
             append_training_details("Prophet", 1, prophet_params, validation_metrics_prophet)
             append_to_csv(os.path.join(validation_dir, 'prophet_validation_metrics.csv'), pd.DataFrame([validation_metrics_prophet]))
 
@@ -452,148 +552,113 @@ except Exception as e:
 
 # Section 3: Past and Future Predictions with Consolidation Metrics 
 
-# 1. Past Predictions for the Last 14 Days
+# Ensure all models generate predictions for the past 14 days
 if not past_14_features.empty:
+    # GradientBoostingRegressor Past Predictions
     if gbm is not None:
         past_predictions = gbm.predict(past_14_features)
         past_14_days_data['Predicted'] = past_predictions
 
-        # Calculate metrics for past 14 days
-        past_14_metrics = calculate_metrics("GradientBoostingRegressor", past_14_days_data['y'], past_predictions)
-        print(f"Past 14-Day Metrics: {past_14_metrics}")
-    else:
-        log_error("GradientBoostingRegressor model is not initialized. Skipping past predictions.")
-else:
-    log_error("No valid features for past 14-day predictions.")
+        # Add Generated_At column
+        past_14_days_data['Generated_At'] = datetime.now().isoformat()
+        past_14_days_data['ds'] = past_14_days_data['ds'].apply(lambda x: truncate_to_hour(x))
+
+        # Save predictions
+        gbr_past_file = os.path.join(evaluation_dir, 'gbr_past_predictions.csv')
+        append_to_csv(gbr_past_file, past_14_days_data[['ds', 'Predicted', 'y', 'Generated_At']], model_name="GradientBoostingRegressor")
+        print(f"Past predictions for GradientBoostingRegressor saved to {gbr_past_file}")
+
+    # Prophet Past Predictions
+    try:
+        prophet_past_forecast = model_prophet.predict(past_14_days_data[['ds']])
+        past_14_days_data['Prophet_Predicted'] = prophet_past_forecast['yhat'].values
+        past_14_days_data['ds'] = past_14_days_data['ds'].apply(lambda x: truncate_to_hour(x))
+
+        prophet_past_file = os.path.join(evaluation_dir, 'prophet_past_predictions.csv')
+        append_to_csv(prophet_past_file, past_14_days_data[['ds', 'Prophet_Predicted', 'y', 'Generated_At']], model_name="Prophet")
+        print(f"Past predictions for Prophet saved to {prophet_past_file}")
+    except Exception as e:
+        log_error(f"Error during Prophet past predictions: {e}")
+
+    # Darts Theta Past Predictions
+    try:
+        theta_past_series = TimeSeries.from_dataframe(past_14_days_data, time_col="ds", value_cols="y")
+        theta_past_predictions = model_theta.predict(len(theta_past_series))
+        past_14_days_data['ds'] = past_14_days_data['ds'].apply(lambda x: truncate_to_hour(x))
+        past_14_days_data['Theta_Predicted'] = theta_past_predictions.values().flatten()
+        theta_past_file = os.path.join(evaluation_dir, 'theta_past_predictions.csv')
+        append_to_csv(theta_past_file, past_14_days_data[['ds', 'Theta_Predicted', 'y', 'Generated_At']], model_name="Darts Theta")
+        print(f"Past predictions for Darts Theta saved to {theta_past_file}")
+    except Exception as e:
+        log_error(f"Error during Darts Theta past predictions: {e}")
+
 
 # 2. Future Predictions Using All Models
-try:
-    if future_data.empty:
-        log_error("Future data is empty. Skipping future predictions.")
-        print("Future data is empty. Predictions skipped.")
-    else:
-        # 2.a. Darts Theta Future Predictions
-        # Check if Model Exists Before Training
-        if 'model_theta' not in globals():
-            model_theta = Theta()
-            train_series = TimeSeries.from_dataframe(train_data, time_col="ds", value_cols="y")
-            model_theta.fit(train_series)
+# Future Predictions for All Models
+if not future_data.empty:
+    # GradientBoostingRegressor Future Predictions
+    if gbm is not None:
+        future_predictions = gbm.predict(future_features)
+        future_data['Predicted'] = future_predictions
+        future_data['ds'] = future_data['ds'].apply(lambda x: truncate_to_hour(x))
+        gbr_future_file = os.path.join(evaluation_dir, 'gbr_future_predictions.csv')
+        append_to_csv(gbr_future_file, future_data[['ds', 'Predicted', 'Generated_At']], model_name="GradientBoostingRegressor")
+        print(f"Future predictions for GradientBoostingRegressor saved to {gbr_future_file}")
 
+    # Prophet Future Predictions
+    try:
+        prophet_future_forecast = model_prophet.predict(future_data[['ds']])
+        future_data['Prophet_Predicted'] = prophet_future_forecast['yhat'].values
+        future_data['ds'] = future_data['ds'].apply(lambda x: truncate_to_hour(x))
+        prophet_future_file = os.path.join(evaluation_dir, 'prophet_future_predictions.csv')
+        append_to_csv(prophet_future_file, future_data[['ds', 'Prophet_Predicted', 'Generated_At']], model_name="Prophet")
+        print(f"Future predictions for Prophet saved to {prophet_future_file}")
+    except Exception as e:
+        log_error(f"Error during Prophet future predictions: {e}")
+
+    # Darts Theta Future Predictions
+    try:
         future_series = TimeSeries.from_dataframe(future_data, time_col="ds", value_cols="y")
-        theta_predictions = model_theta.predict(len(future_series))
-        theta_future_file = os.path.join(evaluation_dir, 'theta_predictions.csv')
-        theta_predictions_df = pd.DataFrame({
-            "ds": future_data["ds"].values,
-            "Predicted": theta_predictions.values().flatten(),
-            "Model": "Darts Theta",
-            "Generated_At": datetime.now().isoformat()
-        })
-        append_to_csv(theta_future_file, theta_predictions_df, model_name="Darts Theta")
-        print(f"Darts Theta future predictions saved to {theta_future_file}")
-
-        # 2.b. Prophet Future Predictions
-        if 'model_prophet' not in globals():
-            print("Reinitializing Prophet model for future predictions.")
-            model_prophet = Prophet(
-                seasonality_mode="multiplicative",
-                yearly_seasonality=True,
-                weekly_seasonality=True,
-                daily_seasonality=False,
-                changepoint_prior_scale=0.05
-            )
-            model_prophet.fit(train_data)     
-        try:
-            prophet_forecast = model_prophet.predict(future_data[['ds']])
-            prophet_future_file = os.path.join(evaluation_dir, 'prophet_predictions.csv')
-            prophet_predictions_df = prophet_forecast[['ds', 'yhat']].rename(columns={"yhat": "Predicted"})
-            prophet_predictions_df["Model"] = "Prophet"
-            prophet_predictions_df["Generated_At"] = datetime.now().isoformat()
-            append_to_csv(prophet_future_file, prophet_predictions_df, model_name="Prophet")
-            print(f"Prophet future predictions saved to {prophet_future_file}")
-
-        except ValueError as e:
-            log_error(f"Error during Prophet future predictions: {e}")
-            raise
-
-        # 2.c. GradientBoostingRegressor Future Predictions
-        # GradientBoostingRegressor Future Predictions
-        if 'gbm' in globals() and gbm is not None:
-            try:
-                # Validate feature alignment
-                if list(future_features.columns) != trained_feature_names:
-                    missing_in_future = set(trained_feature_names) - set(future_features.columns)
-                    extra_in_future = set(future_features.columns) - set(trained_feature_names)
-                    log_error(
-                        f"Feature mismatch detected for GradientBoostingRegressor: "
-                        f"Missing in future features: {missing_in_future}, Extra in future features: {extra_in_future}."
-                    )
-                    raise ValueError("Feature names in future_features do not match training features.")
-
-                # Generate predictions
-                future_predictions = gbm.predict(future_features)
-
-                # Update future_data with predictions
-                future_data['Predicted'] = future_predictions
-                future_data['Actual'] = None  # Placeholder for actual values
-                future_data['Generated_At'] = datetime.now().isoformat()  # Timestamp for predictions
-
-                # Save predictions to a CSV file
-                gbr_future_file = os.path.join(evaluation_dir, 'gbr_predictions.csv')
-                gbr_predictions_df = future_data[['ds', 'Predicted', 'Actual', 'Generated_At']]
-                append_to_csv(gbr_future_file, gbr_predictions_df, model_name="GradientBoostingRegressor")
-
-                print(f"GradientBoostingRegressor future predictions saved to {gbr_future_file}")
-
-            except ValueError as e:
-                log_error(f"Error during GradientBoostingRegressor future predictions: {e}")
-                raise
-        else:
-            log_error("GradientBoostingRegressor model is not initialized. Skipping future predictions.")
-            print("GradientBoostingRegressor model is not initialized. Skipping future predictions.")
-
-except Exception as e:
-    log_error(f"Error generating future predictions: {e}")
-    print(f"Error during future predictions: {e}")
+        theta_future_predictions = model_theta.predict(len(future_series))
+        future_data['Theta_Predicted'] = theta_future_predictions.values().flatten()
+        future_data['ds'] = future_data['ds'].apply(lambda x: truncate_to_hour(x))
+        theta_future_file = os.path.join(evaluation_dir, 'theta_future_predictions.csv')
+        append_to_csv(theta_future_file, future_data[['ds', 'Theta_Predicted', 'Generated_At']], model_name="Darts Theta")
+        print(f"Future predictions for Darts Theta saved to {theta_future_file}")
+    except Exception as e:
+        log_error(f"Error during Darts Theta future predictions: {e}")
 
 # 3. Consolidate Validation Metrics and Generate Summary Report
+# Consolidate Validation Metrics and Generate Summary Report
 try:
     consolidated_validation_file = os.path.join(validation_dir, 'consolidated_validation_metrics.csv')
+    summary_file = os.path.join(evaluation_dir, 'summary_report.csv')
     all_metrics = []
+
+    # Collect metrics from all validation files
     for file_path in validation_files:
         if os.path.exists(file_path):
-            try:
-                df = pd.read_csv(file_path)
-                if df.empty:
-                    log_error(f"Validation file {file_path} is empty. Skipping.")
-                    continue
+            df = pd.read_csv(file_path)
+            if not df.empty:
                 all_metrics.append(df)
-            except Exception as e:
-                log_error(f"Error reading validation file {file_path}: {e}")
 
-
-    if not all_metrics:
-        log_error("No metrics available for consolidation or summary generation.")
-    else:
-        consolidated_validation_df = pd.concat(all_metrics, ignore_index=True)
-        consolidated_validation_df = consolidated_validation_df.drop_duplicates(subset=["Model", "Generated_At"], ignore_index=True)
-
-        consolidated_validation_file = os.path.join(validation_dir, 'consolidated_validation_metrics.csv')
-        
-        #consolidated_validation_df.to_csv(consolidated_validation_file, index=False)
-        append_to_csv(consolidated_validation_file, consolidated_validation_df)
-        print(f"Consolidated validation metrics saved to {consolidated_validation_file}")
-
-    summary_file = os.path.join(evaluation_dir, 'summary_report.csv')
     if all_metrics:
-        summary_df = pd.concat(all_metrics, ignore_index=True)
-        summary_df = summary_df.drop_duplicates(subset=["Model", "Generated_At"], ignore_index=True)
+        # Consolidate metrics and remove duplicates
+        consolidated_validation_df = pd.concat(all_metrics, ignore_index=True).drop_duplicates()
+        append_to_csv(consolidated_validation_file, consolidated_validation_df)
+
+        # Ensure unique entries in summary report
+        summary_df = pd.concat(all_metrics, ignore_index=True).drop_duplicates(subset=["Model", "Generated_At"])
         append_to_csv(summary_file, summary_df)
+        print(f"Consolidated validation metrics saved to {consolidated_validation_file}")
         print(f"Summary report saved to {summary_file}")
     else:
-        log_error("No metrics found for summary report.")
+        log_error("No metrics available for consolidation or summary generation.")
+        print("No metrics available for summary report.")
 except Exception as e:
     log_error(f"Error during consolidation or summary generation: {e}")
     print(f"Error during consolidation or summary generation: {e}")
+
 
 ############################################################################################################
 

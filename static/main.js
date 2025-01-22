@@ -25,9 +25,12 @@ if (typeof $ === 'undefined') {
            
             initializeMetricsOverviewChart();
             initializePredictionTrendsChart();
-            initializePredictionComparisonTable();
             initializeMetricsSummaryTable();
+            initializePredictionComparisonTable();
             fetchAndUpdateBestModelUI();
+            initializeModelComparisonChart();
+            initializeRadarChart();
+            
         }
 
         if (currentPath === '/mlops_preprocessing') {
@@ -1099,9 +1102,11 @@ function initializeRefreshButtons() {
 }
 
 // 12. END SECTION 12 MLOPS MODEL TRAINING
+// START SECTION 13 MLOPS MODEL EVALUATION
 
-// 13. START SECTION 13 MLOPS MODEL EVALUATION
-
+/**
+ * Initialize Metrics Summary Table
+ */
 function initializeMetricsSummaryTable() {
     const tableId = '#metrics-summary';
 
@@ -1112,29 +1117,77 @@ function initializeMetricsSummaryTable() {
             ajax: {
                 url: `${baseUrl}/api/mlops_predictionevaluation`,
                 type: 'GET',
-                dataSrc: response => response.metrics_summary || [],
+                dataSrc: response => {
+                    console.log('Metrics Summary Response:', response.metrics_summary);
+
+                    if (!response || !response.metrics_summary) {
+                        console.warn('No metrics summary data available.');
+                        alert('No metrics summary data available.');
+                        return [];
+                    }
+                    return response.metrics_summary;
+                },
                 error: function (jqXHR, textStatus, errorThrown) {
-                    console.error('Error fetching metrics summary table:', errorThrown);
-                },     
+                    console.error(`AJAX Error: ${textStatus}`, errorThrown);
+                    alert(`Error: ${jqXHR.statusText} (${jqXHR.status})`);
+                },
             },
             columns: [
                 { data: 'model', title: 'Model' },
-                { data: 'mae', title: 'MAE' },
-                { data: 'mape', title: 'MAPE' },
-                { data: 'rmse', title: 'RMSE' },
-                { data: 'r²', title: 'R²' },
+                {
+                    data: 'mae',
+                    title: 'MAE',
+                    render: data =>
+                        isNaN(data) || data === undefined ? '--' : parseFloat(data).toFixed(2),
+                },
+                {
+                    data: 'mape',
+                    title: 'MAPE',
+                    render: data =>
+                        isNaN(data) || data === undefined ? '--' : parseFloat(data).toFixed(2),
+                },
+                {
+                    data: 'rmse',
+                    title: 'RMSE',
+                    render: data =>
+                        isNaN(data) || data === undefined ? '--' : parseFloat(data).toFixed(2),
+                },
+                {
+                    data: 'r_squared',
+                    title: 'R²',
+                    render: data =>
+                        isNaN(data) || data === undefined ? '--' : parseFloat(data).toFixed(2),
+                },
+                {
+                    data: 'mbe',
+                    title: 'MBE',
+                    render: data =>
+                        isNaN(data) || data === undefined ? '--' : parseFloat(data).toFixed(2),
+                },
+                { data: 'parameters', title: 'Parameters' },
             ],
             pageLength: 10,
             responsive: true,
             order: [[0, 'asc']], // Sort by Model alphabetically by default
+            language: {
+                emptyTable: 'No metrics data available',
+                loadingRecords: 'Loading metrics...',
+                zeroRecords: 'No matching records found',
+            },
         });
     } else {
         console.warn('Metrics Summary table element not found.');
     }
 }
 
+
+/**
+ * Initialize Prediction Comparison Table
+ */
+
 function initializePredictionComparisonTable() {
     const tableId = '#prediction-comparison';
+    const chartId = 'predictionComparisonChart';
 
     if ($(tableId).length) {
         $(tableId).DataTable({
@@ -1143,38 +1196,348 @@ function initializePredictionComparisonTable() {
             ajax: {
                 url: `${baseUrl}/api/mlops_predictionevaluation`,
                 type: 'GET',
-                dataSrc: response => response.prediction_comparison || [],
-                error: function (jqXHR, textStatus, errorThrown) {
-                    
-                    console.error('Error fetching prediction comparison:', errorThrown);
-                    let message = 'Unexpected error occurred while fetching prediction comparison.';
-                    if (jqXHR.status === 404) {
-                        message = 'Prediction comparison data not found (404).';
-                    } else if (jqXHR.status === 400) {
-                        message = 'Invalid data format for prediction comparison.';
-                    } else if (textStatus === 'parsererror') {
-                        message = 'Response data type error for prediction comparison.';
-                    } else if (textStatus === 'timeout') {
-                        message = 'Connection timed out while fetching prediction comparison.';
+                dataSrc: function (response) {
+                    if (!response || !response.prediction_comparison) {
+                        console.warn("No prediction comparison data available.");
+                        return [];
                     }
-                    alert(message);
+
+                    // Render the chart alongside the table
+                    renderPredictionComparisonChart(response.prediction_comparison);
+                    return response.prediction_comparison;
+                },
+                error: function (error) {
+                    console.error("Failed to fetch prediction comparison data:", error);
                 },
             },
             columns: [
                 { data: 'ds', title: 'Date' },
-                { data: 'y', title: 'Prediction' },
-                { data: 'type', title: 'Type' },
+                { data: 'y', title: 'Prediction', render: data => data?.toFixed(2) || '0' },
                 { data: 'model', title: 'Model' },
             ],
-            pageLength: 10,
-            responsive: true,
-            order: [[0, 'desc']], // Sort by Date in descending order by default
         });
-    } else {
-        console.warn('Prediction Comparison table element not found.');
+    }
+
+    function renderPredictionComparisonChart(data) {
+        const groupedData = data.reduce((acc, curr) => {
+            if (!acc[curr.model]) acc[curr.model] = { x: [], y: [] };
+            acc[curr.model].x.push(curr.ds);
+            acc[curr.model].y.push(curr.y || 0); // Replace NaN with 0
+            return acc;
+        }, {});
+
+        const traces = Object.keys(groupedData).map(model => ({
+            x: groupedData[model].x,
+            y: groupedData[model].y,
+            mode: 'lines',
+            name: model,
+        }));
+
+        Plotly.newPlot(chartId, traces, {
+            title: 'Future Prediction Comparison',
+            xaxis: { title: 'Date', type: 'date' },
+            yaxis: { title: 'Predictions' },
+        });
     }
 }
 
+
+function initializeMetricsOverviewChart() {
+    const chartId = 'metricsSummaryChart';
+    const chartContainer = document.getElementById(chartId);
+
+    $.ajax({
+        url: `${baseUrl}/api/mlops_predictionevaluation`,
+        type: 'GET',
+        success: function (response) {
+            const metrics = response.chart_data;
+            const models = metrics.map(item => item.model);
+            const mae = metrics.map(item => parseFloat(item.mae) || 0);
+            const rmse = metrics.map(item => parseFloat(item.rmse) || 0);
+            const rSquared = metrics.map(item => parseFloat(item.r_squared) || 0);
+
+            const traces = [
+                { x: models, y: mae, name: 'MAE', type: 'bar', marker: { color: '#4e73df' } },
+                { x: models, y: rmse, name: 'RMSE', type: 'bar', marker: { color: '#36b9cc' } },
+                { x: models, y: rSquared, name: 'R²', type: 'bar', marker: { color: '#1cc88a' } },
+            ];
+
+            Plotly.newPlot(chartContainer, traces, {
+                title: 'Metrics Overview Across Models',
+                barmode: 'group',
+                xaxis: { title: 'Models', tickangle: -45 },
+                yaxis: { title: 'Metric Values', zeroline: true },
+            });
+        },
+        error: function () {
+            alert('Failed to load metrics overview data.');
+        },
+    });
+}
+
+
+
+function fetchAndUpdateBestModelUI() {
+    $.ajax({
+        url: `${baseUrl}/api/mlops_predictionevaluation`,
+        type: 'GET',
+        success: function (response) {
+            const bestModel = response.metrics_summary.reduce((best, current) => {
+                const rank = current.mae + (1 - current.r_squared);
+                return rank < best.rank ? { ...current, rank } : best;
+            }, { rank: Infinity });
+
+            $('#best-model-name').text(bestModel.model || '--');
+            $('#best-model-mae').text(bestModel.mae.toFixed(2) || '--');
+            $('#best-model-r2').text(bestModel.r_squared.toFixed(2) || '--');
+        },
+        error: function () {
+            alert('Failed to fetch the best model data.');
+        }
+    });
+}
+
+
+/*
+function fetchAndUpdateBestModelUI() {
+    $.ajax({
+        url: `${baseUrl}/api/mlops_predictionevaluation`,
+        type: 'GET',
+        success: function (response) {
+            if (response && response.metrics_summary) {
+                const bestModel = response.metrics_summary.reduce((best, model) => {
+                    const avgRank = (model.mae + (1 - model['r_squared'])) / 2;
+                    return avgRank < best.avgRank ? { ...model, avgRank } : best;
+                }, { avgRank: Infinity });
+
+                // Update the card UI
+                $('#best-model-name').text(bestModel.model || "--");
+                $('#best-model-mae').text(bestModel.mae.toFixed(2) || "--");
+                $('#best-model-mape').text(bestModel.mape.toFixed(2) || "--");
+                $('#best-model-rmse').text(bestModel.rmse.toFixed(2) || "--");
+                $('#best-model-r2').text(bestModel['r_squared'].toFixed(2) || "--");
+            } else {
+                console.warn('No metrics summary data found.');
+            }
+        },
+        error: function () {
+            console.error('Failed to fetch best model data.');
+        }
+    });
+}*/
+
+
+function initializePredictionTrendsChart() {
+    $.ajax({
+        url: `${baseUrl}/api/mlops_predictionevaluation`,
+        type: 'GET',
+        success: function (response) {
+            if (response && response.prediction_comparison) {
+                const groupedData = response.prediction_comparison.reduce((acc, curr) => {
+                    if (!acc[curr.model]) acc[curr.model] = { x: [], y: [] };
+                    acc[curr.model].x.push(curr.ds);
+                    acc[curr.model].y.push(curr.y || 0); // Replace NaN with 0
+                    return acc;
+                }, {});
+
+                const traces = Object.keys(groupedData).map(model => ({
+                    x: groupedData[model].x,
+                    y: groupedData[model].y,
+                    mode: 'lines',
+                    name: model,
+                }));
+
+                Plotly.newPlot('predictionTrendsChart', traces, {
+                    title: 'Prediction Trends by Model',
+                    xaxis: { title: 'Date', type: 'date' },
+                    yaxis: { title: 'Predictions', zeroline: true },
+                });
+            } else {
+                console.warn("No prediction trends data available.");
+            }
+        },
+        error: function (error) {
+            console.error("Failed to fetch prediction trends data:", error);
+        },
+    });
+}
+
+
+function initializeModelComparisonChart() {
+    $.ajax({
+        url: `${baseUrl}/api/mlops_predictionevaluation`,
+        type: 'GET',
+        success: function (response) {
+            const metrics = response.metrics_summary;
+            const models = metrics.map(item => item.model);
+            const mae = metrics.map(item => item.mae);
+            const r_squared = metrics.map(item => item.r_squared);
+            const rmse = metrics.map(item => item.rmse);
+
+            const traces = [
+                { x: models, y: mae, name: 'MAE', type: 'bar' },
+                { x: models, y: r_squared, name: 'R²', type: 'bar' },
+                { x: models, y: rmse, name: 'RMSE', type: 'bar' },
+            ];
+
+            Plotly.newPlot('modelComparisonChart', traces, {
+                title: 'Model Metrics Comparison',
+                barmode: 'group',
+                xaxis: { title: 'Models' },
+                yaxis: { title: 'Metrics' },
+            });
+        },
+        error: function () {
+            alert('Failed to load model comparison data.');
+        }
+    });
+}
+
+/*
+function initializePredictionTrendsChart() {
+    const chartId = 'predictionTrendsChart';
+    const chartContainer = document.getElementById(chartId);
+
+    if (!chartContainer) {
+        console.warn(`Chart container with ID ${chartId} not found.`);
+        return;
+    }
+
+    $.ajax({
+        url: `${baseUrl}/api/mlops_predictionevaluation`,
+        type: 'GET',
+        success: function (response) {
+            if (response && response.prediction_comparison) {
+                const groupedData = response.prediction_comparison.reduce((acc, curr) => {
+                    if (!acc[curr.model]) acc[curr.model] = { x: [], y: [] };
+                    acc[curr.model].x.push(curr.ds);
+                    acc[curr.model].y.push(curr.y);
+                    return acc;
+                }, {});
+                
+                console.log('Grouped Data for Plotly:', groupedData);
+                
+
+                const traces = Object.keys(groupedData).map(model => ({
+                    x: groupedData[model].x,
+                    y: groupedData[model].y,
+                    mode: 'lines+markers',
+                    name: model,
+                }));
+                console.log('Plotly Traces:', traces);
+                
+
+                const layout = {
+                    title: 'Prediction Trends Over Time',
+                    xaxis: { title: 'Date', type: 'date', tickformat: '%b %d', showgrid: true },
+                    yaxis: { title: 'Predictions', showgrid: true, zeroline: false },
+                    legend: { orientation: 'h', x: 0.5, y: -0.2, xanchor: 'center' },
+                    margin: { l: 50, r: 50, t: 50, b: 100 },
+                    plot_bgcolor: "#f9f9f9",
+                    paper_bgcolor: "#f9f9f9",
+                };
+                
+                Plotly.newPlot(chartContainer, traces, layout);
+            } else {
+                alert('No prediction data available.');
+            }
+        },
+        error: function () {
+            alert('Failed to load prediction trends data.');
+        },
+    });
+}
+*/
+function renderRadarChart(metrics) {
+    const chartContainer = document.getElementById('metricsRadarChart');
+
+    if (!chartContainer) {
+        console.warn("Radar chart container not found.");
+        return;
+    }
+
+    // Prepare labels and datasets for the radar chart
+    const labels = ['MAE', 'MAPE', 'RMSE', 'R²', 'MBE'];
+    const datasets = metrics.map(metric => ({
+        label: metric.model,
+        data: [
+            parseFloat(metric.mae) || 0,
+            parseFloat(metric.mape) || 0,
+            parseFloat(metric.rmse) || 0,
+            parseFloat(metric.r_squared) || 0,
+            parseFloat(metric.mbe) || 0,
+        ],
+        fill: true,
+        borderColor: '#36b9cc',
+        backgroundColor: 'rgba(54, 185, 204, 0.2)',
+    }));
+
+    // Initialize the radar chart
+    new Chart(chartContainer, {
+        type: 'radar',
+        data: {
+            labels: labels,
+            datasets: datasets,
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+            },
+            scales: {
+                r: {
+                    suggestedMin: 0,
+                    suggestedMax: Math.max(...datasets.flatMap(dataset => dataset.data)) || 1,
+                },
+            },
+        },
+    });
+}
+
+// Fetch and render radar chart
+function initializeRadarChart() {
+    $.ajax({
+        url: `${baseUrl}/api/mlops_predictionevaluation`,
+        type: 'GET',
+        success: function (response) {
+            if (response && response.metrics_summary) {
+                renderRadarChart(response.metrics_summary);
+            } else {
+                console.warn("Metrics summary data not available.");
+            }
+        },
+        error: function (error) {
+            console.error("Failed to fetch radar chart data:", error);
+        },
+    });
+}
+
+
+function renderHeatmap(metrics) {
+    const chartContainer = document.getElementById('metricsHeatmap');
+    const data = metrics.map(metric => [metric.model, metric.mae, metric.mape, metric.rmse, metric.r_squared]);
+    const zData = data.map(row => row.slice(1)); // Exclude the model column
+
+    Plotly.newPlot(chartContainer, [
+        {
+            z: zData,
+            x: ['MAE', 'MAPE', 'RMSE', 'R²'],
+            y: data.map(row => row[0]), // Model names
+            type: 'heatmap',
+            colorscale: 'Viridis',
+        },
+    ]);
+}
+
+
+// END SECTION 13 MLOPS MODEL EVALUATION
+
+
+
+
+/*
 function fetchAndDisplayEvaluation() {
     $.ajax({
         url: `${baseUrl}/api/evaluate_metrics`,
@@ -1192,18 +1555,26 @@ function fetchAndDisplayEvaluation() {
             createBarChart('#prediction-analysis-chart', predictionAnalysis);
         },
         error: function (jqXHR, textStatus, errorThrown) {
-            console.error('Error fetching evaluation data:', errorThrown);
-            alert('Failed to load evaluation data.');
+            console.error('Error:', textStatus, errorThrown);
+            if (jqXHR.status === 0) {
+                alert('Network error: Please check your connection.');
+            } else {
+                alert('Failed to load data. Please try again.');
+            }
         }
+        
     });
 }
 
 const SB_ADMIN_COLORS = {
-    primary: 'rgba(78, 115, 223, 0.5)',
-    success: 'rgba(28, 200, 138, 0.5)',
-    info: 'rgba(54, 185, 204, 0.5)',
-    warning: 'rgba(246, 194, 62, 0.5)',
-    danger: 'rgba(231, 74, 59, 0.5)',
+    primary: '#4e73df',
+    success: '#1cc88a',
+    info: '#36b9cc',
+    warning: '#f6c23e',
+    danger: '#e74a3b',
+    secondary: '#858796',
+    light: '#f8f9fc',
+    dark: '#5a5c69',
 };
 
 // Helper function to generate random colors
@@ -1241,56 +1612,85 @@ function fetchAndUpdateBestModelUI() {
             }
         },
         error: function (jqXHR, textStatus, errorThrown) {
-            console.error('Error fetching best model data:', errorThrown);
-        },
+            console.error('Error:', textStatus, errorThrown);
+            if (jqXHR.status === 0) {
+                alert('Network error: Please check your connection.');
+            } else {
+                alert('Failed to load data. Please try again.');
+            }
+        },        
     });
 }
-
-// Initialize Metrics Overview Chart
+/*
 function initializeMetricsOverviewChart() {
     const chartId = 'metricsSummaryChart';
-    const chartElement = document.getElementById(chartId);
 
-    if (chartElement) {
-        $.ajax({
-            url: `${baseUrl}/api/mlops_predictionevaluation`,
-            type: 'GET',
-            success: function (response) {
-                if (response && response.metrics_summary) {
-                    const models = response.metrics_summary.map(item => item.model);
-                    const mae = response.metrics_summary.map(item => item.mae);
-                    const rmse = response.metrics_summary.map(item => item.rmse);
-                    const r2 = response.metrics_summary.map(item => item['r²']);
+    $.ajax({
+        url: `${baseUrl}/api/mlops_predictionevaluation`,
+        type: 'GET',
+        success: function (response) {
+            if (response && response.metrics_summary) {
+                // Aggregate data for Darts Theta, Prophet, and GBR
+                // Aggregate metrics for key models
+                const models = ['Darts Theta', 'Prophet', 'GBR'];
+                const aggregatedMetrics = models.map(model => {
+                    const filteredData = response.metrics_summary.filter(item => item.model.includes(model));
+                    return {
+                        model,
+                        mae: calculateAverage(filteredData, 'mae'),
+                        rmse: calculateAverage(filteredData, 'rmse'),
+                        r2: calculateAverage(filteredData, 'r²'),
+                    };
+                });
 
-                    new Chart(chartElement, {
-                        type: 'bar',
-                        data: {
-                            labels: models,
-                            datasets: [
-                                { label: 'MAE', data: mae, backgroundColor: SB_ADMIN_COLORS.primary },
-                                { label: 'RMSE', data: rmse, backgroundColor: SB_ADMIN_COLORS.warning },
-                                { label: 'R²', data: r2, backgroundColor: SB_ADMIN_COLORS.success },
-                            ],
-                        },
-                        options: {
-                            responsive: true,
-                            plugins: { legend: { position: 'top' } },
-                            scales: { y: { beginAtZero: true } },
-                        },
-                    });
-                }
-            },
-            error: function (jqXHR, textStatus, errorThrown) {
-                console.error('Error fetching metrics overview chart data:', errorThrown);
-            },
-        });
-    }
-}
-// Initialize Prediction Trends Chart
+
+                // Prepare traces for Plotly grouped bar chart
+                const traceMAE = {
+                    x: aggregatedMetrics.map(item => item.model),
+                    y: aggregatedMetrics.map(item => item.mae),
+                    name: 'MAE',
+                    type: 'bar',
+                    marker: { color: '#4e73df' }, // Primary color
+                };
+                const traceRMSE = {
+                    x: aggregatedMetrics.map(item => item.model),
+                    y: aggregatedMetrics.map(item => item.rmse),
+                    name: 'RMSE',
+                    type: 'bar',
+                    marker: { color: '#858796' }, // Secondary color
+                };
+                const traceR2 = {
+                    x: aggregatedMetrics.map(item => item.model),
+                    y: aggregatedMetrics.map(item => item.r2),
+                    name: 'R²',
+                    type: 'bar',
+                    marker: { color: '#1cc88a' }, // Success color
+                };
+
+                // Create grouped bar chart
+                Plotly.newPlot(chartId, [traceMAE, traceRMSE, traceR2], {
+                    title: 'Model Metrics Overview',
+                    barmode: 'group',
+                    xaxis: { title: 'Models' },
+                    yaxis: { title: 'Metrics' },
+                });
+            }
+        },
+        error: function (jqXHR, textStatus, errorThrown) {
+            console.error('Error:', textStatus, errorThrown);
+            if (jqXHR.status === 0) {
+                alert('Network error: Please check your connection.');
+            } else {
+                alert('Failed to load data. Please try again.');
+            }
+        }        
+    });
+}*/
+
+
+/*
 function initializePredictionTrendsChart() {
-    const chartId = 'predictionTrendsChart';
-    const chartElement = document.getElementById(chartId);
-
+    const chartElement = document.getElementById('predictionTrendsChart');
     if (chartElement) {
         $.ajax({
             url: `${baseUrl}/api/mlops_predictionevaluation`,
@@ -1330,9 +1730,17 @@ function initializePredictionTrendsChart() {
                 }
             },
             error: function (jqXHR, textStatus, errorThrown) {
-                console.error('Error fetching prediction trends chart data:', errorThrown);
-            },
+                console.error('Error:', textStatus, errorThrown);
+                if (jqXHR.status === 0) {
+                    alert('Network error: Please check your connection.');
+                } else {
+                    alert('Failed to load data. Please try again.');
+                }
+            }
+            
         });
     }
-}
+}*/
+
+
 // 13. END SECTION 13 MLOPS MODEL EVALUATION
