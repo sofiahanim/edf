@@ -20,10 +20,10 @@ RUN wget https://ftp.gnu.org/gnu/make/make-4.4.tar.gz && \
     cd .. && \
     rm -rf make-4.4 make-4.4.tar.gz
 
-# Add updated make to PATH
-ENV PATH="/usr/local/bin:$PATH"
+# Replace the old make with the new one
+RUN ln -sf /usr/local/bin/make /usr/bin/make
 
-# Verify installation of critical tools
+# Verify the installation of critical tools
 RUN gcc --version && \
     g++ --version && \
     make --version
