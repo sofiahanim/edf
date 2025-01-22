@@ -4,13 +4,13 @@ FROM public.ecr.aws/lambda/python:3.9
 # Set non-interactive mode for yum operations
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install development tools, including an updated version of make
+# Install development tools and dependencies
 RUN yum update -y && \
     yum groupinstall -y "Development Tools" && \
     yum install -y gcc gcc-c++ libtool autoconf automake bison gawk sudo wget tar && \
     yum clean all && rm -rf /var/cache/yum
 
-# Verify and install an updated version of GNU Make if needed
+# Install an updated version of GNU Make
 RUN wget https://ftp.gnu.org/gnu/make/make-4.4.tar.gz && \
     tar -xvzf make-4.4.tar.gz && \
     cd make-4.4 && \
@@ -19,6 +19,11 @@ RUN wget https://ftp.gnu.org/gnu/make/make-4.4.tar.gz && \
     make install && \
     cd .. && \
     rm -rf make-4.4 make-4.4.tar.gz
+
+# Verify installation of critical tools
+RUN gcc --version && \
+    g++ --version && \
+    make --version
 
 # Ensure /opt directory exists
 RUN mkdir -p /opt
