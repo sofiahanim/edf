@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   build-and-deploy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
 
     steps:
     # Step 1: Checkout the code
@@ -29,11 +29,16 @@ jobs:
       run: |
         aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 022499009488.dkr.ecr.us-east-1.amazonaws.com
 
-    # Step 4: Set up Docker Buildx
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v2
+    # Step 4: Cache Docker layers
+    - name: Cache Docker layers
+      uses: actions/cache@v3
+      with:
+        path: /tmp/.buildx-cache
+        key: ${{ runner.os }}-docker-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-docker-
 
-    # Step 5: Build and Push Docker Image
+    # Step 5: Build and push Docker image using Buildx
     - name: Build and Push Docker Image
       uses: docker/build-push-action@v4
       with:
@@ -42,14 +47,3 @@ jobs:
         tags: 022499009488.dkr.ecr.us-east-1.amazonaws.com/electforecast/web:latest
         cache-from: type=local,src=/tmp/.buildx-cache
         cache-to: type=local,dest=/tmp/.buildx-cache,mode=max
-
-    # Step 7: Tag Docker image
-    - name: Tag Docker image
-      run: docker tag electforecast-web:latest 022499009488.dkr.ecr.us-east-1.amazonaws.com/electforecast/web:latest
-
-    # Step 8: Push Docker image to Amazon ECR
-    - name: Push Docker image to Amazon ECR
-      run: docker push 022499009488.dkr.ecr.us-east-1.amazonaws.com/electforecast/web:latest
-
-    - name: Push Docker image to Amazon ECR
-      run: docker push 022499009488.dkr.ecr.us-east-1.amazonaws.com/electforecast/web:latest
