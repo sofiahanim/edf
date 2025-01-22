@@ -1,5 +1,5 @@
-# Use a compatible base image for AWS Lambda with Python 3.11 runtime
-FROM public.ecr.aws/lambda/python:3.11
+# Use a compatible base image for AWS Lambda with Python 3.9 runtime
+FROM public.ecr.aws/lambda/python:3.9
 
 # Set non-interactive mode for apt operations
 ENV DEBIAN_FRONTEND=noninteractive
@@ -24,15 +24,18 @@ COPY cache /var/task/cache/
 # Set permissions
 RUN chmod -R 755 /var/task
 
+# Upgrade pip to ensure compatibility with dependencies
+RUN pip install --no-cache-dir --upgrade pip
+
 # Install Python dependencies
 RUN pip install --no-cache-dir -r /var/task/requirements_linux.txt
 
-# Expose the application port for local testing
+# Expose the application port for local testing (optional)
 EXPOSE 8000
-
 
 # Lambda runtime
 CMD ["app.lambda_handler"]
+
 
 # Command for local development
 #CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:8000", "app:app"]
