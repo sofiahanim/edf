@@ -20,10 +20,10 @@ RUN wget https://ftp.gnu.org/gnu/make/make-4.4.tar.gz && \
     cd .. && \
     rm -rf make-4.4 make-4.4.tar.gz
 
-# Replace the old make with the new one
+# Ensure system uses the updated version of make
 RUN ln -sf /usr/local/bin/make /usr/bin/make
 
-# Verify the installation of critical tools
+# Verify installation of critical tools
 RUN gcc --version && \
     g++ --version && \
     make --version
@@ -31,18 +31,17 @@ RUN gcc --version && \
 # Ensure /opt directory exists
 RUN mkdir -p /opt
 
-# Upgrade glibc to version 2.28 or later
+# Upgrade glibc to version 2.28
 RUN wget http://ftp.gnu.org/gnu/libc/glibc-2.28.tar.gz && \
     tar -xvzf glibc-2.28.tar.gz && \
     cd glibc-2.28 && \
     mkdir build && \
     cd build && \
     ../configure --prefix=/opt/glibc-2.28 && \
-    make && \  # Removed -j$(nproc) to prevent jobserver issues
+    make && \
     make install && \
     cd ../../ && \
     rm -rf glibc-2.28 glibc-2.28.tar.gz
-
 
 # Add updated glibc to the library path
 ENV LD_LIBRARY_PATH=/opt/glibc-2.28/lib:$LD_LIBRARY_PATH
