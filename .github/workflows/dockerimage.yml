@@ -34,7 +34,6 @@ jobs:
       uses: docker/setup-buildx-action@v2
       with:
         driver: docker-container  # Switch to a supported Buildx driver
-        buildkitd-flags: --allow-insecure-entitlements security.insecure
 
     # Step 5: Cache Docker layers
     - name: Cache Docker layers
