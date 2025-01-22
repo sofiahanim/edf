@@ -32,9 +32,9 @@ jobs:
       run: |
         aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 022499009488.dkr.ecr.us-east-1.amazonaws.com
 
-    # Step 4: Enable BuildKit
-    - name: Enable BuildKit
-      run: export DOCKER_BUILDKIT=1
+    # Step 4: Set up Docker Buildx
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
 
     # Step 5: Cache Docker layers
     - name: Cache Docker layers
@@ -45,12 +45,15 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-docker-
 
-    # Step 6: Build Docker image
-    - name: Build Docker image
-      run: |
-        docker build --cache-from=type=local,src=/tmp/.buildx-cache \
-                     --cache-to=type=local,dest=/tmp/.buildx-cache,mode=max \
-                     -t electforecast-web .
+    # Step 6: Build and push Docker image
+    - name: Build and Push Docker Image
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        push: true
+        tags: 022499009488.dkr.ecr.us-east-1.amazonaws.com/electforecast/web:latest
+        cache-from: type=local,src=/tmp/.buildx-cache
+        cache-to: type=local,dest=/tmp/.buildx-cache,mode=max
 
     # Step 7: Tag Docker image
     - name: Tag Docker image
