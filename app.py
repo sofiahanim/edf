@@ -19,6 +19,10 @@ from sklearn.model_selection import train_test_split
 import joblib
 import numpy as np
 
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning, module="xgboost")
+import xgboost as xgb
+print(xgb.__version__)
 
 
 # Initialize app and API

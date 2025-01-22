@@ -51,4 +51,4 @@ numba==0.56.3
 llvmlite==0.39.1
 nfoursid>=1.0.0
 cmdstanpy==1.0.6
-xgboost
+xgboost==1.6.2  # Specify compatible version for glibc and Lambda
