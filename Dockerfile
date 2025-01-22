@@ -6,8 +6,9 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Install development tools and dependencies
 RUN yum update -y && \
     yum groupinstall -y "Development Tools" && \
-    yum install -y --no-install-recommends gcc gcc-c++ libtool autoconf automake bison gawk sudo wget tar && \
+    yum install -y gcc gcc-c++ libtool autoconf automake bison gawk sudo wget tar && \
     yum clean all && rm -rf /var/cache/yum
+
 
 # Install an updated version of GNU Make
 RUN wget https://ftp.gnu.org/gnu/make/make-4.4.tar.gz && \
