@@ -876,31 +876,193 @@ def mlops_preprocessing_data():
 
 
 ##############################################################################################################
-@app.route("/mlops_trainingvalidation")
-def mlops_trainingvalidation():
+
+def clean_parameters(dataframe, column_name):
     """
-    Route for the Model Training & Validation page.
+    Ensure Parameters column is treated as a valid JSON string and handles invalid values gracefully.
+    """
+    def stringify(param):
+        try:
+            if pd.isna(param) or param == "" or param == "NaN":  # Handle empty, NaN, or None
+                return json.dumps({"Default Parameters": ""})
+            return json.dumps(param) if isinstance(param, (dict, list)) else str(param)  # Convert to JSON string
+        except Exception as e:
+            app.logger.error(f"Error converting parameter to string: {param}, Error: {e}")
+            return json.dumps({"Invalid": "Unable to parse"})
+
+    dataframe[column_name] = dataframe[column_name].apply(stringify)
+
+@app.route("/api/mlops/validation/logs", methods=["GET"])
+def fetch_validation_logs():
+    """
+    Provide validation logs in JSON format.
     """
     try:
-        # Example: Render training and validation details
-        return render_template("mlops_trainingvalidation.html", title="Model Training & Validation")
+        validation_logs_path = os.path.join(BASE_DIR, "validation", "consolidated_validation_metrics.csv")
+        if not os.path.exists(validation_logs_path):
+            return jsonify({"error": "Validation logs file not found."}), 404
+
+        validation_logs_df = pd.read_csv(validation_logs_path)
+        clean_parameters(validation_logs_df, "Parameters")  # Clean Parameters column
+        response_data = {"data": validation_logs_df.to_dict(orient="records")}
+        return jsonify(response_data), 200
+    except Exception as e:
+        app.logger.error(f"Error fetching validation logs: {e}", exc_info=True)
+        return jsonify({"error": "Failed to fetch validation logs."}), 500
+    
+@app.route("/mlops_trainingvalidation", methods=["GET"])
+def mlops_trainingvalidation():
+    try:
+        # Training Logs
+        training_logs_path = os.path.join(BASE_DIR, "training", "training_info.csv")
+        if os.path.exists(training_logs_path):
+            training_logs_df = pd.read_csv(training_logs_path)
+            clean_parameters(training_logs_df, "Parameters")
+            training_summary = {
+                "total_rows": len(training_logs_df),
+                "total_columns": len(training_logs_df.columns),
+                "columns": training_logs_df.columns.tolist(),
+            }
+        else:
+            training_logs_df = pd.DataFrame()
+            training_summary = {"total_rows": 0, "total_columns": 0, "columns": []}
+
+        # Validation Logs
+        validation_logs_path = os.path.join(BASE_DIR, "validation", "consolidated_validation_metrics.csv")
+        if os.path.exists(validation_logs_path):
+            validation_logs_df = pd.read_csv(validation_logs_path)
+            clean_parameters(validation_logs_df, "Parameters")
+            validation_summary = {
+                "total_rows": len(validation_logs_df),
+                "total_columns": len(validation_logs_df.columns),
+                "columns": validation_logs_df.columns.tolist(),
+            }
+        else:
+            validation_logs_df = pd.DataFrame()
+            validation_summary = {"total_rows": 0, "total_columns": 0, "columns": []}
+
+        return render_template(
+            "mlops_trainingvalidation.html",
+            title="Model Training & Validation",
+            training_summary=training_summary,
+            validation_summary=validation_summary,
+        )
     except Exception as e:
         app.logger.error(f"Error rendering Model Training & Validation page: {e}", exc_info=True)
         return jsonify({"error": "Failed to load Model Training & Validation page"}), 500
 
 
-@app.route("/mlops_predictionevaluation")
-def mlops_predictionevaluation():
+@app.route("/api/mlops/training/logs", methods=["GET"])
+def fetch_training_logs():
     """
-    Route for the Prediction & Evaluation page.
+    Provide training logs in JSON format.
     """
     try:
-        # Example: Render prediction and evaluation details
-        return render_template("mlops_predictionevaluation.html", title="Prediction & Evaluation")
-    except Exception as e:
-        app.logger.error(f"Error rendering Prediction & Evaluation page: {e}", exc_info=True)
-        return jsonify({"error": "Failed to load Prediction & Evaluation page"}), 500
+        training_logs_path = os.path.join(BASE_DIR, "training", "training_info.csv")
+        if not os.path.exists(training_logs_path):
+            return jsonify({"error": "Training logs file not found."}), 404
 
+        training_logs_df = pd.read_csv(training_logs_path)
+        # No cleaning applied to Parameters column
+        response_data = {"data": training_logs_df.to_dict(orient="records")}
+        return jsonify(response_data), 200
+    except Exception as e:
+        app.logger.error(f"Error fetching training logs: {e}", exc_info=True)
+        return jsonify({"error": "Failed to fetch training logs."}), 500
+
+
+
+##############################################################################################################
+
+
+
+##############################################################################################################
+@app.route('/mlops_predictionevaluation', methods=['GET'])
+def prediction_evaluation_page():
+    try:
+        # Fetch data directly from the evaluation function
+        evaluation_data = get_prediction_evaluation_data()
+
+        # Check if an error is present in the evaluation data
+        if "error" in evaluation_data:
+            raise ValueError(evaluation_data["error"])
+
+        metrics_summary = evaluation_data.get('metrics_summary', [])
+        prediction_comparison = evaluation_data.get('prediction_comparison', [])
+
+        # Process metrics summary for ranking
+        metrics_summary_df = pd.DataFrame(metrics_summary)
+        metrics_summary_df['rank_mae'] = metrics_summary_df['mae'].rank()
+        metrics_summary_df['rank_r2'] = metrics_summary_df['r²'].rank(ascending=False)
+        metrics_summary_df['average_rank'] = metrics_summary_df[['rank_mae', 'rank_r2']].mean(axis=1)
+        best_model = metrics_summary_df.sort_values('average_rank').iloc[0].to_dict()
+
+        # Render the template with best_model
+        return render_template(
+            'mlops_predictionevaluation.html',
+            title="Prediction & Evaluation",
+            best_model=best_model  # Pass the best model data to the template
+        )
+    except Exception as e:
+        logger.error(f"Error rendering prediction evaluation page: {e}", exc_info=True)
+        return jsonify({"error": "Failed to load prediction evaluation page."}), 500
+
+
+@app.route('/api/mlops_predictionevaluation', methods=['GET'])
+def get_prediction_evaluation_data():
+    """
+    API endpoint to fetch prediction evaluation data for DataTables.
+    """
+    try:
+        # Define paths for CSV files
+        prophet_csv_path = os.path.join(BASE_DIR, "evaluation", "prophet_predictions.csv")
+        theta_csv_path = os.path.join(BASE_DIR, "evaluation", "theta_predictions.csv")
+        gbr_csv_path = os.path.join(BASE_DIR, "evaluation", "gbr_predictions.csv")
+        summary_csv_path = os.path.join(BASE_DIR, "evaluation", "summary_report.csv")
+
+        # Load CSV files
+        prophet_df = load_csv(prophet_csv_path)
+        theta_df = load_csv(theta_csv_path)
+        gbr_df = load_csv(gbr_csv_path)
+        summary_df = load_csv(summary_csv_path)
+
+        # Rename 'predicted' to 'y' for consistency
+        for df in [prophet_df, theta_df, gbr_df]:
+            df.rename(columns={"predicted": "y"}, inplace=True)
+
+        # Add model identifiers
+        prophet_df["model"] = "Prophet"
+        theta_df["model"] = "Theta"
+        gbr_df["model"] = "GBR"
+
+        # Add 'type' column based on 'actual' (if present)
+        for df in [prophet_df, theta_df, gbr_df]:
+            if "actual" in df:
+                df["type"] = df["actual"].apply(lambda x: "historical" if pd.notnull(x) else "future")
+                df["actual"] = df["actual"].fillna("")  # Replace NaN in 'actual'
+            else:
+                df["type"] = "future"
+                df["actual"] = ""  # Ensure column exists
+
+        # Combine predictions
+        combined_predictions = pd.concat([prophet_df, theta_df, gbr_df], ignore_index=True).fillna("")
+
+        # Prepare metrics summary and ensure all values are JSON serializable
+        metrics_summary = summary_df[["model", "mae", "mape", "rmse", "r²"]].fillna("").to_dict(orient="records")
+
+        # Convert combined predictions to JSON serializable format
+        prediction_comparison = combined_predictions.to_dict(orient="records")
+
+        return {
+            "metrics_summary": metrics_summary,
+            "prediction_comparison": prediction_comparison
+        }
+    except Exception as e:
+        logger.error(f"Error in get_prediction_evaluation_data: {e}", exc_info=True)
+        return {"error": "Failed to load prediction evaluation data."}
+
+
+##############################################################################################################
 
 @app.route("/mlops_discussion")
 def mlops_discussion():

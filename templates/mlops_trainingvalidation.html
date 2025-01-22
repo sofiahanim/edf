@@ -1,0 +1,172 @@
+{% extends 'base.html' %}
+
+{% block title %}MLOps - Model Training & Validation{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    <h1 class="h3 mb-4 text-gray-800">
+        <i class="fas fa-cogs"></i> MLOps - Model Training & Validation
+    </h1>
+
+    <!-- Workflow Overview -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Model Training & Validation Flow</h6>
+        </div>
+        <div class="card-body">
+            <div class="row align-items-center">
+                <!-- Step 1: Model Training -->
+                <div class="col text-center">
+                    <div class="card border-left-primary shadow h-100 py-2">
+                        <div class="card-body">
+                            <h6 class="font-weight-bold">Model Training</h6>
+                            <p class="small text-muted"><a href="https://github.com/sofiahanim/edf/blob/main/scripts/ml_part_2.py" target="_blank"><i>ml_part_2.py</i></a></p>
+                            <i class="fas fa-chalkboard-teacher fa-2x text-primary"></i>
+                            <p class="mt-2 small text-gray-800">
+                                Train ML models - <b>GradientBoostingRegressor</b>, <b>Darts Theta</b> and <b>Prophet</b> models includes hyperparameter tuning and logs results for analysis
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-auto">
+                    <i class="fas fa-arrow-right fa-2x text-gray-800"></i>
+                </div>
+                <!-- Step 2: Model Validation -->
+                <div class="col text-center">
+                    <div class="card border-left-info shadow h-100 py-2">
+                        <div class="card-body">
+                            <h6 class="font-weight-bold">Model Validation</h6>
+                            <p class="small text-muted"><a href="https://github.com/sofiahanim/edf/blob/main/scripts/ml_part_2.py" target="_blank"><i>ml_part_2.py</i></a></p>
+                            <i class="fas fa-clipboard-check fa-2x text-info"></i>
+                            <p class="mt-2 small text-gray-800">
+                                Evaluate trained models on validation datasets and calculate metrics like <b>MAE</b>, <b>RMSE</b> and <b>R²</b>  for comparative analysis
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-auto">
+                    <i class="fas fa-arrow-right fa-2x text-gray-800"></i>
+                </div>
+                <!-- Step 3: Metrics Consolidation -->
+                <div class="col text-center">
+                    <div class="card border-left-warning shadow h-100 py-2">
+                        <div class="card-body">
+                            <h6 class="font-weight-bold">Metrics Consolidation</h6>
+                            <p class="small text-muted"><a href="https://github.com/sofiahanim/edf/blob/main/scripts/ml_part_2.py" target="_blank"><i>ml_part_2.py</i></a></p>
+                            <i class="fas fa-layer-group fa-2x text-warning"></i>
+                            <p class="mt-2 small text-gray-800">
+                                Aggregate metrics from all validation runs into summary reports for a consolidated view of model performance
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detailed Workflow Explanations -->
+    <div class="card mb-4 shadow">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Model Training & Validation Workflow</h6>
+        </div>
+        <div class="card-body">
+            <h6>ML Part 2 (ml2.yml)</h6>
+            <p>
+                Automates <b>model training</b> by running training scripts and saving hyperparameter tuning logs to ensure 
+                accurate configurations and data integrity checks and validates models using holdout datasets. Evaluation metrics such as <b>MAE</b>, <b>RMSE</b> and <b>R²</b> are computed and saved for future analysis. 
+            </p>
+            <a href="https://github.com/sofiahanim/edf/actions/workflows/ml2.yml" target="_blank">
+                View ML Part 2 Workflow
+            </a>
+            <hr>
+        </div>
+    </div>
+
+    <!-- Metrics Summary -->
+    <div class="row">
+        <div class="col-lg-4 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Training Runs</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ training_summary.total_rows }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Validated Models</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ validation_summary.total_rows }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4 mb-4">
+            <div class="card border-left-info shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Consolidated Metrics</div>
+                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ validation_summary.columns | length }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Dataset Preview -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex justify-content-between">
+            <h6 class="m-0 font-weight-bold text-primary">Training Logs</h6>
+            <button id="refreshTrainingLogs" class="btn btn-sm btn-primary">
+                <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table id="training-logs-table" class="table table-bordered" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>Model</th>
+                            <th>Iteration</th>
+                            <th>Parameters</th>
+                            <th>MAE</th>
+                            <th>MAPE</th>
+                            <th>RMSE</th>
+                            <th>R²</th>
+                            <th>Generated At</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex justify-content-between">
+            <h6 class="m-0 font-weight-bold text-primary">Validation Logs</h6>
+            <button id="refreshValidationLogs" class="btn btn-sm btn-primary">
+                <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table id="validation-logs-table" class="table table-bordered" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>Model</th>
+                            <th>Parameters</th>
+                            <th>MAE</th>
+                            <th>MAPE</th>
+                            <th>RMSE</th>
+                            <th>R²</th>
+                            <th>Generated At</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+
+</div>
+{% endblock %}

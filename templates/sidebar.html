@@ -93,12 +93,12 @@
     </li>
     <li class="nav-item {% if request.path == url_for('mlops_trainingvalidation') %}active{% endif %}">
         <a class="nav-link" href="{{ url_for('mlops_trainingvalidation') }}" aria-label="Model Training & Validation">
-            <i class="fas fa-fw fa-laptop-code"></i>
+            <i class="fas fa-fw fa-cogs"></i>
             <span>Model Training & Validation</span>
         </a>
     </li>
-    <li class="nav-item {% if request.path == url_for('mlops_predictionevaluation') %}active{% endif %}">
-        <a class="nav-link" href="{{ url_for('mlops_predictionevaluation') }}" aria-label="Prediction & Evaluation">
+    <li class="nav-item {% if request.path == url_for('prediction_evaluation_page') %}active{% endif %}">
+        <a class="nav-link" href="{{ url_for('prediction_evaluation_page') }}" aria-label="Prediction & Evaluation">
             <i class="fas fa-fw fa-check-double"></i>
             <span>Prediction & Evaluation</span>
         </a>

@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+
+{% block title %}MLOps - Prediction & Evaluation{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h3 mb-4 text-gray-800">MLOps - Prediction & Evaluation</h1>
+
+    <!-- Best Performing Model -->
+    <div class="row mb-4">
+        <div class="col-lg-6">
+            <div class="card shadow h-100 py-2">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-success">Best Performing Model</h6>
+                </div>
+                <div class="card-body text-center">
+                    <h5 class="font-weight-bold" id="best-model-name">--</h5>
+                    <p class="text-muted mb-2">Performance Summary</p>
+                    <p><strong>MAE:</strong> <span id="best-model-mae">--</span></p>
+                    <p><strong>MAPE:</strong> <span id="best-model-mape">--</span></p>
+                    <p><strong>RMSE:</strong> <span id="best-model-rmse">--</span></p>
+                    <p><strong>R²:</strong> <span id="best-model-r2">--</span></p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card shadow h-100 py-2">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Model Metrics Overview</h6>
+                </div>
+                <div class="card-body">
+                    <canvas id="metricsSummaryChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Prediction Trends Chart -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-info">Prediction Trends</h6>
+        </div>
+        <div class="card-body">
+            <canvas id="predictionTrendsChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Metrics Summary Table -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Metrics Summary</h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered" id="metrics-summary" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>Model</th>
+                            <th>MAE</th>
+                            <th>MAPE</th>
+                            <th>RMSE</th>
+                            <th>R²</th>
+                        </tr>
+                    </thead>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Prediction Comparison Table -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Prediction Comparison</h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered" id="prediction-comparison" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Prediction</th>
+                            <th>Type</th>
+                            <th>Model</th>
+                        </tr>
+                    </thead>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

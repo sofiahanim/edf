@@ -20,10 +20,27 @@ if (typeof $ === 'undefined') {
                 $(this).removeClass('active');
             }
         });
+
+        if (currentPath === '/mlops_predictionevaluation') {
+           
+            initializeMetricsOverviewChart();
+            initializePredictionTrendsChart();
+            initializePredictionComparisonTable();
+            initializeMetricsSummaryTable();
+            fetchAndUpdateBestModelUI();
+        }
+
         if (currentPath === '/mlops_preprocessing') {
             initializeDatasetPreviewRefresh();   
             initializeDatasetPreviewTable();
         }
+        
+        if (currentPath === '/mlops_trainingvalidation') {
+            initializeTrainingLogs();
+            initializeValidationLogs();
+            initializeRefreshButtons();
+        }
+        
        
         if (currentPath === '/eda/holiday') {
             console.log('Initializing Holiday EDA...');
@@ -905,7 +922,417 @@ function initializeDatasetPreviewRefresh() {
     }
 }
 
-
-
 // 11. END SECTION 11 MLOPS DATA PREPROCESSING
 
+// 12. START SECTION 12 MLOPS MODEL TRAINING
+
+function renderParameters(data) {
+    try {
+        if (data && typeof data === "string") {
+            return `<div style="white-space: pre-wrap;">${data}</div>`; // Preserve formatting
+        }
+        return "No Parameters";
+    } catch (error) {
+        console.error("Error rendering Parameters:", error, data);
+        return "Invalid Parameters"; // Fallback message
+    }
+}
+
+
+
+function initializeValidationLogs() {
+    const tableId = "#validation-logs-table";
+
+    if ($(tableId).length) {
+        $(tableId).DataTable({
+            processing: true,
+            serverSide: false,
+            ajax: {
+                url: `${baseUrl}/api/mlops/validation/logs`,
+                type: "GET",
+                dataSrc: function (json) {
+                    console.log("Raw Validation Logs Data:", json.data); // Debugging the response
+                    if (json && json.data) {
+                        return json.data;
+                    } else {
+                        console.error("Invalid response format for validation logs:", json);
+                        return [];
+                    }
+                },
+                
+                error: function (jqXHR, textStatus, errorThrown) {
+                    console.error("Error fetching validation logs:", errorThrown);
+                    console.log("jqXHR", jqXHR);
+                    console.log("textStatus", textStatus);
+
+                    let message = "Unexpected error occurred.";
+                    if (jqXHR.status === 404) {
+                        message = "Validation logs not found (404).";
+                    } else if (jqXHR.status === 400) {
+                        console.log("jqXHR.responseJSON", jqXHR.responseJSON);
+                        message = "Failed to load validation logs. Invalid data format.";
+                    } else if (textStatus === "parsererror") {
+                        console.log("jqXHR.responseText", jqXHR.responseText);
+                        message = "Response data type error.";
+                    } else if (textStatus === "timeout") {
+                        message = "Connection timed out.";
+                    }
+                    alert(message);
+                },
+            },
+            columns: [
+                { data: "Model", title: "Model" },
+                {
+                    data: "Parameters",
+                    title: "Parameters",
+                    render: function (data) {
+                        return `<pre style="white-space: pre-wrap;">${data}</pre>`;
+                    },
+                },
+                { data: "MAE", title: "MAE" },
+                { data: "MAPE", title: "MAPE" },
+                { data: "RMSE", title: "RMSE" },
+                { data: "R²", title: "R²" },
+                { data: "Generated_At", title: "Generated At" },
+            ],
+            order: [[6, "desc"]],
+        });
+    }
+}
+
+function parseJSON(response) {
+    try {
+        return typeof response === "string" ? JSON.parse(response) : response;
+    } catch (error) {
+        console.error("Error parsing JSON:", error);
+        return null;
+    }
+}
+
+
+// Initialize Training Logs similarly
+function initializeTrainingLogs() {
+    const tableId = "#training-logs-table";
+
+    if ($(tableId).length) {
+        $(tableId).DataTable({
+            processing: true,
+            serverSide: false,
+            ajax: {
+                url: `${baseUrl}/api/mlops/training/logs`,
+                type: "GET",
+                dataSrc: function (json) {
+                    let parsedData = parseJSON(json); // Use the utility function here
+                    if (parsedData && parsedData.data) {
+                        return parsedData.data;
+                    } else {
+                        console.error("Invalid response format for training logs:", json);
+                        return [];
+                    }
+                },
+                error: function (jqXHR, textStatus, errorThrown) {
+                    console.error("Error fetching training logs:", errorThrown);
+                    console.log("jqXHR", jqXHR);
+                    console.log("textStatus", textStatus);
+
+                    let message = "Unexpected error occurred.";
+                    if (jqXHR.status === 404) {
+                        message = "Training logs not found (404).";
+                    } else if (jqXHR.status === 400) {
+                        console.log("jqXHR.responseJSON", jqXHR.responseJSON);
+                        message = "Failed to load training logs. Invalid data format.";
+                    } else if (textStatus === "parsererror") {
+                        console.log("jqXHR.responseText", jqXHR.responseText);
+                        message = "Response data type error.";
+                    } else if (textStatus === "timeout") {
+                        message = "Connection timed out.";
+                    }
+                    alert(message);
+                },
+            },
+            columns: [
+                { data: "Model", title: "Model" },
+                { data: "Iteration", title: "Iteration" },
+                {
+                    data: "Parameters",
+                    title: "Parameters",
+                    render: function (data) {
+                        return `<pre style="white-space: pre-wrap;">${data}</pre>`;
+                    },
+                },
+                { data: "MAE", title: "MAE" },
+                { data: "MAPE", title: "MAPE" },
+                { data: "RMSE", title: "RMSE" },
+                { data: "R²", title: "R²" },
+                { data: "Generated_At", title: "Generated At" },
+            ],
+            order: [[7, "desc"]], // Sort by "Generated At"
+        });
+    }
+}
+
+
+function initializeRefreshButtons() {
+    // Refresh Training Logs
+    const $refreshTraining = $("#refreshTrainingLogs");
+    if ($refreshTraining.length) {
+        $refreshTraining.on("click", function () {
+            const table = $("#training-logs-table").DataTable();
+            if (table) {
+                table.ajax.reload(null, false);
+                alert("Training logs have been refreshed.");
+            }
+        });
+    }
+
+    // Refresh Validation Logs
+    const $refreshValidation = $("#refreshValidationLogs");
+    if ($refreshValidation.length) {
+        $refreshValidation.on("click", function () {
+            const table = $("#validation-logs-table").DataTable();
+            if (table) {
+                table.ajax.reload(null, false);
+                alert("Validation logs have been refreshed.");
+            }
+        });
+    }
+}
+
+// 12. END SECTION 12 MLOPS MODEL TRAINING
+
+// 13. START SECTION 13 MLOPS MODEL EVALUATION
+
+function initializeMetricsSummaryTable() {
+    const tableId = '#metrics-summary';
+
+    if ($(tableId).length) {
+        $(tableId).DataTable({
+            processing: true,
+            serverSide: false,
+            ajax: {
+                url: `${baseUrl}/api/mlops_predictionevaluation`,
+                type: 'GET',
+                dataSrc: response => response.metrics_summary || [],
+                error: function (jqXHR, textStatus, errorThrown) {
+                    console.error('Error fetching metrics summary table:', errorThrown);
+                },     
+            },
+            columns: [
+                { data: 'model', title: 'Model' },
+                { data: 'mae', title: 'MAE' },
+                { data: 'mape', title: 'MAPE' },
+                { data: 'rmse', title: 'RMSE' },
+                { data: 'r²', title: 'R²' },
+            ],
+            pageLength: 10,
+            responsive: true,
+            order: [[0, 'asc']], // Sort by Model alphabetically by default
+        });
+    } else {
+        console.warn('Metrics Summary table element not found.');
+    }
+}
+
+function initializePredictionComparisonTable() {
+    const tableId = '#prediction-comparison';
+
+    if ($(tableId).length) {
+        $(tableId).DataTable({
+            processing: true,
+            serverSide: false,
+            ajax: {
+                url: `${baseUrl}/api/mlops_predictionevaluation`,
+                type: 'GET',
+                dataSrc: response => response.prediction_comparison || [],
+                error: function (jqXHR, textStatus, errorThrown) {
+                    
+                    console.error('Error fetching prediction comparison:', errorThrown);
+                    let message = 'Unexpected error occurred while fetching prediction comparison.';
+                    if (jqXHR.status === 404) {
+                        message = 'Prediction comparison data not found (404).';
+                    } else if (jqXHR.status === 400) {
+                        message = 'Invalid data format for prediction comparison.';
+                    } else if (textStatus === 'parsererror') {
+                        message = 'Response data type error for prediction comparison.';
+                    } else if (textStatus === 'timeout') {
+                        message = 'Connection timed out while fetching prediction comparison.';
+                    }
+                    alert(message);
+                },
+            },
+            columns: [
+                { data: 'ds', title: 'Date' },
+                { data: 'y', title: 'Prediction' },
+                { data: 'type', title: 'Type' },
+                { data: 'model', title: 'Model' },
+            ],
+            pageLength: 10,
+            responsive: true,
+            order: [[0, 'desc']], // Sort by Date in descending order by default
+        });
+    } else {
+        console.warn('Prediction Comparison table element not found.');
+    }
+}
+
+function fetchAndDisplayEvaluation() {
+    $.ajax({
+        url: `${baseUrl}/api/evaluate_metrics`,
+        type: 'GET',
+        success: function (data) {
+            const bestModel = data.best_model;
+            const predictionAnalysis = data.prediction_analysis;
+
+            // Update UI elements for best model
+            $('#best-model').text(`Best Model: ${bestModel.model}`);
+            $('#best-mae').text(`MAE: ${bestModel.mae}`);
+            $('#best-r2').text(`R²: ${bestModel["r²"]}`);
+
+            // Visualize prediction analysis
+            createBarChart('#prediction-analysis-chart', predictionAnalysis);
+        },
+        error: function (jqXHR, textStatus, errorThrown) {
+            console.error('Error fetching evaluation data:', errorThrown);
+            alert('Failed to load evaluation data.');
+        }
+    });
+}
+
+const SB_ADMIN_COLORS = {
+    primary: 'rgba(78, 115, 223, 0.5)',
+    success: 'rgba(28, 200, 138, 0.5)',
+    info: 'rgba(54, 185, 204, 0.5)',
+    warning: 'rgba(246, 194, 62, 0.5)',
+    danger: 'rgba(231, 74, 59, 0.5)',
+};
+
+// Helper function to generate random colors
+function getRandomColor() {
+    const colors = Object.values(SB_ADMIN_COLORS);
+    return colors[Math.floor(Math.random() * colors.length)];
+}
+
+// Fetch and Update Best Performing Model UI
+function fetchAndUpdateBestModelUI() {
+    $.ajax({
+        url: `${baseUrl}/api/mlops_predictionevaluation`,
+        type: 'GET',
+        success: function (response) {
+            if (response && response.metrics_summary) {
+                // Identify the best model based on average rank
+                const metricsSummary = response.metrics_summary.map(item => ({
+                    ...item,
+                    rank_mae: item.mae,
+                    rank_r2: -item['r²'], // R² is ranked in descending order
+                }));
+                const sortedMetrics = metricsSummary.sort((a, b) =>
+                    (a.rank_mae + a.rank_r2) / 2 - (b.rank_mae + b.rank_r2) / 2
+                );
+                const bestModel = sortedMetrics[0];
+
+                // Update the UI
+                document.getElementById('best-model-name').textContent = bestModel.model || "--";
+                document.getElementById('best-model-mae').textContent = bestModel.mae || "--";
+                document.getElementById('best-model-mape').textContent = bestModel.mape || "--";
+                document.getElementById('best-model-rmse').textContent = bestModel.rmse || "--";
+                document.getElementById('best-model-r2').textContent = bestModel['r²'] || "--";
+            } else {
+                console.error('Metrics summary data is missing.');
+            }
+        },
+        error: function (jqXHR, textStatus, errorThrown) {
+            console.error('Error fetching best model data:', errorThrown);
+        },
+    });
+}
+
+// Initialize Metrics Overview Chart
+function initializeMetricsOverviewChart() {
+    const chartId = 'metricsSummaryChart';
+    const chartElement = document.getElementById(chartId);
+
+    if (chartElement) {
+        $.ajax({
+            url: `${baseUrl}/api/mlops_predictionevaluation`,
+            type: 'GET',
+            success: function (response) {
+                if (response && response.metrics_summary) {
+                    const models = response.metrics_summary.map(item => item.model);
+                    const mae = response.metrics_summary.map(item => item.mae);
+                    const rmse = response.metrics_summary.map(item => item.rmse);
+                    const r2 = response.metrics_summary.map(item => item['r²']);
+
+                    new Chart(chartElement, {
+                        type: 'bar',
+                        data: {
+                            labels: models,
+                            datasets: [
+                                { label: 'MAE', data: mae, backgroundColor: SB_ADMIN_COLORS.primary },
+                                { label: 'RMSE', data: rmse, backgroundColor: SB_ADMIN_COLORS.warning },
+                                { label: 'R²', data: r2, backgroundColor: SB_ADMIN_COLORS.success },
+                            ],
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: { legend: { position: 'top' } },
+                            scales: { y: { beginAtZero: true } },
+                        },
+                    });
+                }
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                console.error('Error fetching metrics overview chart data:', errorThrown);
+            },
+        });
+    }
+}
+// Initialize Prediction Trends Chart
+function initializePredictionTrendsChart() {
+    const chartId = 'predictionTrendsChart';
+    const chartElement = document.getElementById(chartId);
+
+    if (chartElement) {
+        $.ajax({
+            url: `${baseUrl}/api/mlops_predictionevaluation`,
+            type: 'GET',
+            success: function (response) {
+                if (response && response.prediction_comparison) {
+                    const predictionData = response.prediction_comparison.reduce((acc, curr) => {
+                        if (!acc[curr.model]) acc[curr.model] = { dates: [], predictions: [] };
+                        acc[curr.model].dates.push(curr.ds);
+                        acc[curr.model].predictions.push(curr.y);
+                        return acc;
+                    }, {});
+
+                    const datasets = Object.keys(predictionData).map(model => ({
+                        label: model,
+                        data: predictionData[model].predictions,
+                        borderColor: getRandomColor(),
+                        borderWidth: 2,
+                        fill: false,
+                    }));
+
+                    new Chart(chartElement, {
+                        type: 'line',
+                        data: {
+                            labels: predictionData[Object.keys(predictionData)[0]].dates,
+                            datasets: datasets,
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: { legend: { position: 'top' } },
+                            scales: {
+                                x: { type: 'time', time: { unit: 'day' } },
+                                y: { beginAtZero: true },
+                            },
+                        },
+                    });
+                }
+            },
+            error: function (jqXHR, textStatus, errorThrown) {
+                console.error('Error fetching prediction trends chart data:', errorThrown);
+            },
+        });
+    }
+}
+// 13. END SECTION 13 MLOPS MODEL EVALUATION
