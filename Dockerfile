@@ -4,11 +4,24 @@ FROM public.ecr.aws/lambda/python:3.9
 # Set non-interactive mode for yum operations
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install additional dependencies and update glibc
+# Install development tools, including an updated version of make
 RUN yum update -y && \
     yum groupinstall -y "Development Tools" && \
     yum install -y gcc gcc-c++ libtool autoconf automake bison gawk sudo wget tar && \
     yum clean all && rm -rf /var/cache/yum
+
+# Verify and install an updated version of GNU Make if needed
+RUN wget https://ftp.gnu.org/gnu/make/make-4.4.tar.gz && \
+    tar -xvzf make-4.4.tar.gz && \
+    cd make-4.4 && \
+    ./configure && \
+    make && \
+    make install && \
+    cd .. && \
+    rm -rf make-4.4 make-4.4.tar.gz
+
+# Ensure /opt directory exists
+RUN mkdir -p /opt
 
 # Upgrade glibc to version 2.28 or later
 RUN wget http://ftp.gnu.org/gnu/libc/glibc-2.28.tar.gz && \
