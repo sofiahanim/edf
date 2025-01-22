@@ -6,10 +6,12 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # Install additional dependencies and update glibc
 RUN yum update -y && \
-    yum install -y gcc gcc-c++ make libtool autoconf automake bison gawk sudo wget tar && \
-    yum clean all && rm -rf /var/cache/yum && \
-    # Upgrade glibc to version 2.28 or later
-    wget http://ftp.gnu.org/gnu/libc/glibc-2.28.tar.gz && \
+    yum groupinstall -y "Development Tools" && \
+    yum install -y gcc gcc-c++ libtool autoconf automake bison gawk sudo wget tar && \
+    yum clean all && rm -rf /var/cache/yum
+
+# Upgrade glibc to version 2.28 or later
+RUN wget http://ftp.gnu.org/gnu/libc/glibc-2.28.tar.gz && \
     tar -xvzf glibc-2.28.tar.gz && \
     cd glibc-2.28 && \
     mkdir build && \
@@ -46,38 +48,3 @@ EXPOSE 8000
 
 # Specify the Lambda runtime entry point
 CMD ["app.lambda_handler"]
-
-
-# Command for local development
-#CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:8000", "app:app"]
-
-#NOTE
-
-# Local Environment
-#docker build --build-arg RUN_ENV=local -t electforecast-local .
-#docker run -e RUN_ENV=local -p 8000:8000 electforecast-local
-
-# AWS Lambda
-#docker build --build-arg RUN_ENV=lambda -t electforecast-lambda .
-#docker tag electforecast-lambda:latest <ECR_URI>/electforecast/web:latest
-#docker push <ECR_URI>/electforecast/web:latest
-
-#docker build -t electforecast-web .
-#docker tag electforecast-web:latest 022499009488.dkr.ecr.us-east-1.amazonaws.com/electforecast/web:latest
-#docker push 022499009488.dkr.ecr.us-east-1.amazonaws.com/electforecast/web:latest
-
-# Testing
-
-#curl -X GET http://localhost:8000/health
-
-# Test Pagination
-
-# /api/hourlydemand
-# curl -X GET "http://localhost:8000/api/hourlydemand?start=0&length=10"
-# curl -X GET "http://localhost:8000/api/hourlydemand?start=0&length=200"  # Should cap to 100
-
-# /api/hourlyweather
-
-# curl -X GET "http://localhost:8000/api/hourlyweather?start=0&length=10"
-# curl -X GET "http://localhost:8000/api/hourlyweather?start=0&length=200"  # Should cap to 100
-
