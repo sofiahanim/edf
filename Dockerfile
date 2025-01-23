@@ -31,7 +31,7 @@ RUN mkdir -p /opt && \
     mkdir build && \
     cd build && \
     ../configure --prefix=/opt/glibc-2.28 && \
-    make && \  # Correctly prefixed with RUN
+    make && \
     make install && \
     cd ../../ && \
     rm -rf glibc-2.28 glibc-2.28.tar.gz
