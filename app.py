@@ -21,7 +21,6 @@ import numpy as np
 
 
 
-
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning, module="xgboost")
 import xgboost as xgb
@@ -34,7 +33,9 @@ app.config['CACHE_TYPE'] = 'simple'
 cache = Cache(app)
 cache.init_app(app)
 
+
 CORS(app, resources={r"/*": {"origins": "*"}})
+
 
 # Logging setup
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -231,9 +232,6 @@ def test_finalmethodology():
 def dashboard():
     try:
         logger.info("Rendering the main dashboard page.")
-        if hourly_demand_data.empty or hourly_weather_data.empty:
-            logger.warning("Dashboard data is missing or incomplete.")
-            return render_template("error.html", message="Data is missing. Please check the data files.")
         return render_template("dashboard.html")
     except Exception as e:
         logger.error(f"Error rendering dashboard: {e}", exc_info=True)
