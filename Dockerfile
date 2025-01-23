@@ -19,11 +19,14 @@ COPY requirements_linux.txt /var/task/
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements_linux.txt --target /var/task
 
+# Install AWS Lambda Runtime Interface Client
+RUN pip install --no-cache-dir awslambdaric
+
 # Copy the application files
 COPY . /var/task/
 
-# Expose the application port for local testing
+# Expose the application port for local testing (optional)
 EXPOSE 8000
 
-
-CMD ["app.lambda_handler"]
+# Set the Lambda runtime entry point
+CMD ["python3", "-m", "awslambdaric", "app.lambda_handler"]
