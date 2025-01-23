@@ -223,16 +223,21 @@ logger.debug(f"Hourly weather data: {hourly_weather_data.shape}")
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+@app.route("/test_finalmethodology")
+def test_finalmethodology():
+    return render_template("finalmethodology.html")
+
 @app.route("/")
 def dashboard():
-    """Render the dashboard page."""
     try:
         logger.info("Rendering the main dashboard page.")
+        if hourly_demand_data.empty or hourly_weather_data.empty:
+            logger.warning("Dashboard data is missing or incomplete.")
+            return render_template("error.html", message="Data is missing. Please check the data files.")
         return render_template("dashboard.html")
     except Exception as e:
         logger.error(f"Error rendering dashboard: {e}", exc_info=True)
         return jsonify({"error": "Failed to load dashboard"}), 500
-
 
 """2. END SECTION 2 DASHBOARD AND API ENDPOINTS"""
 

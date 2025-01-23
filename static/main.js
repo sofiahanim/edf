@@ -76,11 +76,7 @@ if (typeof $ === 'undefined') {
             initializeHolidaysTable(); // Initialize Holidays Table
         }
     
-        if (currentPath === '/') {
-            console.log('Initializing Dashboard...');
-            fetchAndRenderDashboard(); // Fetch and render Dashboard data
-        }
-    
+      
         // Common initialization
         console.log('Initializing Global Functions...');
         initializeAutoUpdate(); // Auto-update the "Last Updated" section
@@ -139,40 +135,6 @@ function initializeSearchInput() {
 // 2. START SECTION 2 DASHBOARD
 
 // Fetch and Render Dashboard Data
-function fetchAndRenderDashboard() {
-    const dashboardContainerId = '#dashboard-container'; // Dashboard container
-    const loaderId = '#dashboard-loader'; // Loader while fetching data
-
-    if ($(dashboardContainerId).length) {
-        $(loaderId).show(); // Show loader
-
-        $.ajax({
-            url: `${baseUrl}/api/dashboard`, // API endpoint for dashboard data
-            type: 'GET',
-            success: function (response) {
-                if (response && response.data) {
-                    const dashboardData = response.data;
-                    renderDashboardData(dashboardData); // Populate dashboard widgets
-                } else {
-                    console.error("Invalid dashboard response:", response);
-                    alert("Failed to fetch dashboard data.");
-                }
-            },
-            error: function (jqXHR, textStatus, errorThrown) {
-                console.error('Error fetching dashboard data:', {
-                    status: jqXHR.status,
-                    responseText: jqXHR.responseText,
-                    textStatus,
-                    errorThrown,
-                });
-                alert("Unable to load dashboard data.");
-            },
-            complete: function () {
-                $(loaderId).hide(); // Hide loader after fetching
-            },
-        });
-    }
-}
 
 /*
 // Render Dashboard Data
