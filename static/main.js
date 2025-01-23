@@ -40,6 +40,7 @@ if (typeof $ === 'undefined') {
         
         if (currentPath === '/mlops_trainingvalidation') {
             initializeTrainingLogs();
+            initializeValidationLogs();
             initializeRefreshButtons();
         }
         
@@ -951,6 +952,68 @@ function parseJSON(response) {
     }
 }
 
+function initializeValidationLogs() {
+    const tableId = "#validation-logs-table";
+
+    if ($(tableId).length) {
+        $(tableId).DataTable({
+            processing: true,
+            serverSide: false,
+            ajax: {
+                url: `${baseUrl}/api/mlops/validation/logs`,
+                type: "GET",
+                dataSrc: function (json) {
+                    console.log("Raw Validation Logs Data:", json.data); // Debugging the response
+                    if (json && json.data) {
+                        return json.data;
+                    } else {
+                        console.error("Invalid response format for validation logs:", json);
+                        return [];
+                    }
+                },
+                
+                error: function (jqXHR, textStatus, errorThrown) {
+                    console.error("Error fetching validation logs:", errorThrown);
+                    console.log("jqXHR", jqXHR);
+                    console.log("textStatus", textStatus);
+
+                    let message = "Unexpected error occurred.";
+                    if (jqXHR.status === 404) {
+                        message = "Validation logs not found (404).";
+                    } else if (jqXHR.status === 400) {
+                        console.log("jqXHR.responseJSON", jqXHR.responseJSON);
+                        message = "Failed to load validation logs. Invalid data format.";
+                    } else if (textStatus === "parsererror") {
+                        console.log("jqXHR.responseText", jqXHR.responseText);
+                        message = "Response data type error.";
+                    } else if (textStatus === "timeout") {
+                        message = "Connection timed out.";
+                    }
+                    alert(message);
+                },
+            },
+            columns: [
+                { data: "Model", title: "Model" },
+                {
+                    data: "Parameters",
+                    title: "Parameters",
+                    render: function (data) {
+                        return `<pre style="white-space: pre-wrap;">${data}</pre>`;
+                    },
+                },
+                { data: "MAE", title: "MAE" },
+                { data: "MAPE", title: "MAPE" },
+                { data: "RMSE", title: "RMSE" },
+                { data: "RMSE", title: "RMSE" },
+                { data: "r_squared", title: "R²" },
+                { data: "RMSE", title: "RMSE" },
+                { data: "Generated_At", title: "Generated At" },
+            ],
+            order: [[6, "desc"]],
+        });
+    }
+}
+
 
 function initializeTrainingLogs() {
     const tableId = "#training-logs-table";
@@ -996,7 +1059,9 @@ function initializeTrainingLogs() {
                 { data: "MAE", title: "MAE", render: data => data || "N/A" },
                 { data: "MAPE", title: "MAPE", render: data => data || "N/A" },
                 { data: "RMSE", title: "RMSE", render: data => data || "N/A" },
+                { data: "MSE", title: "MSE", render: data => data || "N/A" },
                 { data: "R²", title: "R²", render: data => data || "N/A" },
+                { data: "MBE", title: "MBE", render: data => data || "N/A" },
                 { data: "Generated_At", title: "Generated At", render: data => data || "N/A" },
             ],
             order: [[7, "desc"]], // Sort by "Generated At"
@@ -1005,7 +1070,6 @@ function initializeTrainingLogs() {
         });
     }
 }
-
 
 function initializeRefreshTrainingLogsButton() {
     const refreshButtonId = "#refreshTrainingLogs";
@@ -1017,6 +1081,34 @@ function initializeRefreshTrainingLogsButton() {
             alert("Training logs refreshed.");
         }
     });
+}
+
+
+
+function initializeRefreshButtons() {
+    // Refresh Training Logs
+    const $refreshTraining = $("#refreshTrainingLogs");
+    if ($refreshTraining.length) {
+        $refreshTraining.on("click", function () {
+            const table = $("#training-logs-table").DataTable();
+            if (table) {
+                table.ajax.reload(null, false);
+                alert("Training logs have been refreshed.");
+            }
+        });
+    }
+
+    // Refresh Validation Logs
+    const $refreshValidation = $("#refreshValidationLogs");
+    if ($refreshValidation.length) {
+        $refreshValidation.on("click", function () {
+            const table = $("#validation-logs-table").DataTable();
+            if (table) {
+                table.ajax.reload(null, false);
+                alert("Validation logs have been refreshed.");
+            }
+        });
+    }
 }
 
 

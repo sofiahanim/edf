@@ -136,51 +136,48 @@
         </div>
     </div>
 
-     <!-- Summary Metrics -->
-     <div class="row">
-        <div class="col-lg-3 mb-4">
-            <div class="card border-left-primary shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Missing Values</div>
-                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ summary.missing_values }}</div>
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-3 mb-4">
-            <div class="card border-left-success shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Total Rows</div>
-                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ summary.total_rows }}</div>
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-3 mb-4">
-            <div class="card border-left-info shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Total Columns</div>
-                    <div class="h5 mb-0 font-weight-bold text-gray-800">{{ summary.total_columns }}</div>
-                </div>
-            </div>
-        </div>
-        <div class="col-lg-3 mb-4">
-            <div class="card border-left-warning shadow h-100 py-2">
-                <div class="card-body">
-                    <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Columns</div>
-                    <div class="small text-gray-800">{{ summary.columns | join(', ') }}</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Dataset Preview -->
     <div class="card shadow mb-4">
         <div class="card-header py-3 d-flex justify-content-between">
             <h6 class="m-0 font-weight-bold text-primary">Preprocessed Data</h6>
-            <button id="refreshPreview" class="btn btn-sm btn-primary">
-                <i class="fas fa-sync-alt"></i> Refresh
-            </button>
         </div>
+        
+        <!-- Summary Metrics -->
         <div class="card-body">
+            <div class="row">
+                <div class="col-lg-3 mb-4">
+                    <div class="card border-left-primary shadow h-100 py-2">
+                        <div class="card-body">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Missing Values</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ summary.missing_values }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3 mb-4">
+                    <div class="card border-left-success shadow h-100 py-2">
+                        <div class="card-body">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Total Rows</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ summary.total_rows }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3 mb-4">
+                    <div class="card border-left-info shadow h-100 py-2">
+                        <div class="card-body">
+                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Total Columns</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">{{ summary.total_columns }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-3 mb-4">
+                    <div class="card border-left-warning shadow h-100 py-2">
+                        <div class="card-body">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Columns</div>
+                            <div class="small text-gray-800">{{ summary.columns | join(', ') }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <div class="table-responsive">
                 <table id="datasetPreviewTable" class="table table-bordered" width="100%" cellspacing="0">
                     <thead>

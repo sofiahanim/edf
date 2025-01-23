@@ -19,6 +19,9 @@ from sklearn.model_selection import train_test_split
 import joblib
 import numpy as np
 
+
+
+
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning, module="xgboost")
 import xgboost as xgb
@@ -217,6 +220,9 @@ logger.debug(f"Hourly weather data: {hourly_weather_data.shape}")
 
 """2. START SECTION 2 DASHBOARD AND API ENDPOINTS"""
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 @app.route("/")
 def dashboard():
     """Render the dashboard page."""
@@ -227,21 +233,6 @@ def dashboard():
         logger.error(f"Error rendering dashboard: {e}", exc_info=True)
         return jsonify({"error": "Failed to load dashboard"}), 500
 
-@app.route("/api/dashboard", methods=["GET"])
-def fetch_dashboard_data():
-    try:
-        demand_summary = hourly_demand_data.groupby(hourly_demand_data['time'].dt.date).agg({'value': 'sum'}).rename(columns={'value': 'total_demand'}).reset_index()
-        weather_summary = hourly_weather_data.groupby(hourly_weather_data['datetime'].dt.date).agg({'temp': 'mean'}).reset_index()
-
-        data = []
-        for date in demand_summary['time']:
-            demand = demand_summary[demand_summary['time'] == date]['total_demand'].values[0]
-            temp = weather_summary[weather_summary['datetime'] == date]['temp'].values[0]
-            data.append({'date': str(date), 'demand': demand, 'temperature': temp})
-
-        return jsonify(data=data)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
 """2. END SECTION 2 DASHBOARD AND API ENDPOINTS"""
 
@@ -915,15 +906,48 @@ def mlops_trainingvalidation():
             training_logs_df = pd.DataFrame()
             training_summary = {"total_rows": 0, "total_columns": 0, "columns": []}
 
+        # Validation Logs
+        validation_logs_path = os.path.join(BASE_DIR, "validation", "consolidated_validation_metrics.csv")
+        if os.path.exists(validation_logs_path):
+            validation_logs_df = pd.read_csv(validation_logs_path)
+            clean_parameters(validation_logs_df, "Parameters")
+            validation_summary = {
+                "total_rows": len(validation_logs_df),
+                "total_columns": len(validation_logs_df.columns),
+                "columns": validation_logs_df.columns.tolist(),
+            }
+        else:
+            validation_logs_df = pd.DataFrame()
+            validation_summary = {"total_rows": 0, "total_columns": 0, "columns": []}
+
         # Render the training logs page
         return render_template(
             "mlops_trainingvalidation.html",
-            title="Model Training Logs",
-            training_summary=training_summary
+            title="Model Training & Validation",
+            training_summary=training_summary,
+            validation_summary=validation_summary,
         )
     except Exception as e:
         app.logger.error(f"Error rendering training logs page: {e}", exc_info=True)
         return jsonify({"error": "Failed to load Model Training Logs page"}), 500
+    
+@app.route("/api/mlops/validation/logs", methods=["GET"])
+def fetch_validation_logs():
+    """
+    Provide validation logs in JSON format.
+    """
+    try:
+        validation_logs_path = os.path.join(BASE_DIR, "validation", "consolidated_validation_metrics.csv")
+        if not os.path.exists(validation_logs_path):
+            return jsonify({"error": "Validation logs file not found."}), 404
+
+        validation_logs_df = pd.read_csv(validation_logs_path)
+        clean_parameters(validation_logs_df, "Parameters")  # Clean Parameters column
+        response_data = {"data": validation_logs_df.to_dict(orient="records")}
+        return jsonify(response_data), 200
+    except Exception as e:
+        app.logger.error(f"Error fetching validation logs: {e}", exc_info=True)
+        return jsonify({"error": "Failed to fetch validation logs."}), 500
     
 @app.route("/api/mlops/training/logs", methods=["GET"])
 def fetch_training_logs():
