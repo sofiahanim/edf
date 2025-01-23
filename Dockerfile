@@ -1,6 +1,7 @@
 FROM public.ecr.aws/lambda/python:3.9
 
 ENV DEBIAN_FRONTEND=noninteractive
+ENV MAKEFLAGS="-j1"
 
 # Install development tools and dependencies
 RUN yum clean all && \
@@ -15,7 +16,7 @@ RUN wget https://ftp.gnu.org/gnu/make/make-4.4.tar.gz && \
     tar -xvzf make-4.4.tar.gz && \
     cd make-4.4 && \
     ./configure && \
-    make --jobs=$(nproc) && \
+    make && \
     make install && \
     cd .. && \
     rm -rf make-4.4 make-4.4.tar.gz
@@ -31,7 +32,7 @@ RUN mkdir -p /opt && \
     mkdir build && \
     cd build && \
     ../configure --prefix=/opt/glibc-2.28 && \
-    make --jobs=$(nproc) && \
+    make && \  # Removed parallel jobs
     make install && \
     cd ../../ && \
     rm -rf glibc-2.28 glibc-2.28.tar.gz
