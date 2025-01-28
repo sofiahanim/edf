@@ -5,8 +5,8 @@ on:
     branches:
       - main  
   workflow_dispatch:  
-  schedule:
-  - cron: '0 17 * * *' # 1:00 AM MALAYSIA TIME  
+#  schedule:
+#  - cron: '0 17 * * *' # 1:00 AM MALAYSIA TIME  
    
 permissions:
   contents: write 
