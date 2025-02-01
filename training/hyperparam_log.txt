@@ -1,2 +1,0 @@
-2025-01-23 11:43:48.047783: GradientBoostingRegressor Best Params: {'learning_rate': 0.05, 'max_depth': 5, 'n_estimators': 100}
-2025-01-23 11:43:48.162227: GradientBoostingRegressor validated successfully with metrics: {'Model': 'GradientBoostingRegressor', 'Generated_At': '2025-01-23T11:43:48.062926', 'MAE': 3198.5239341461916, 'MAPE': 0.09632547207896199, 'RMSE': 4227.421676741048, 'MSE': 17871094.032980092, 'r_squared': 0.5487542277002313, 'MBE': 194.01514865630986}.
